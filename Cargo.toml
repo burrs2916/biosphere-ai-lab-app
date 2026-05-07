@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/biosphere-core",
-    "crates/biosphere-foundation",
-    "crates/biosphere-ai",
     "crates/biosphere-ai-lab",
     "src-tauri",
 ]
@@ -15,7 +12,4 @@ authors = ["BURRS"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-biosphere-core = { path = "crates/biosphere-core" }
-biosphere-foundation = { path = "crates/biosphere-foundation" }
-biosphere-ai = { path = "crates/biosphere-ai" }
 biosphere-ai-lab = { path = "crates/biosphere-ai-lab" }

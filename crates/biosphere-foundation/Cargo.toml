@@ -1,7 +1,0 @@
-[package]
-name = "biosphere-foundation"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-biosphere-core = { path = "../biosphere-core" }

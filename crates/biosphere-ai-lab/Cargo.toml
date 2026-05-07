@@ -4,9 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-biosphere-ai = { path = "../biosphere-ai" }
-biosphere-foundation = { path = "../biosphere-foundation" }
-
 burn = { version = "0.20", features = ["std", "wgpu", "fusion", "train", "vision", "ndarray"], default-features = false }
 tch = { version = "0.22", optional = true }
 
@@ -16,7 +13,6 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt", "sync", "macros", "time", "process"] }
-tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
 async-trait = "0.1"
 csv = "1"
