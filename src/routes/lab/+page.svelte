@@ -3,6 +3,7 @@
 	import { dashboardStore, successRate } from '$lib/lab/stores/dashboard';
 	import { resourceStore } from '$lib/lab/stores/hardware';
 	import { experimentStore } from '$lib/lab/stores/experiment';
+	import { i18n, t, formatTimeAgo } from '$lib/i18n';
 
 	let statsLoaded = false;
 	let resourceLoaded = false;
@@ -100,23 +101,17 @@
 		})).sort((a, b) => b.count - a.count);
 	}
 
-	function formatTimeAgo(dateStr: string): string {
-		const now = Date.now();
-		const then = new Date(dateStr).getTime();
-		const diff = now - then;
-		if (diff < 60000) return '刚刚';
-		if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-		if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-		return `${Math.floor(diff / 86400000)} 天前`;
+	function formatTimeAgoLocal(dateStr: string): string {
+		return formatTimeAgo(dateStr, $i18n);
 	}
 
 	const navCards = [
-		{ href: '/lab/train/new', icon: '🚀', title: '新建训练', desc: '配置并启动新的训练实验' },
-		{ href: '/lab/experiments', icon: '🔬', title: '实验管理', desc: '查看和管理所有训练实验' },
-		{ href: '/lab/models', icon: '📦', title: '模型仓库', desc: '管理已注册的模型版本' },
-		{ href: '/lab/data', icon: '📊', title: '数据管理', desc: '加载和预览训练数据' },
-		{ href: '/lab/compare', icon: '⚖️', title: '实验对比', desc: '对比不同实验的性能指标' },
-		{ href: '/lab/settings', icon: '⚙️', title: '系统设置', desc: '配置引擎、存储和显示选项' },
+		{ href: '/lab/train/new', icon: '🚀', titleKey: 'dashboard.newTraining', descKey: 'dashboard.newTrainingDesc' },
+		{ href: '/lab/experiments', icon: '🔬', titleKey: 'dashboard.experimentManagement', descKey: 'dashboard.experimentManagementDesc' },
+		{ href: '/lab/models', icon: '📦', titleKey: 'dashboard.modelRepository', descKey: 'dashboard.modelRepositoryDesc' },
+		{ href: '/lab/data', icon: '📊', titleKey: 'dashboard.dataManagementNav', descKey: 'dashboard.dataManagementNavDesc' },
+		{ href: '/lab/compare', icon: '⚖️', titleKey: 'dashboard.experimentCompare', descKey: 'dashboard.experimentCompareDesc' },
+		{ href: '/lab/settings', icon: '⚙️', titleKey: 'dashboard.systemSettingsNav', descKey: 'dashboard.systemSettingsNavDesc' },
 	];
 </script>
 
@@ -124,11 +119,11 @@
 	<div class="lab-header">
 		<div class="header-row">
 			<div>
-				<h1 class="title">AI Lab</h1>
-				<p class="subtitle">通用模型训练可视化平台</p>
+				<h1 class="title">{$t('dashboard.title')}</h1>
+				<p class="subtitle">{$t('dashboard.subtitle')}</p>
 			</div>
 			<a href="/lab/train/new" class="new-experiment-btn">
-				+ 新建实验
+				+ {$t('dashboard.newExperiment')}
 			</a>
 		</div>
 	</div>
@@ -136,7 +131,7 @@
 	{#if !loaded}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载中...</p>
+			<p>{$t('dashboard.loading')}</p>
 		</div>
 	{:else}
 		<section class="stats-cards">
@@ -144,14 +139,14 @@
 				<div class="stat-icon">🔬</div>
 				<div class="stat-content">
 					<span class="stat-value">{$dashboardStore.total_experiments}</span>
-					<span class="stat-label">总实验数</span>
+					<span class="stat-label">{$t('dashboard.totalExperiments')}</span>
 				</div>
 			</div>
 			<div class="stat-card running">
 				<div class="stat-icon">⚡</div>
 				<div class="stat-content">
 					<span class="stat-value">{$dashboardStore.running_experiments}</span>
-					<span class="stat-label">运行中</span>
+					<span class="stat-label">{$t('dashboard.running')}</span>
 				</div>
 				{#if $dashboardStore.running_experiments > 0}
 					<div class="stat-pulse"></div>
@@ -161,39 +156,39 @@
 				<div class="stat-icon">✅</div>
 				<div class="stat-content">
 					<span class="stat-value">{$dashboardStore.completed_experiments}</span>
-					<span class="stat-label">已完成</span>
+					<span class="stat-label">{$t('dashboard.completed')}</span>
 				</div>
 			</div>
 			<div class="stat-card failed">
 				<div class="stat-icon">❌</div>
 				<div class="stat-content">
 					<span class="stat-value">{$dashboardStore.failed_experiments}</span>
-					<span class="stat-label">失败</span>
+					<span class="stat-label">{$t('dashboard.failed')}</span>
 				</div>
 			</div>
 			<div class="stat-card models">
 				<div class="stat-icon">📦</div>
 				<div class="stat-content">
 					<span class="stat-value">{$dashboardStore.total_models}</span>
-					<span class="stat-label">注册模型</span>
+					<span class="stat-label">{$t('dashboard.registeredModels')}</span>
 				</div>
 			</div>
 			<div class="stat-card success-rate">
 				<div class="stat-icon">📊</div>
 				<div class="stat-content">
 					<span class="stat-value">{$successRate}%</span>
-					<span class="stat-label">成功率</span>
+					<span class="stat-label">{$t('dashboard.successRate')}</span>
 				</div>
 			</div>
 		</section>
 
 		{#if statsError}
-			<div class="error-banner">统计加载失败: {statsError}</div>
+			<div class="error-banner">{$t('errors.dataLoadFailed')}: {statsError}</div>
 		{/if}
 
 		<section class="resource-section">
 			<div class="section-header">
-				<h2 class="section-title">系统资源</h2>
+				<h2 class="section-title">{$t('dashboard.systemResources')}</h2>
 			</div>
 			{#if $resourceStore}
 				<div class="resource-cards">
@@ -212,7 +207,7 @@
 						</div>
 					</div>
 					<div class="resource-card">
-						<div class="resource-label">内存</div>
+						<div class="resource-label">{$t('dashboard.memory')}</div>
 						<div class="resource-bar-container">
 							<div class="resource-bar-track">
 								<div
@@ -225,7 +220,7 @@
 							<span class="resource-value">{$resourceStore.memory_usage_percent.toFixed(1)}%</span>
 						</div>
 						<div class="resource-detail">
-							{($resourceStore.memory_total_mb - $resourceStore.memory_available_mb).toLocaleString()} / {$resourceStore.memory_total_mb.toLocaleString()} MB 已使用
+							{($resourceStore.memory_total_mb - $resourceStore.memory_available_mb).toLocaleString()} / {$resourceStore.memory_total_mb.toLocaleString()} MB {$t('dashboard.used')}
 						</div>
 					</div>
 					{#if $resourceStore.gpu_usage_percent !== null}
@@ -244,13 +239,13 @@
 							</div>
 							{#if $resourceStore.gpu_memory_total_mb !== null}
 								<div class="resource-detail">
-									{($resourceStore.gpu_memory_used_mb ?? 0).toLocaleString()} / {$resourceStore.gpu_memory_total_mb?.toLocaleString() ?? '—'} MB 已使用
+									{($resourceStore.gpu_memory_used_mb ?? 0).toLocaleString()} / {$resourceStore.gpu_memory_total_mb?.toLocaleString() ?? '—'} MB {$t('dashboard.used')}
 								</div>
 							{/if}
 						</div>
 					{/if}
 					<div class="resource-card">
-						<div class="resource-label">磁盘</div>
+						<div class="resource-label">{$t('dashboard.disk')}</div>
 						<div class="resource-bar-container">
 							<div class="resource-bar-track">
 								<div
@@ -263,7 +258,7 @@
 							<span class="resource-value">{$resourceStore.disk_usage_percent.toFixed(1)}%</span>
 						</div>
 						<div class="resource-detail">
-							{($resourceStore.disk_total_gb - $resourceStore.disk_available_gb).toLocaleString()} / {$resourceStore.disk_total_gb.toLocaleString()} GB 已使用
+							{($resourceStore.disk_total_gb - $resourceStore.disk_available_gb).toLocaleString()} / {$resourceStore.disk_total_gb.toLocaleString()} GB {$t('dashboard.used')}
 						</div>
 					</div>
 				</div>
@@ -326,7 +321,7 @@
 					</div>
 				{/if}
 			{:else if resourceError}
-				<div class="error-banner">资源监控不可用: {resourceError}</div>
+				<div class="error-banner">{$t('errors.dataLoadFailed')}: {resourceError}</div>
 			{:else}
 				<div class="resource-cards">
 					<div class="resource-card">
@@ -337,7 +332,7 @@
 						</div>
 					</div>
 					<div class="resource-card">
-						<div class="resource-label">内存</div>
+						<div class="resource-label">{$t('dashboard.memory')}</div>
 						<div class="resource-bar-container">
 							<div class="resource-bar-track"><div class="resource-bar-fill memory" style="width: 0%"></div></div>
 							<span class="resource-value">—</span>
@@ -349,15 +344,15 @@
 
 		<section class="nav-section">
 			<div class="section-header">
-				<h2 class="section-title">快速导航</h2>
+				<h2 class="section-title">{$t('dashboard.quickNavigation')}</h2>
 			</div>
 			<div class="nav-grid">
 				{#each navCards as card}
 					<a href={card.href} class="nav-card">
 						<div class="nav-icon">{card.icon}</div>
 						<div class="nav-content">
-							<span class="nav-title">{card.title}</span>
-							<span class="nav-desc">{card.desc}</span>
+							<span class="nav-title">{$t(card.titleKey)}</span>
+							<span class="nav-desc">{$t(card.descKey)}</span>
 						</div>
 						<span class="nav-arrow">→</span>
 					</a>
@@ -368,9 +363,9 @@
 		<div class="two-col">
 			<section class="active-section">
 				<div class="section-header">
-					<h2 class="section-title">活跃运行</h2>
+					<h2 class="section-title">{$t('dashboard.activeRunning')}</h2>
 					{#if runningExperiments.length > 0}
-						<span class="badge-running">{runningExperiments.length} 运行中</span>
+						<span class="badge-running">{runningExperiments.length} {$t('dashboard.runningCount')}</span>
 					{/if}
 				</div>
 				{#if runningExperiments.length > 0}
@@ -382,22 +377,22 @@
 									<span class="active-name">{exp.name}</span>
 									<span class="active-type">{exp.task_type}</span>
 								</div>
-								<span class="active-time">{formatTimeAgo(exp.updated_at)}</span>
+								<span class="active-time">{formatTimeAgoLocal(exp.updated_at)}</span>
 							</a>
 						{/each}
 					</div>
 				{:else}
 					<div class="empty-section">
-						<p>当前没有运行中的实验</p>
-						<a href="/lab/train/new" class="link-start">开始新实验 →</a>
+						<p>{$t('dashboard.noRunningExperiments')}</p>
+						<a href="/lab/train/new" class="link-start">{$t('dashboard.startNewExperiment')} →</a>
 					</div>
 				{/if}
 			</section>
 
 			<section class="recent-section">
 				<div class="section-header">
-					<h2 class="section-title">最近实验</h2>
-					<a href="/lab/experiments" class="link-all">查看全部 →</a>
+					<h2 class="section-title">{$t('dashboard.recentExperiments')}</h2>
+					<a href="/lab/experiments" class="link-all">{$t('dashboard.viewAll')} →</a>
 				</div>
 				{#if recentExperiments.length > 0}
 					<div class="recent-list">
@@ -406,14 +401,14 @@
 								<span class="recent-status-dot" class:running={exp.status === 'running'} class:completed={exp.status === 'completed'} class:failed={exp.status === 'failed'}></span>
 								<div class="recent-info">
 									<span class="recent-name">{exp.name}</span>
-									<span class="recent-meta">{exp.task_type} · {formatTimeAgo(exp.updated_at)}</span>
+									<span class="recent-meta">{exp.task_type} · {formatTimeAgoLocal(exp.updated_at)}</span>
 								</div>
 							</a>
 						{/each}
 					</div>
 				{:else}
 					<div class="empty-section">
-						<p>暂无实验记录</p>
+						<p>{$t('dashboard.noExperiments')}</p>
 					</div>
 				{/if}
 			</section>
@@ -422,7 +417,7 @@
 		{#if taskTypeStats.length > 0}
 			<section class="task-stats-section">
 				<div class="section-header">
-					<h2 class="section-title">任务类型分布</h2>
+					<h2 class="section-title">{$t('dashboard.taskTypeDistribution')}</h2>
 				</div>
 				<div class="task-stats-bar">
 					{#each taskTypeStats as stat}

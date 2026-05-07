@@ -2,22 +2,24 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { experimentStore } from '$lib/lab/stores/experiment';
-	import { statusBarStore, connectionLabel, uptimeLabel, lastRefreshLabel } from '$lib/lab/stores/status';
+	import { statusBarStore } from '$lib/lab/stores/status';
 	import { progressStore } from '$lib/lab/stores/progress';
 	import { resourceStore } from '$lib/lab/stores/hardware';
 	import { dashboardStore } from '$lib/lab/stores/dashboard';
 	import { datasetRegistryStore } from '$lib/lab/stores/dataset';
 	import Toast from '$lib/lab/components/Toast.svelte';
 	import TaskManager from '$lib/lab/components/TaskManager.svelte';
+	import LocaleSwitch from '$lib/i18n/LocaleSwitch.svelte';
+	import { i18n, t, formatUptime, formatLastRefresh } from '$lib/i18n';
 
 	interface NavItem {
 		href: string;
-		label: string;
+		labelKey: string;
 		icon: string;
 	}
 
 	interface NavGroup {
-		title: string;
+		titleKey: string;
 		icon: string;
 		items: NavItem[];
 		expanded: boolean;
@@ -25,47 +27,47 @@
 
 	let navGroups: NavGroup[] = [
 		{
-			title: '概览',
+			titleKey: 'nav.overview',
 			icon: '🏠',
-			items: [{ href: '/lab', label: '仪表盘', icon: '📊' }],
+			items: [{ href: '/lab', labelKey: 'nav.dashboard', icon: '📊' }],
 			expanded: true
 		},
 		{
-			title: '数据管理',
+			titleKey: 'nav.dataManagement',
 			icon: '📁',
 			items: [
-				{ href: '/lab/data/list', label: '数据集列表', icon: '📊' },
-				{ href: '/lab/data/workshop', label: '数据工坊', icon: '🔧' },
-				{ href: '/lab/plans', label: '训练计划', icon: '📋' },
-				{ href: '/lab/plan', label: '创建计划', icon: '➕' }
+				{ href: '/lab/data/list', labelKey: 'nav.datasetList', icon: '📊' },
+				{ href: '/lab/data/workshop', labelKey: 'nav.dataWorkshop', icon: '🔧' },
+				{ href: '/lab/plans', labelKey: 'nav.trainingPlans', icon: '📋' },
+				{ href: '/lab/plan', labelKey: 'nav.createPlan', icon: '➕' }
 			],
 			expanded: true
 		},
 		{
-			title: '模型开发',
+			titleKey: 'nav.modelDevelopment',
 			icon: '🧠',
 			items: [
-				{ href: '/lab/build', label: '模型构建', icon: '🏗️' },
-				{ href: '/lab/train/new', label: '训练配置', icon: '🚀' },
-				{ href: '/lab/tune', label: '超参数调优', icon: '🎯' },
-				{ href: '/lab/models', label: '模型管理', icon: '📦' }
+				{ href: '/lab/build', labelKey: 'nav.modelBuild', icon: '🏗️' },
+				{ href: '/lab/train/new', labelKey: 'nav.trainingConfig', icon: '🚀' },
+				{ href: '/lab/tune', labelKey: 'nav.hyperparameterTuning', icon: '🎯' },
+				{ href: '/lab/models', labelKey: 'nav.modelManagement', icon: '📦' }
 			],
 			expanded: true
 		},
 		{
-			title: '实验追踪',
+			titleKey: 'nav.experimentTracking',
 			icon: '🔬',
 			items: [
-				{ href: '/lab/experiments', label: '实验列表', icon: '📋' },
-				{ href: '/lab/compare', label: '对比分析', icon: '📈' },
-				{ href: '/lab/lineage', label: '血缘追踪', icon: '🔗' }
+				{ href: '/lab/experiments', labelKey: 'nav.experimentList', icon: '📋' },
+				{ href: '/lab/compare', labelKey: 'nav.compareAnalysis', icon: '📈' },
+				{ href: '/lab/lineage', labelKey: 'nav.lineageTracking', icon: '🔗' }
 			],
 			expanded: true
 		},
 		{
-			title: '系统设置',
+			titleKey: 'nav.systemSettings',
 			icon: '⚙️',
-			items: [{ href: '/lab/settings', label: '系统配置', icon: '🔧' }],
+			items: [{ href: '/lab/settings', labelKey: 'nav.systemConfig', icon: '🔧' }],
 			expanded: true
 		}
 	];
@@ -82,6 +84,17 @@
 		}
 		return currentPath.startsWith(href);
 	}
+
+	$: connectionLabel = $t('status.connected');
+	$: idleLabel = $t('status.idle');
+	$: experimentsRunningLabel = $t('status.experimentsRunning');
+	$: refreshLabel = $t('status.refresh');
+	$: runtimeLabel = $t('status.runtime');
+
+	$: uptimeLabel = formatUptime($statusBarStore.uptime, $i18n);
+	$: lastRefreshLabel = $statusBarStore.lastRefreshAt
+		? formatLastRefresh(Math.floor((Date.now() - $statusBarStore.lastRefreshAt.getTime()) / 1000), $i18n)
+		: $t('status.notRefreshed');
 
 	onMount(async () => {
 		experimentStore.startListening();
@@ -112,6 +125,9 @@
 				<span class="logo-icon">🧬</span>
 				<span class="logo-text">Biosphere AI Lab</span>
 			</div>
+			<div class="nav-locale">
+				<LocaleSwitch />
+			</div>
 		</div>
 
 		<div class="nav-groups">
@@ -123,7 +139,7 @@
 						class:active={group.items.some(item => isActive(item.href))}
 					>
 						<span class="group-icon">{group.icon}</span>
-						<span class="group-title">{group.title}</span>
+						<span class="group-title">{$t(group.titleKey)}</span>
 						<span class="group-toggle" class:expanded={group.expanded}>▼</span>
 					</button>
 
@@ -136,7 +152,7 @@
 									class:active={isActive(item.href)}
 								>
 									<span class="item-icon">{item.icon}</span>
-									<span class="item-label">{item.label}</span>
+									<span class="item-label">{$t(item.labelKey)}</span>
 								</a>
 							{/each}
 						</div>
@@ -159,7 +175,13 @@
 			<div class="statusbar-left">
 				<span class="status-item connection" class:connected={$statusBarStore.connectionStatus === 'connected'} class:connecting={$statusBarStore.connectionStatus === 'connecting'} class:disconnected={$statusBarStore.connectionStatus === 'disconnected'}>
 					<span class="status-dot"></span>
-					{$connectionLabel}
+					{#if $statusBarStore.connectionStatus === 'connected'}
+						{$t('status.connected')}
+					{:else if $statusBarStore.connectionStatus === 'connecting'}
+						{$t('status.connecting')}
+					{:else}
+						{$t('status.disconnected')}
+					{/if}
 				</span>
 				<span class="status-divider">|</span>
 				<span class="status-item">
@@ -192,20 +214,20 @@
 				{#if $statusBarStore.runningExperiments > 0}
 					<span class="status-item running">
 						<span class="pulse-dot"></span>
-						{$statusBarStore.runningExperiments} 个实验运行中
+						{$statusBarStore.runningExperiments} {$t('status.experimentsRunning')}
 					</span>
 				{:else}
-					<span class="status-item idle">空闲</span>
+					<span class="status-item idle">{$t('status.idle')}</span>
 				{/if}
 			</div>
 
 			<div class="statusbar-right">
 				<span class="status-item">
-					刷新: {$lastRefreshLabel}
+					{$t('status.refresh')}: {lastRefreshLabel}
 				</span>
 				<span class="status-divider">|</span>
 				<span class="status-item">
-					运行: {$uptimeLabel}
+					{$t('status.runtime')}: {uptimeLabel}
 				</span>
 				<span class="status-divider">|</span>
 				<span class="status-item">
@@ -253,6 +275,12 @@
 		font-weight: 600;
 		color: #e5e7eb;
 		letter-spacing: -0.025em;
+	}
+
+	.nav-locale {
+		margin-top: 0.75rem;
+		display: flex;
+		justify-content: flex-start;
 	}
 
 	.nav-groups {
