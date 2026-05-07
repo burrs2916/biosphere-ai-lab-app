@@ -1,0 +1,610 @@
+warning: unused import: `cache_repository::CacheError`
+ --> biosphere-app/src-tauri/src/domain/repositories/mod.rs:7:9
+  |
+7 | pub use cache_repository::CacheError;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Vector`
+  --> biosphere-app/src-tauri/src/domain/repositories/mod.rs:10:47
+   |
+10 |     VectorRepository, VectorRecord, VectorId, Vector, VectorQuery, 
+   |                                               ^^^^^^
+
+warning: unused import: `config_repo::SqliteConfigRepository`
+ --> biosphere-app/src-tauri/src/infrastructure/persistence/repositories/mod.rs:6:9
+  |
+6 | pub use config_repo::SqliteConfigRepository;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `json_storage::JsonFileStorage`
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/mod.rs:13:9
+   |
+13 | pub use json_storage::JsonFileStorage;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `NotFound` is never constructed
+  --> biosphere-app/src-tauri/src/application/image_analysis_use_case.rs:21:5
+   |
+13 | pub enum UseCaseError {
+   |          ------------ variant in this enum
+...
+21 |     NotFound(String),
+   |     ^^^^^^^^
+   |
+   = note: `UseCaseError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `get_by_id` is never used
+  --> biosphere-app/src-tauri/src/application/image_analysis_use_case.rs:84:18
+   |
+30 | impl ImageAnalysisUseCase {
+   | ------------------------- method in this implementation
+...
+84 |     pub async fn get_by_id(&self, id: &ImageId) -> Result<Option<ImageAnalysisRecord>, UseCaseError> {
+   |                  ^^^^^^^^^
+
+warning: struct `AnalysisDetail` is never constructed
+  --> biosphere-app/src-tauri/src/commands/image_commands.rs:67:12
+   |
+67 | pub struct AnalysisDetail {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `color_key` is never used
+  --> biosphere-app/src-tauri/src/domain/color.rs:19:12
+   |
+13 | impl ColorInfo {
+   | -------------- method in this implementation
+...
+19 |     pub fn color_key(&self) -> u32 {
+   |            ^^^^^^^^^
+
+warning: struct `ColorPosition` is never constructed
+  --> biosphere-app/src-tauri/src/domain/color.rs:50:12
+   |
+50 | pub struct ColorPosition {
+   |            ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> biosphere-app/src-tauri/src/domain/color.rs:56:12
+   |
+55 | impl ColorPosition {
+   | ------------------ associated function in this implementation
+56 |     pub fn new(x: u32, y: u32) -> Self {
+   |            ^^^
+
+warning: field `sample_step` is never read
+  --> biosphere-app/src-tauri/src/domain/edge.rs:26:9
+   |
+20 | pub struct GradientData {
+   |            ------------ field in this struct
+...
+26 |     pub sample_step: u32,
+   |         ^^^^^^^^^^^
+   |
+   = note: `GradientData` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `is_edge` is never used
+  --> biosphere-app/src-tauri/src/domain/edge.rs:90:12
+   |
+77 | impl EdgeData {
+   | ------------- method in this implementation
+...
+90 |     pub fn is_edge(&self, x: u32, y: u32) -> bool {
+   |            ^^^^^^^
+
+warning: struct `AnalysisDataForStorage` is never constructed
+  --> biosphere-app/src-tauri/src/domain/image.rs:80:12
+   |
+80 | pub struct AnalysisDataForStorage {
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `to_storage_data` is never used
+   --> biosphere-app/src-tauri/src/domain/image.rs:112:12
+    |
+ 89 | impl FullImageAnalysis {
+    | ---------------------- method in this implementation
+...
+112 |     pub fn to_storage_data(&self) -> AnalysisDataForStorage {
+    |            ^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> biosphere-app/src-tauri/src/domain/region.rs:13:12
+   |
+12 | impl BoundingBox {
+   | ---------------- associated function in this implementation
+13 |     pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+   |            ^^^
+
+warning: method `get_region_id` is never used
+  --> biosphere-app/src-tauri/src/domain/region.rs:96:12
+   |
+84 | impl RegionData {
+   | --------------- method in this implementation
+...
+96 |     pub fn get_region_id(&self, x: u32, y: u32) -> u32 {
+   |            ^^^^^^^^^^^^^
+
+warning: variants `NotFound` and `Io` are never constructed
+  --> biosphere-app/src-tauri/src/domain/repositories/image_repository.rs:12:5
+   |
+ 8 | pub enum RepositoryError {
+   |          --------------- variants in this enum
+...
+12 |     NotFound(String),
+   |     ^^^^^^^^
+...
+16 |     Io(String),
+   |     ^^
+   |
+   = note: `RepositoryError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: methods `find_by_id` and `count` are never used
+  --> biosphere-app/src-tauri/src/domain/repositories/image_repository.rs:51:14
+   |
+49 | pub trait ImageRepository: Send + Sync {
+   |           --------------- methods in this trait
+50 |     async fn save(&self, analysis: &ImageAnalysisRecord) -> Result<(), RepositoryError>;
+51 |     async fn find_by_id(&self, id: &ImageId) -> Result<Option<ImageAnalysisRecord>, RepositoryError>;
+   |              ^^^^^^^^^^
+...
+57 |     async fn count(&self) -> Result<usize, RepositoryError>;
+   |              ^^^^^
+
+warning: enum `CacheError` is never used
+ --> biosphere-app/src-tauri/src/domain/repositories/cache_repository.rs:5:10
+  |
+5 | pub enum CacheError {
+  |          ^^^^^^^^^^
+
+warning: trait `CacheRepository` is never used
+  --> biosphere-app/src-tauri/src/domain/repositories/cache_repository.rs:15:11
+   |
+15 | pub trait CacheRepository: Send + Sync {
+   |           ^^^^^^^^^^^^^^^
+
+warning: type alias `ConfigId` is never used
+ --> biosphere-app/src-tauri/src/domain/repositories/config_repository.rs:3:10
+  |
+3 | pub type ConfigId = String;
+  |          ^^^^^^^^
+
+warning: enum `ConfigError` is never used
+ --> biosphere-app/src-tauri/src/domain/repositories/config_repository.rs:6:10
+  |
+6 | pub enum ConfigError {
+  |          ^^^^^^^^^^^
+
+warning: trait `ConfigRepository` is never used
+  --> biosphere-app/src-tauri/src/domain/repositories/config_repository.rs:16:11
+   |
+16 | pub trait ConfigRepository: Send + Sync {
+   |           ^^^^^^^^^^^^^^^^
+
+warning: struct `ParticleConfig` is never constructed
+  --> biosphere-app/src-tauri/src/domain/repositories/config_repository.rs:24:12
+   |
+24 | pub struct ParticleConfig {
+   |            ^^^^^^^^^^^^^^
+
+warning: type alias `VectorId` is never used
+ --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:3:10
+  |
+3 | pub type VectorId = String;
+  |          ^^^^^^^^
+
+warning: type alias `Vector` is never used
+ --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:4:10
+  |
+4 | pub type Vector = Vec<f32>;
+  |          ^^^^^^
+
+warning: struct `VectorRecord` is never constructed
+ --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:7:12
+  |
+7 | pub struct VectorRecord {
+  |            ^^^^^^^^^^^^
+
+warning: struct `SearchResult` is never constructed
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:15:12
+   |
+15 | pub struct SearchResult {
+   |            ^^^^^^^^^^^^
+
+warning: struct `VectorQuery` is never constructed
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:21:12
+   |
+21 | pub struct VectorQuery {
+   |            ^^^^^^^^^^^
+
+warning: enum `VectorError` is never used
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:28:10
+   |
+28 | pub enum VectorError {
+   |          ^^^^^^^^^^^
+
+warning: trait `VectorRepository` is never used
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:42:11
+   |
+42 | pub trait VectorRepository: Send + Sync {
+   |           ^^^^^^^^^^^^^^^^
+
+warning: struct `VectorRepositoryConfig` is never constructed
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:61:12
+   |
+61 | pub struct VectorRepositoryConfig {
+   |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `DistanceMetric` is never used
+  --> biosphere-app/src-tauri/src/domain/repositories/vector_repository.rs:68:10
+   |
+68 | pub enum DistanceMetric {
+   |          ^^^^^^^^^^^^^^
+
+warning: field `db_path` is never read
+ --> biosphere-app/src-tauri/src/infrastructure/persistence/sqlite.rs:8:5
+  |
+6 | pub struct SqliteConnection {
+  |            ---------------- field in this struct
+7 |     conn: Mutex<Connection>,
+8 |     db_path: PathBuf,
+  |     ^^^^^^^
+
+warning: method `get_db_path` is never used
+   --> biosphere-app/src-tauri/src/infrastructure/persistence/sqlite.rs:112:12
+    |
+ 11 | impl SqliteConnection {
+    | --------------------- method in this implementation
+...
+112 |     pub fn get_db_path(&self) -> &PathBuf {
+    |            ^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> biosphere-app/src-tauri/src/infrastructure/persistence/sled_cache.rs:41:12
+    |
+ 21 | impl SledCache {
+    | -------------- methods in this implementation
+...
+ 41 |     pub fn clear(&self) -> Result<(), String> {
+    |            ^^^^^
+...
+ 47 |     pub fn size(&self) -> usize {
+    |            ^^^^
+...
+ 58 |     pub fn set_pixel_rgba(&self, image_id: &str, data: &[u8]) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^
+...
+ 65 |     pub fn get_pixel_rgba(&self, image_id: &str) -> Result<Option<Vec<u8>>, String> {
+    |            ^^^^^^^^^^^^^^
+...
+ 72 |     pub fn set_pixel_gray(&self, image_id: &str, data: &[u8]) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^
+...
+ 79 |     pub fn get_pixel_gray(&self, image_id: &str) -> Result<Option<Vec<u8>>, String> {
+    |            ^^^^^^^^^^^^^^
+...
+ 86 |     pub fn set_json<T: Serialize>(&self, prefix: &[u8], image_id: &str, data: &T) -> Result<(), String> {
+    |            ^^^^^^^^
+...
+ 95 |     pub fn get_json<T: DeserializeOwned>(&self, prefix: &[u8], image_id: &str) -> Result<Option<T>, String> {
+    |            ^^^^^^^^
+...
+116 |     pub fn get_histogram(&self, image_id: &str) -> Result<Option<[u32; 1024]>, String> {
+    |            ^^^^^^^^^^^^^
+...
+134 |     pub fn set_vector(&self, image_id: &str, vector: &[f32]) -> Result<(), String> {
+    |            ^^^^^^^^^^
+...
+144 |     pub fn get_vector(&self, image_id: &str) -> Result<Option<Vec<f32>>, String> {
+    |            ^^^^^^^^^^
+...
+171 |     pub fn get_gradient_magnitude(&self, image_id: &str) -> Result<Option<Vec<f32>>, String> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+198 |     pub fn get_gradient_direction(&self, image_id: &str) -> Result<Option<Vec<f32>>, String> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+215 |     pub fn set_edge_map(&self, image_id: &str, data: &[bool]) -> Result<(), String> {
+    |            ^^^^^^^^^^^^
+...
+223 |     pub fn get_edge_map(&self, image_id: &str) -> Result<Option<Vec<bool>>, String> {
+    |            ^^^^^^^^^^^^
+...
+234 |     pub fn set_region_map(&self, image_id: &str, data: &[u32]) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^
+...
+244 |     pub fn get_region_map(&self, image_id: &str) -> Result<Option<Vec<u32>>, String> {
+    |            ^^^^^^^^^^^^^^
+...
+284 |     pub fn get_stats(&self) -> CacheStats {
+    |            ^^^^^^^^^
+
+warning: struct `CacheStats` is never constructed
+   --> biosphere-app/src-tauri/src/infrastructure/persistence/sled_cache.rs:317:12
+    |
+317 | pub struct CacheStats {
+    |            ^^^^^^^^^^
+
+warning: struct `SqliteConfigRepository` is never constructed
+ --> biosphere-app/src-tauri/src/infrastructure/persistence/repositories/config_repo.rs:8:12
+  |
+8 | pub struct SqliteConfigRepository {
+  |            ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/repositories/config_repo.rs:13:12
+   |
+12 | impl SqliteConfigRepository {
+   | --------------------------- associated function in this implementation
+13 |     pub fn new(sqlite: Arc<SqliteConnection>) -> Self {
+   |            ^^^
+
+warning: methods `get`, `exists`, and `clear` are never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/repositories/cache_repo.rs:14:18
+   |
+ 9 | impl SledCacheRepository {
+   | ------------------------ methods in this implementation
+...
+14 |     pub async fn get<T: serde::de::DeserializeOwned + Send>(&self, key: &str) -> Result<Option<T>, String> {
+   |                  ^^^
+...
+49 |     pub async fn exists(&self, key: &str) -> Result<bool, String> {
+   |                  ^^^^^^
+...
+59 |     pub async fn clear(&self) -> Result<(), String> {
+   |                  ^^^^^
+
+warning: struct `HoraVectorRepository` is never constructed
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/vector_db.rs:12:12
+   |
+12 | pub struct HoraVectorRepository {
+   |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated functions `new`, `metric_to_hora`, and `compute_distance` are never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/vector_db.rs:20:12
+   |
+19 | impl HoraVectorRepository {
+   | ------------------------- associated functions in this implementation
+20 |     pub fn new(config: VectorRepositoryConfig) -> Result<Self, VectorError> {
+   |            ^^^
+...
+34 |     fn metric_to_hora(metric: DistanceMetric) -> Metric {
+   |        ^^^^^^^^^^^^^^
+...
+42 |     fn compute_distance(vec1: &[f32], vec2: &[f32], metric: DistanceMetric) -> f32 {
+   |        ^^^^^^^^^^^^^^^^
+
+warning: struct `StorageConfig` is never constructed
+ --> biosphere-app/src-tauri/src/infrastructure/persistence/storage.rs:8:12
+  |
+8 | pub struct StorageConfig {
+  |            ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/storage.rs:15:12
+   |
+14 | impl StorageConfig {
+   | ------------------ associated function in this implementation
+15 |     pub fn new(app_data_dir: PathBuf) -> Self {
+   |            ^^^
+
+warning: struct `Storage` is never constructed
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/storage.rs:24:12
+   |
+24 | pub struct Storage {
+   |            ^^^^^^^
+
+warning: associated items `init`, `init_sqlite`, `init_cache`, `init_vector`, `get_app_data_dir`, and `get_stats` are never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/storage.rs:31:12
+   |
+30 | impl Storage {
+   | ------------ associated items in this implementation
+31 |     pub fn init(config: StorageConfig) -> Result<Self, String> {
+   |            ^^^^
+...
+47 |     fn init_sqlite(config: &StorageConfig) -> Result<Arc<SqliteConnection>, String> {
+   |        ^^^^^^^^^^^
+...
+53 |     fn init_cache(config: &StorageConfig) -> Result<Arc<SledCache>, String> {
+   |        ^^^^^^^^^^
+...
+59 |     fn init_vector(config: &StorageConfig) -> Result<Arc<HoraVectorRepository>, String> {
+   |        ^^^^^^^^^^^
+...
+73 |     pub fn get_app_data_dir() -> PathBuf {
+   |            ^^^^^^^^^^^^^^^^
+...
+83 |     pub fn get_stats(&self) -> StorageStats {
+   |            ^^^^^^^^^
+
+warning: struct `StorageStats` is never constructed
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/storage.rs:91:12
+   |
+91 | pub struct StorageStats {
+   |            ^^^^^^^^^^^^
+
+warning: struct `JsonFileStorage` is never constructed
+ --> biosphere-app/src-tauri/src/infrastructure/persistence/json_storage.rs:6:12
+  |
+6 | pub struct JsonFileStorage {
+  |            ^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+  --> biosphere-app/src-tauri/src/infrastructure/persistence/json_storage.rs:11:12
+   |
+10 | impl JsonFileStorage {
+   | -------------------- associated items in this implementation
+11 |     pub fn new(app_data_dir: &PathBuf) -> Self {
+   |            ^^^
+...
+20 |     pub fn save<T: Serialize>(&self, id: &str, data: &T) -> Result<PathBuf, String> {
+   |            ^^^^
+...
+32 |     pub fn load<T: DeserializeOwned>(&self, id: &str) -> Result<T, String> {
+   |            ^^^^
+...
+37 |     pub fn load_from_path<T: DeserializeOwned>(&self, file_path: &Path) -> Result<T, String> {
+   |            ^^^^^^^^^^^^^^
+...
+45 |     pub fn delete(&self, id: &str) -> Result<(), String> {
+   |            ^^^^^^
+...
+55 |     pub fn exists(&self, id: &str) -> bool {
+   |            ^^^^^^
+...
+59 |     pub fn get_file_path(&self, id: &str) -> PathBuf {
+   |            ^^^^^^^^^^^^^
+
+warning: methods `load_index_from_dir`, `exists`, and `list_all_ids` are never used
+   --> biosphere-app/src-tauri/src/infrastructure/persistence/layered_storage.rs:85:12
+    |
+ 32 | impl LayeredStorage {
+    | ------------------- methods in this implementation
+...
+ 85 |     pub fn load_index_from_dir(&self, dir: &Path) -> Result<AnalysisIndex, String> {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+480 |     pub fn exists(&self, id: &str) -> bool {
+    |            ^^^^^^
+...
+488 |     pub fn list_all_ids(&self) -> Result<Vec<String>, String> {
+    |            ^^^^^^^^^^^^
+
+warning: function `log_warn` is never used
+  --> biosphere-app/src-tauri/src/infrastructure/logging.rs:79:8
+   |
+79 | pub fn log_warn(message: &str) {
+   |        ^^^^^^^^
+
+warning: associated functions `calculate_gradient_native`, `sobel_x`, and `sobel_y` are never used
+   --> biosphere-app/src-tauri/src/services/image_service.rs:250:8
+    |
+ 11 | impl ImageService {
+    | ----------------- associated functions in this implementation
+...
+250 |     fn calculate_gradient_native(gray: &[u8], width: u32, height: u32) -> (crate::domain::GradientData, crate::domain::EdgeData) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+298 |     fn sobel_x(gray: &[u8], width: u32, x: u32, y: u32) -> f32 {
+    |        ^^^^^^^
+...
+311 |     fn sobel_y(gray: &[u8], width: u32, x: u32, y: u32) -> f32 {
+    |        ^^^^^^^
+
+warning: constant `COLOR_HISTOGRAM_DIM` is never used
+ --> biosphere-app/src-tauri/src/services/feature_extractor.rs:3:11
+  |
+3 | pub const COLOR_HISTOGRAM_DIM: usize = 1024;
+  |           ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DOMINANT_COLOR_DIM` is never used
+ --> biosphere-app/src-tauri/src/services/feature_extractor.rs:4:11
+  |
+4 | pub const DOMINANT_COLOR_DIM: usize = 30;
+  |           ^^^^^^^^^^^^^^^^^^
+
+warning: constant `STATISTICS_DIM` is never used
+ --> biosphere-app/src-tauri/src/services/feature_extractor.rs:5:11
+  |
+5 | pub const STATISTICS_DIM: usize = 10;
+  |           ^^^^^^^^^^^^^^
+
+warning: constant `COMBINED_VECTOR_DIM` is never used
+ --> biosphere-app/src-tauri/src/services/feature_extractor.rs:6:11
+  |
+6 | pub const COMBINED_VECTOR_DIM: usize = COLOR_HISTOGRAM_DIM + DOMINANT_COLOR_DIM + STATISTICS_DIM;
+  |           ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `ImageFeatures` is never constructed
+ --> biosphere-app/src-tauri/src/services/feature_extractor.rs:9:12
+  |
+9 | pub struct ImageFeatures {
+  |            ^^^^^^^^^^^^^
+
+warning: struct `FeatureExtractor` is never constructed
+  --> biosphere-app/src-tauri/src/services/feature_extractor.rs:16:12
+   |
+16 | pub struct FeatureExtractor;
+   |            ^^^^^^^^^^^^^^^^
+
+warning: multiple associated functions are never used
+   --> biosphere-app/src-tauri/src/services/feature_extractor.rs:19:12
+    |
+ 18 | impl FeatureExtractor {
+    | --------------------- associated functions in this implementation
+ 19 |     pub fn extract(analysis: &FullImageAnalysis) -> ImageFeatures {
+    |            ^^^^^^^
+...
+ 33 |     fn extract_histogram_vector(color_analysis: &ColorAnalysis) -> Vec<f32> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 55 |     fn extract_dominant_color_vector(color_analysis: &ColorAnalysis) -> Vec<f32> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 71 |     fn extract_statistics_vector(analysis: &FullImageAnalysis) -> Vec<f32> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 97 |     fn combine_vectors(
+    |        ^^^^^^^^^^^^^^^
+...
+109 |     pub fn normalize(vector: &mut [f32]) {
+    |            ^^^^^^^^^
+...
+118 |     pub fn cosine_similarity(v1: &[f32], v2: &[f32]) -> f32 {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: `biosphere-app` (lib) generated 59 warnings (run `cargo fix --lib -p biosphere-app` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.79s
+     Running `/Users/liwenchao/BiosPherePro/biosphere/target/debug/biosphere-app`
+[2026-03-22 16:43:17.490][SYSTEM] Biosphere Perception 启动
+[2026-03-22 16:43:17.492][INFO] SQLite database path: "/Users/liwenchao/BiosPherePro/biosphere/target/debug/data/biosphere.db"
+[2026-03-22 16:43:17.498][SUCCESS] SQLite PRAGMA settings applied: foreign_keys=ON, journal_mode=WAL, cache=64MB
+[2026-03-22 16:43:17.498][SUCCESS] SQLite database initialized
+[2026-03-22 16:43:17.499][INFO] Sled cache path: "/Users/liwenchao/BiosPherePro/biosphere/target/debug/data/cache/sled"
+[2026-03-22 16:43:18.204][SUCCESS] Sled cache initialized
+16:43:36 [vite-plugin-svelte] src/lib/features/v1/ImageUpload.svelte:320:8 `<div>` with a mousedown handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+[2026-03-22 16:44:20.450][INFO] 收到上传请求(V2): outputComfyUI_00219_.png_.png
+[2026-03-22 16:44:27.876][INFO] ========== 图像分析开始 ==========
+[2026-03-22 16:44:27.876][INFO] 文件大小: 66858098 bytes (65291 KB)
+[2026-03-22 16:44:27.877][INFO] [步骤1] 检测格式: PNG (耗时: 0ms)
+[2026-03-22 16:44:41.841][INFO] [步骤2] 图像解码完成: 8192x8192 (6710万像素) | 耗时: 13963ms
+[2026-03-22 16:44:41.842][INFO] [步骤3] 图像缩放: 8192x8192 -> 1024x1024 (6710万 -> 104万像素)
+[2026-03-22 16:44:41.842][INFO]          缩放比例: 0.12x | 使用 Nearest 滤波器 (最快)
+[2026-03-22 16:44:41.842][INFO]          像素量减少: 64.0x -> 分析速度提升约 8.0x
+[2026-03-22 16:45:00.830][INFO]          缩放耗时: 18987ms
+[2026-03-22 16:45:00.907][INFO] [步骤4] RGBA提取: 4194304 bytes | 耗时: 77ms
+[2026-03-22 16:45:00.993][INFO] [步骤5] 灰度转换: 1048576 pixels | 使用优化的直接数组访问 | 耗时: 85ms
+[2026-03-22 16:45:00.993][INFO] [步骤6] 颜色分析 (Burn加速模式)
+[2026-03-22 16:45:00.993][INFO]          策略: 采样K-means聚类 (最多1000色)
+[2026-03-22 16:45:00.994][INFO]          优势: 避免遍历所有唯一颜色，减少聚类迭代次数
+[Burn-AI] ========== 颜色分析开始 ==========
+[Burn-AI] 输入: 1024x1024 = 1048576 像素 (104万)
+[Burn-AI] RGBA数据大小: 4194304 bytes
+[Burn-AI] [子步骤1] 直方图计算完成 | 耗时: 220ms
+[Burn-AI] [子步骤2] 唯一颜色统计: 110379 种 | 耗时: 831ms
+[Burn-AI] [子步骤3] 颜色排序完成 | 耗时: 48ms
+[Burn-AI] [子步骤4] 主色选择: 6 种 | 耗时: 0ms
+[Burn-AI] [子步骤5] K-means聚类: 5 簇 | 耗时: 71ms
+[Burn-AI] ========== 颜色分析完成 ==========
+[Burn-AI] 总耗时: 1172ms
+[2026-03-22 16:45:02.171][INFO]          结果: 110379 种唯一颜色, 5 个颜色簇
+[2026-03-22 16:45:02.171][INFO]          耗时: 1178ms
+[2026-03-22 16:45:02.172][INFO] [步骤7] 梯度计算 (Burn GPU加速模式)
+[2026-03-22 16:45:02.326][INFO]          Burn GPU计算耗时: 153ms
+[2026-03-22 16:45:02.437][INFO]          阈值计算+边缘检测耗时: 111ms
+[2026-03-22 16:45:02.438][INFO]          结果: 1024x1024 梯度图, 93812 个边缘点
+[2026-03-22 16:45:02.438][INFO]          总耗时: 265ms
+[2026-03-22 16:45:02.438][INFO] [步骤8] 区域分割
+[2026-03-22 16:45:02.882][INFO]          结果: 29705 个区域 | 耗时: 444ms
+[2026-03-22 16:45:02.883][INFO] [步骤9] 统计信息计算
+[2026-03-22 16:45:02.927][INFO]          亮度: 126.4, 对比度: 105.0, 熵: 5.43 | 耗时: 44ms
+[2026-03-22 16:45:02.927][SUCCESS] ========== 图像分析完成 ==========
+[2026-03-22 16:45:02.927][SUCCESS] 总耗时: 35050ms (35.05秒)
+[2026-03-22 16:45:02.928][SUCCESS] 颜色数: 110379 | 边缘点: 93812 | 区域数: 29705 (已从 8192x8192 缩放)
+[2026-03-22 16:45:02.928][INFO] 处理速度: 0.03 百万像素/秒
+[2026-03-22 16:45:07.291][INFO] 开始写入数据库: 89880e4c-e392-4723-940d-3690d6a98f10
+[2026-03-22 16:45:07.930][SUCCESS] 数据库写入完成: 89880e4c-e392-4723-940d-3690d6a98f10
+[2026-03-22 16:45:07.931][SUCCESS] 图像分析完成: outputComfyUI_00219_.png_.png
+[2026-03-22 16:45:07.931][SUCCESS] 图像分析完成并保存: 89880e4c-e392-4723-940d-3690d6a98f10

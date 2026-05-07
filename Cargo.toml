@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/biosphere-core",
+    "crates/biosphere-foundation",
+    "crates/biosphere-ai",
+    "crates/biosphere-ai-lab",
+    "src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["BURRS"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+biosphere-core = { path = "crates/biosphere-core" }
+biosphere-foundation = { path = "crates/biosphere-foundation" }
+biosphere-ai = { path = "crates/biosphere-ai" }
+biosphere-ai-lab = { path = "crates/biosphere-ai-lab" }
