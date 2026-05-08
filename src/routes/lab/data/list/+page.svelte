@@ -12,6 +12,7 @@
 	import KeyboardShortcuts from '$lib/lab/components/KeyboardShortcuts.svelte';
 	import { uxStore } from '$lib/lab/stores/uxStore';
 	import { localizeError } from '$lib/lab/utils/errorLocalizer';
+	import { t } from '$lib/i18n';
 
 	let datasets: DatasetSummary[] = [];
 	let loading = true;
@@ -55,21 +56,21 @@
 
 	$: regNameError = (() => {
 		if (!regNameTouched) return '';
-		if (!regName.trim()) return '请输入数据集名称';
-		if (regName.trim().length < 2) return '名称至少需要 2 个字符';
-		if (regName.trim().length > 64) return '名称不能超过 64 个字符';
-		if (!/^[a-zA-Z0-9_\-\u4e00-\u9fff]+$/.test(regName.trim())) return '名称只能包含字母、数字、下划线、连字符和中文';
-		if (datasets.some(d => d.name === regName.trim())) return '该名称已被使用';
+		if (!regName.trim()) return $t('dataset.register.nameRequired');
+		if (regName.trim().length < 2) return $t('dataset.register.nameMinLength');
+		if (regName.trim().length > 64) return $t('dataset.register.nameMaxLength');
+		if (!/^[a-zA-Z0-9_\-\u4e00-\u9fff]+$/.test(regName.trim())) return $t('dataset.register.nameInvalidChars');
+		if (datasets.some(d => d.name === regName.trim())) return $t('dataset.register.nameDuplicate');
 		return '';
 	})();
 
 	$: regPathError = (() => {
 		if (!regPathTouched) return '';
-		if (!regPath.trim()) return '请选择数据文件';
-		if (regPath.trim().includes(' ')) return '路径中不应包含空格';
+		if (!regPath.trim()) return $t('dataset.register.pathRequired');
+		if (regPath.trim().includes(' ')) return $t('dataset.register.pathNoSpaces');
 		const ext = regPath.trim().split('.').pop()?.toLowerCase();
 		const validExts: Record<string, boolean> = { csv: true, json: true, parquet: true, txt: true, jsonl: true, tsv: true };
-		if (ext && !validExts[ext]) return `不支持的文件格式: .${ext}`;
+		if (ext && !validExts[ext]) return $t('dataset.register.pathUnsupportedFormat') + `: .${ext}`;
 		return '';
 	})();
 
@@ -86,14 +87,14 @@
 	let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 	const AUTO_REFRESH_INTERVAL = 30000;
 
-	const formatOptions: { value: DataFormat | 'all'; label: string }[] = [
-		{ value: 'all', label: '全部格式' },
-		{ value: 'csv', label: 'CSV' },
-		{ value: 'json', label: 'JSON' },
-		{ value: 'parquet', label: 'Parquet' },
-		{ value: 'text', label: 'Text' },
-		{ value: 'image', label: 'Image' },
-		{ value: 'huggingface', label: 'HuggingFace' },
+	const formatOptions: { value: DataFormat | 'all'; labelKey: string }[] = [
+		{ value: 'all', labelKey: 'dataset.allFormats' },
+		{ value: 'csv', labelKey: 'CSV' },
+		{ value: 'json', labelKey: 'JSON' },
+		{ value: 'parquet', labelKey: 'Parquet' },
+		{ value: 'text', labelKey: 'Text' },
+		{ value: 'image', labelKey: 'Image' },
+		{ value: 'huggingface', labelKey: 'HuggingFace' },
 	];
 
 	$: filteredDatasets = datasets
@@ -179,7 +180,7 @@
 			await datasetRegistryStore.fetchDatasets();
 			uxStore.markRefresh();
 		} catch (e: any) {
-			error = e?.toString() || '加载数据集列表失败';
+			error = e?.toString() || $t('dataset.loadError');
 		} finally {
 			loading = false;
 		}
@@ -192,21 +193,21 @@
 
 		const configs = {
 			archive: {
-				title: '批量归档数据集',
-				message: `确定要归档选中的 ${count} 个数据集吗？\n归档后可在"已归档"标签页中恢复。`,
-				confirmLabel: '确认归档',
+				title: $t('dataset.batch.archiveTitle'),
+				message: $t('dataset.batch.archiveMessage', { count }),
+				confirmLabel: $t('dataset.confirmArchive'),
 				danger: false,
 			},
 			delete: {
-				title: '批量删除数据集',
-				message: `确定要永久删除选中的 ${count} 个数据集吗？\n此操作不可撤销，所有关联的实验记录也将被清理。`,
-				confirmLabel: '确认删除',
+				title: $t('dataset.batch.deleteTitle'),
+				message: $t('dataset.batch.deleteMessage', { count }),
+				confirmLabel: $t('dataset.confirmDelete'),
 				danger: true,
 			},
 			restore: {
-				title: '批量恢复数据集',
-				message: `确定要恢复选中的 ${count} 个数据集吗？\n恢复后数据集将重新出现在活跃列表中。`,
-				confirmLabel: '确认恢复',
+				title: $t('dataset.batch.restoreTitle'),
+				message: $t('dataset.batch.restoreMessage', { count }),
+				confirmLabel: $t('dataset.confirmRestore'),
 				danger: false,
 			},
 		};
@@ -227,21 +228,21 @@
 	function showSingleConfirm(type: 'archive' | 'delete' | 'restore', ds: DatasetSummary) {
 		const configs = {
 			archive: {
-				title: '归档数据集',
-				message: `确定要归档数据集 "${ds.name}" 吗？\n归档后可在"已归档"标签页中恢复。`,
-				confirmLabel: '确认归档',
+				title: $t('dataset.single.archiveTitle'),
+				message: $t('dataset.single.archiveMessage', { name: ds.name }),
+				confirmLabel: $t('dataset.confirmArchive'),
 				danger: false,
 			},
 			delete: {
-				title: '删除数据集',
-				message: `确定要永久删除数据集 "${ds.name}" 吗？\n此操作不可撤销，所有关联的实验记录也将被清理。`,
-				confirmLabel: '确认删除',
+				title: $t('dataset.single.deleteTitle'),
+				message: $t('dataset.single.deleteMessage', { name: ds.name }),
+				confirmLabel: $t('dataset.confirmDelete'),
 				danger: true,
 			},
 			restore: {
-				title: '恢复数据集',
-				message: `确定要恢复数据集 "${ds.name}" 吗？\n恢复后数据集将重新出现在活跃列表中。`,
-				confirmLabel: '确认恢复',
+				title: $t('dataset.single.restoreTitle'),
+				message: $t('dataset.single.restoreMessage', { name: ds.name }),
+				confirmLabel: $t('dataset.confirmRestore'),
 				danger: false,
 			},
 		};
@@ -448,19 +449,19 @@
 <div class="list-page">
 	<div class="page-header">
 		<div>
-			<h2>数据集管理</h2>
+			<h2>{$t('dataset.listTitle')}</h2>
 			<p class="desc">
-				浏览、搜索和管理所有已注册的训练数据集
+				{$t('dataset.listDesc')}
 				{#if $uxStore.lastRefreshTime}
-					<span class="refresh-time">· 上次刷新: {new Date($uxStore.lastRefreshTime).toLocaleTimeString('zh-CN')}</span>
+					<span class="refresh-time">· {$t('dataset.lastRefresh')}: {new Date($uxStore.lastRefreshTime).toLocaleTimeString('zh-CN')}</span>
 				{/if}
 			</p>
 		</div>
 		<div class="header-actions">
 			<button class="btn-secondary" on:click={loadDatasets} disabled={loading}>
-				{loading ? '⏳ 刷新中...' : '🔄 刷新'}
+				{loading ? $t('dataset.refreshing') : '🔄 ' + $t('dataset.refresh')}
 			</button>
-			<button class="btn-primary" on:click={() => (showRegisterModal = true)}>+ 注册数据集</button>
+			<button class="btn-primary" on:click={() => (showRegisterModal = true)}>+ {$t('dataset.registerDataset')}</button>
 		</div>
 	</div>
 
@@ -476,7 +477,7 @@
 			<span class="search-icon">🔍</span>
 			<input
 				type="text"
-				placeholder="搜索数据集名称或ID..."
+				placeholder={$t('dataset.search')}
 				bind:value={searchQuery}
 				on:input={onSearchInput}
 				class="search-input"
@@ -488,11 +489,11 @@
 		<div class="filter-group">
 			<select bind:value={formatFilter} class="filter-select">
 				{#each formatOptions as opt}
-					<option value={opt.value}>{opt.label}</option>
+					<option value={opt.value}>{$t(opt.labelKey)}</option>
 				{/each}
 			</select>
 			<button class="btn-filter-toggle" class:active={showAdvancedFilters} on:click={() => (showAdvancedFilters = !showAdvancedFilters)}>
-				⚙️ 筛选
+				⚙️ {$t('dataset.filter')}
 				{#if hasAdvancedFilters}
 					<span class="filter-badge">!</span>
 				{/if}
@@ -503,48 +504,48 @@
 	{#if showAdvancedFilters}
 		<div class="advanced-filters">
 			<div class="filter-row">
-				<label class="filter-label">大小</label>
+				<label class="filter-label">{$t('dataset.sizeFilter')}</label>
 				<select bind:value={sizeFilter} class="filter-select-sm">
-					<option value="all">全部</option>
+					<option value="all">{$t('dataset.all')}</option>
 					<option value="small">&lt;10MB</option>
 					<option value="medium">10-100MB</option>
 					<option value="large">100MB-1GB</option>
 					<option value="huge">&gt;1GB</option>
 				</select>
 
-				<label class="filter-label">行数</label>
+				<label class="filter-label">{$t('dataset.rowsFilter')}</label>
 				<select bind:value={rowsFilter} class="filter-select-sm">
-					<option value="all">全部</option>
+					<option value="all">{$t('dataset.all')}</option>
 					<option value="tiny">&lt;1K</option>
 					<option value="small">1K-10K</option>
 					<option value="medium">10K-100K</option>
 					<option value="large">&gt;100K</option>
 				</select>
 
-				<label class="filter-label">质量</label>
+				<label class="filter-label">{$t('dataset.qualityFilter')}</label>
 				<select bind:value={qualityFilter} class="filter-select-sm">
-					<option value="all">全部</option>
-					<option value="excellent">优秀(无缺失)</option>
-					<option value="good">良好(无缺失)</option>
-					<option value="fair">一般(有缺失)</option>
-					<option value="poor">较差(有缺失)</option>
+					<option value="all">{$t('dataset.all')}</option>
+					<option value="excellent">{$t('dataset.qualityExcellent')}</option>
+					<option value="good">{$t('dataset.qualityGood')}</option>
+					<option value="fair">{$t('dataset.qualityFair')}</option>
+					<option value="poor">{$t('dataset.qualityPoor')}</option>
 				</select>
 
-				<label class="filter-label">排序</label>
+				<label class="filter-label">{$t('dataset.sortBy')}</label>
 				<select bind:value={sortBy} class="filter-select-sm">
-					<option value="updated">更新时间</option>
-					<option value="name">名称</option>
-					<option value="size">大小</option>
-					<option value="rows">行数</option>
-					<option value="quality">质量</option>
+					<option value="updated">{$t('dataset.updated')}</option>
+					<option value="name">{$t('dataset.name')}</option>
+					<option value="size">{$t('dataset.size')}</option>
+					<option value="rows">{$t('dataset.rows')}</option>
+					<option value="quality">{$t('dataset.quality')}</option>
 				</select>
 
-				<button class="btn-sort-dir" on:click={() => (sortDir = sortDir === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? '升序' : '降序'}>
+				<button class="btn-sort-dir" on:click={() => (sortDir = sortDir === 'asc' ? 'desc' : 'asc')} title={sortDir === 'asc' ? $t('dataset.ascending') : $t('dataset.descending')}>
 					{sortDir === 'asc' ? '↑' : '↓'}
 				</button>
 
 				{#if hasAdvancedFilters}
-					<button class="btn-clear-filters" on:click={() => { sizeFilter = 'all'; rowsFilter = 'all'; qualityFilter = 'all'; }}>清除筛选</button>
+					<button class="btn-clear-filters" on:click={() => { sizeFilter = 'all'; rowsFilter = 'all'; qualityFilter = 'all'; }}>{$t('dataset.clearFilters')}</button>
 				{/if}
 			</div>
 		</div>
@@ -552,31 +553,31 @@
 
 	<div class="status-tabs">
 		<button class="status-tab" class:active={statusFilter === 'active'} on:click={() => (statusFilter = 'active')}>
-			活跃 <span class="tab-count">{activeCount}</span>
+			{$t('dataset.active')} <span class="tab-count">{activeCount}</span>
 		</button>
 		<button class="status-tab" class:active={statusFilter === 'archived'} on:click={() => (statusFilter = 'archived')}>
-			已归档 <span class="tab-count">{archivedCount}</span>
+			{$t('dataset.archived')} <span class="tab-count">{archivedCount}</span>
 		</button>
 		<button class="status-tab" class:active={statusFilter === 'all'} on:click={() => (statusFilter = 'all')}>
-			全部 <span class="tab-count">{datasets.length}</span>
+			{$t('dataset.all')} <span class="tab-count">{datasets.length}</span>
 		</button>
 	</div>
 
 	{#if someSelected}
 		<div class="batch-bar">
-			<span class="batch-info">已选择 {selectedIds.size} 个数据集</span>
-			<button class="btn-sm" on:click={clearSelection} disabled={batchArchiving || batchDeleting || batchRestoring}>取消选择</button>
+			<span class="batch-info">{$t('dataset.selected')} {selectedIds.size} {$t('dataset.items')}</span>
+			<button class="btn-sm" on:click={clearSelection} disabled={batchArchiving || batchDeleting || batchRestoring}>{$t('dataset.clearSelection')}</button>
 			{#if statusFilter === 'archived'}
 				<button class="btn-sm btn-restore" on:click={() => showBatchConfirm('restore')} disabled={batchRestoring}>
-					{batchRestoring ? '⏳ 恢复中...' : '🔄 批量恢复'}
+					{batchRestoring ? $t('dataset.restoring') : '🔄 ' + $t('dataset.batchRestore')}
 				</button>
 			{:else}
 				<button class="btn-sm btn-warn" on:click={() => showBatchConfirm('archive')} disabled={batchArchiving}>
-					{batchArchiving ? '⏳ 归档中...' : '📦 批量归档'}
+					{batchArchiving ? $t('dataset.archiving') : '📦 ' + $t('dataset.batchArchive')}
 				</button>
 			{/if}
 			<button class="btn-sm btn-danger" on:click={() => showBatchConfirm('delete')} disabled={batchDeleting}>
-				{batchDeleting ? '⏳ 删除中...' : '🗑 批量删除'}
+				{batchDeleting ? $t('dataset.deleting') : '🗑 ' + $t('dataset.batchDelete')}
 			</button>
 			{#if batchArchiving || batchDeleting || batchRestoring}
 				<div class="batch-progress">
@@ -612,20 +613,20 @@
 						<th class="col-check">
 							<input type="checkbox" checked={allSelected} on:change={toggleSelectAll} />
 						</th>
-						<th class="col-name">名称</th>
-						<th class="col-format">格式</th>
-						<th class="col-size">大小</th>
-						<th class="col-rows">行数</th>
-						<th class="col-cols">列数</th>
-						<th class="col-status">状态</th>
-						<th class="col-quality">质量</th>
-						<th class="col-date">更新时间</th>
-						<th class="col-actions">操作</th>
+						<th class="col-name">{$t('dataset.name')}</th>
+						<th class="col-format">{$t('dataset.format')}</th>
+						<th class="col-size">{$t('dataset.size')}</th>
+						<th class="col-rows">{$t('dataset.rows')}</th>
+						<th class="col-cols">{$t('dataset.columns')}</th>
+						<th class="col-status">{$t('dataset.status')}</th>
+						<th class="col-quality">{$t('dataset.quality')}</th>
+						<th class="col-date">{$t('dataset.updated')}</th>
+						<th class="col-actions">{$t('dataset.actions')}</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each filteredDatasets as ds (ds.id)}
-						<tr class="data-row" class:selected={selectedIds.has(ds.id)} on:click={() => viewDetail(ds.id)} on:keydown={(e) => e.key === 'Enter' && viewDetail(ds.id)} tabindex="0" role="button" aria-label="查看 {ds.name}">
+						<tr class="data-row" class:selected={selectedIds.has(ds.id)} on:click={() => viewDetail(ds.id)} on:keydown={(e) => e.key === 'Enter' && viewDetail(ds.id)} tabindex="0" role="button" aria-label="{$t('dataset.view')} {ds.name}">
 							<td class="col-check" on:click|stopPropagation>
 								<input type="checkbox" checked={selectedIds.has(ds.id)} on:change={() => toggleSelect(ds.id)} />
 							</td>
@@ -646,7 +647,7 @@
 							<td class="col-cols">{ds.columns}</td>
 							<td class="col-status">
 								<span class="status-badge {ds.status}">
-									{ds.status === 'active' ? '活跃' : '已归档'}
+									{ds.status === 'active' ? $t('dataset.active') : $t('dataset.archived')}
 								</span>
 							</td>
 							<td class="col-quality">
@@ -654,7 +655,7 @@
 									class="quality-dot"
 									class:good={!ds.has_missing_values && ds.rows > 0}
 									class:warn={ds.has_missing_values}
-									title={ds.has_missing_values ? '存在缺失值' : '数据完整'}
+									title={ds.has_missing_values ? $t('dataset.hasMissingValues') : $t('dataset.dataComplete')}
 								></span>
 							</td>
 							<td class="col-date">{formatDate(ds.updated_at)}</td>
@@ -663,19 +664,19 @@
 									{#if ds.status === 'archived'}
 										<button
 											class="action-btn action-restore"
-											title="恢复数据集"
+											title={$t('dataset.restoreDataset')}
 											on:click={() => showSingleConfirm('restore', ds)}
 										>🔄</button>
 									{:else}
 										<button
 											class="action-btn action-archive"
-											title="归档数据集"
+											title={$t('dataset.archiveDataset')}
 											on:click={() => showSingleConfirm('archive', ds)}
 										>📦</button>
 									{/if}
 									<button
 										class="action-btn action-delete"
-										title="删除数据集"
+										title={$t('dataset.deleteDataset')}
 										on:click={() => showSingleConfirm('delete', ds)}
 									>🗑</button>
 								</div>
@@ -692,15 +693,15 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (showRegisterModal = false)} on:keydown={(e) => { if (e.key === 'Escape') showRegisterModal = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>注册数据集</h3>
+			<h3>{$t('dataset.register.title')}</h3>
 
 			<div class="form-group">
-				<label for="reg-name">数据集名称 *</label>
+				<label for="reg-name">{$t('dataset.register.name')} *</label>
 				<input
 					id="reg-name"
 					type="text"
 					bind:value={regName}
-					placeholder="例如: wikipedia-zh-2024"
+					placeholder={$t('dataset.register.namePlaceholder')}
 					class="input"
 					class:input-error={!!regNameError}
 					class:input-valid={regNameTouched && !regNameError && regName.trim()}
@@ -709,12 +710,12 @@
 				{#if regNameError}
 					<span class="field-error">{regNameError}</span>
 				{:else if regNameTouched && regName.trim()}
-					<span class="field-success">✓ 名称可用</span>
+					<span class="field-success">✓ {$t('dataset.register.nameAvailable')}</span>
 				{/if}
 			</div>
 
 			<div class="form-group">
-				<label for="reg-format">数据格式</label>
+				<label for="reg-format">{$t('dataset.register.format')}</label>
 				<select id="reg-format" bind:value={regFormat} class="input">
 					<option value="csv">CSV</option>
 					<option value="json">JSON</option>
@@ -724,33 +725,33 @@
 			</div>
 
 			<div class="form-group">
-				<label for="reg-path">文件路径 *</label>
+				<label for="reg-path">{$t('dataset.register.path')} *</label>
 				<div class="path-input-group">
 					<input
 						id="reg-path"
 						type="text"
 						bind:value={regPath}
-						placeholder="选择或输入文件路径"
+						placeholder={$t('dataset.register.pathPlaceholder')}
 						class="input"
 						class:input-error={!!regPathError}
 						class:input-valid={regPathTouched && !regPathError && regPath.trim()}
 						on:blur={() => (regPathTouched = true)}
 					/>
-					<button class="btn-browse" on:click={selectFile}>浏览</button>
+					<button class="btn-browse" on:click={selectFile}>{$t('dataset.register.selectFile')}</button>
 				</div>
 				{#if regPathError}
 					<span class="field-error">{regPathError}</span>
 				{:else if regPathTouched && regPath.trim()}
-					<span class="field-success">✓ 路径有效</span>
+					<span class="field-success">✓ {$t('dataset.register.pathValid')}</span>
 				{/if}
 			</div>
 
 			<div class="form-group">
-				<label for="reg-desc">描述（可选）</label>
+				<label for="reg-desc">{$t('dataset.register.description')}</label>
 				<textarea
 					id="reg-desc"
 					bind:value={regDescription}
-					placeholder="简要描述数据集的用途和内容..."
+					placeholder={$t('dataset.register.descriptionPlaceholder')}
 					class="input textarea"
 					rows="2"
 				></textarea>
@@ -761,13 +762,13 @@
 			{/if}
 
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (showRegisterModal = false)}>取消</button>
+				<button class="btn-secondary" on:click={() => (showRegisterModal = false)}>{$t('dataset.register.cancel')}</button>
 				<button
 					class="btn-primary"
 					on:click={registerDataset}
 					disabled={registering || !regFormValid}
 				>
-					{registering ? '注册中...' : '确认注册'}
+					{registering ? $t('dataset.register.registering') : $t('dataset.register.submit')}
 				</button>
 			</div>
 		</div>

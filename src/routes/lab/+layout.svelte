@@ -125,9 +125,6 @@
 				<span class="logo-icon">🧬</span>
 				<span class="logo-text">Biosphere AI Lab</span>
 			</div>
-			<div class="nav-locale">
-				<LocaleSwitch />
-			</div>
 		</div>
 
 		<div class="nav-groups">
@@ -167,6 +164,12 @@
 	</nav>
 
 	<div class="lab-main">
+		<header class="lab-topbar">
+			<div class="topbar-left"></div>
+			<div class="topbar-right">
+				<LocaleSwitch />
+			</div>
+		</header>
 		<main class="lab-content">
 			<slot />
 		</main>
@@ -275,12 +278,6 @@
 		font-weight: 600;
 		color: #e5e7eb;
 		letter-spacing: -0.025em;
-	}
-
-	.nav-locale {
-		margin-top: 0.75rem;
-		display: flex;
-		justify-content: flex-start;
 	}
 
 	.nav-groups {
@@ -394,6 +391,24 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+	}
+
+	.lab-topbar {
+		height: 40px;
+		min-height: 40px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 1.5rem;
+		background: #0c1222;
+		border-bottom: 1px solid rgba(16, 185, 129, 0.12);
+	}
+
+	.topbar-left,
+	.topbar-right {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.lab-content {
