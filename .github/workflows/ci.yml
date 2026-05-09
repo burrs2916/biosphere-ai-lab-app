@@ -16,6 +16,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  LIBTORCH_USE_PYTORCH: 0
 
 jobs:
   frontend-check:
