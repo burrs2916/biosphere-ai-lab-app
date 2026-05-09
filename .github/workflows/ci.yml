@@ -58,16 +58,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libgtk-3-dev libayatana-appindicator3-dev
 
-      - name: Setup PyTorch via venv (required by torch-sys)
+      - name: Setup PyTorch via venv and run cargo check/clippy
         run: |
           python3 -m venv /tmp/torch-env
           source /tmp/torch-env/bin/activate
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          echo "VIRTUAL_ENV=/tmp/torch-env" >> $GITHUB_ENV
-          echo "/tmp/torch-env/bin" >> $GITHUB_PATH
-
-      - run: cargo check
-      - run: cargo clippy -- -W warnings
+          export VIRTUAL_ENV=/tmp/torch-env
+          export PATH="/tmp/torch-env/bin:$PATH"
+          cargo check
+          cargo clippy -- -W warnings
 
   build:
     name: Build ${{ matrix.target }}
