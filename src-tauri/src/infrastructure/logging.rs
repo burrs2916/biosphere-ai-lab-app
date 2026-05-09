@@ -11,7 +11,7 @@ pub struct Logger {
 }
 
 impl Logger {
-    pub fn new(app_dir: &PathBuf, config: &LogConfig) -> Self {
+    pub fn new(app_dir: &std::path::Path, config: &LogConfig) -> Self {
         let log_path = if config.log_dir.is_absolute() {
             Some(config.log_dir.join(&config.log_file))
         } else {
@@ -63,7 +63,7 @@ impl Logger {
 
 pub static LOGGER: std::sync::OnceLock<Mutex<Logger>> = std::sync::OnceLock::new();
 
-pub fn init_logger(app_dir: &PathBuf, config: &LogConfig) {
+pub fn init_logger(app_dir: &std::path::Path, config: &LogConfig) {
     let logger = Logger::new(app_dir, config);
     let _ = LOGGER.set(Mutex::new(logger));
 }

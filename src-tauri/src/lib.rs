@@ -312,9 +312,11 @@ fn setup_inner(app: &tauri::App, app_state: &Arc<AppState>) -> Result<(), String
 
     eprintln!("[SETUP] Step 3: configuring logger...");
 
-    let mut log_config = infrastructure::LogConfig::default();
-    log_config.console_output = true;
-    log_config.clear_on_start = true;
+    let mut log_config = infrastructure::LogConfig {
+        console_output: true,
+        clear_on_start: true,
+        ..Default::default()
+    };
 
     #[cfg(debug_assertions)]
     {
