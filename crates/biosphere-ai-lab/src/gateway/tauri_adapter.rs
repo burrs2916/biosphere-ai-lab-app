@@ -2992,7 +2992,7 @@ pub async fn lab_data_version_init(
         ..Default::default()
     };
 
-    let repo = DataVersionRepo::init(config)?;
+    let _repo = DataVersionRepo::init(config)?;
     Ok(format!("Repository initialized at {}", repo_path))
 }
 

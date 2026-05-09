@@ -1,8 +1,8 @@
 use rand::prelude::*;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -148,7 +148,7 @@ impl GlobalShuffleSampler {
         self.permutation.is_empty()
     }
 
-    pub fn iter(&self) -> GlobalShuffleIter {
+    pub fn iter(&self) -> GlobalShuffleIter<'_> {
         GlobalShuffleIter {
             sampler: self,
             position: 0,

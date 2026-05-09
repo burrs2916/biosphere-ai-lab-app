@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fs;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::io::{BufRead, Read};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -658,7 +658,7 @@ impl CloudStreamingDataset {
         streaming_config: StreamingConfig,
         cache: Option<Arc<CloudCache>>,
     ) -> Result<Self, String> {
-        let mut reader = CloudStreamingReader::new(
+        let reader = CloudStreamingReader::new(
             storage_config.clone(),
             key,
             cache.clone(),
@@ -717,7 +717,7 @@ impl CloudStreamingDataset {
         let data = reader.read_range(start, end)?;
         let is_last = end >= reader.file_size().saturating_sub(1);
 
-        let rows: Vec<Vec<String>> = match self.info.format.as_str() {
+        let _rows: Vec<Vec<String>> = match self.info.format.as_str() {
             "csv" => {
                 let text = String::from_utf8_lossy(&data);
                 let mut rows = Vec::new();

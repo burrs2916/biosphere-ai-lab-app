@@ -4,12 +4,12 @@
   "description": "Biosphere AI Lab - 模型训练可视化平台",
   "type": "module",
   "scripts": {
-    "dev": "lsof -ti:1420 | xargs -r kill -9 2>/dev/null || true && vite dev",
+    "dev": "lsof -ti:1428 | xargs -r kill -9 2>/dev/null || true && vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "tauri": "tauri",
-    "tauri:dev": "lsof -ti:1420 | xargs -r kill -9 2>/dev/null || true && LIBTORCH_USE_PYTORCH=1 LIBTORCH_BYPASS_VERSION_CHECK=1 TAURI_CLI_WATCHER_IGNORE_FILENAME=.taurignore tauri dev"
+    "tauri:dev": "lsof -ti:1428 | xargs -r kill -9 2>/dev/null || true && LIBTORCH_USE_PYTORCH=1 LIBTORCH_BYPASS_VERSION_CHECK=1 TAURI_CLI_WATCHER_IGNORE_FILENAME=.taurignore tauri dev"
   },
   "license": "MIT",
   "dependencies": {

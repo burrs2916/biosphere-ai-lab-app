@@ -142,7 +142,7 @@ pub fn export_tch_model(
 fn export_tch_torchscript(
     experiment_id: &str,
     config: &TrainingConfig,
-    artifact_dir: &str,
+    _artifact_dir: &str,
     output_dir: &str,
     input_shapes: &[Vec<i64>],
     checkpoint: &(i64, String),
@@ -211,7 +211,7 @@ fn export_tch_torchscript(
 fn export_tch_onnx(
     experiment_id: &str,
     config: &TrainingConfig,
-    artifact_dir: &str,
+    _artifact_dir: &str,
     output_dir: &str,
     input_shapes: &[Vec<i64>],
     checkpoint: &(i64, String),
@@ -256,7 +256,7 @@ fn export_tch_onnx(
 
     let ts_path = format!("{}/{}", output_dir, get_export_filename(experiment_id, &ExportFormat::TorchScript));
 
-    let mut model_ref = &model;
+    let model_ref = &model;
     match tch::CModule::create_by_tracing("export", "forward", &[input_tensor], &mut |inputs| {
         let output = model_ref.forward_t(&inputs[0], false);
         vec![output]

@@ -8,13 +8,19 @@ fn main() {
 }
 
 fn find_torch_lib_path() -> Result<String, String> {
-    let output = std::process::Command::new("python3")
+    let python = if std::env::var_os("VIRTUAL_ENV").is_some() {
+        "python"
+    } else {
+        "python3"
+    };
+
+    let output = std::process::Command::new(python)
         .args(["-c", "import torch, os; print(os.path.dirname(torch.__file__) + '/lib')"])
         .output()
-        .map_err(|e| format!("Failed to run python3: {}", e))?;
+        .map_err(|e| format!("Failed to run {python}: {}", e))?;
 
     if !output.status.success() {
-        return Err("python3 failed to find torch".to_string());
+        return Err(format!("{python} failed to find torch"));
     }
 
     let path = String::from_utf8_lossy(&output.stdout).trim().to_string();

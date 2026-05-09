@@ -297,7 +297,7 @@ fn build_optimizer(
                 .map_err(|e| LabError::Custom(format!("Optimizer build error: {}", e)))
         }
         crate::core::config::OptimizerConfig::AdamW { beta1, beta2, weight_decay } => {
-            let mut opt = nn::Adam {
+            let opt = nn::Adam {
                 beta1: *beta1,
                 beta2: *beta2,
                 wd: *weight_decay,
@@ -650,7 +650,7 @@ pub fn create_model_for_export(
     vs_root: &nn::Path,
     num_features: usize,
     num_outputs: usize,
-    batch_size: i64,
+    _batch_size: i64,
 ) -> Box<dyn tch::nn::ModuleT + Send> {
     if model_id == "cnn" {
         let channels = 1;

@@ -2,7 +2,6 @@ use rand::prelude::*;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributedSamplerConfig {
@@ -109,7 +108,7 @@ impl DistributedSampler {
         self.indices.is_empty()
     }
 
-    pub fn iter(&self) -> DistributedSamplerIter {
+    pub fn iter(&self) -> DistributedSamplerIter<'_> {
         DistributedSamplerIter {
             sampler: self,
             position: 0,
@@ -188,7 +187,7 @@ impl WeightedRandomSampler {
         self.num_samples == 0
     }
 
-    pub fn iter(&mut self) -> WeightedRandomSamplerIter {
+    pub fn iter(&mut self) -> WeightedRandomSamplerIter<'_> {
         WeightedRandomSamplerIter {
             sampler: self,
             yielded: 0,
@@ -270,7 +269,7 @@ impl BatchSampler {
         self.indices.is_empty()
     }
 
-    pub fn iter(&self) -> BatchSamplerIter {
+    pub fn iter(&self) -> BatchSamplerIter<'_> {
         BatchSamplerIter {
             sampler: self,
             position: 0,
@@ -336,7 +335,7 @@ impl SubsetRandomSampler {
         self.indices.is_empty()
     }
 
-    pub fn iter(&mut self) -> SubsetRandomSamplerIter {
+    pub fn iter(&mut self) -> SubsetRandomSamplerIter<'_> {
         self.indices.shuffle(&mut self.rng);
         SubsetRandomSamplerIter {
             sampler: self,
@@ -374,7 +373,7 @@ pub fn compute_split_indices(
     total_size: usize,
     train_ratio: f64,
     val_ratio: f64,
-    test_ratio: f64,
+    _test_ratio: f64,
     seed: u64,
 ) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
     let mut rng = StdRng::seed_from_u64(seed);
@@ -425,7 +424,7 @@ pub fn compute_stratified_split_indices(
     num_classes: usize,
     train_ratio: f64,
     val_ratio: f64,
-    test_ratio: f64,
+    _test_ratio: f64,
     seed: u64,
 ) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
     let mut rng = StdRng::seed_from_u64(seed);

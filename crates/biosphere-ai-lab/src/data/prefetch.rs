@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
+use std::io::{BufRead, BufReader};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Instant;
 
 use crate::data::arrow_table::ArrowTable;
-use crate::data::streaming::{StreamChunk, StreamingConfig, StreamingDataset, StreamingDatasetInfo};
+use crate::data::streaming::{StreamChunk, StreamingConfig, StreamingDatasetInfo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CompressionFormat {
@@ -206,7 +205,7 @@ impl PrefetchStreamingDataset {
         let produce_times_clone = produce_times.clone();
         let buffer_watermarks_clone = buffer_watermarks.clone();
         let chunk_size = streaming_config.chunk_size;
-        let format = "csv".to_string();
+        let _format = "csv".to_string();
         let col_names = info.column_names.clone();
 
         let producer_handle = thread::spawn(move || {

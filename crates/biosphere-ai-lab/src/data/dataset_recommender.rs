@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::dataset::aggregate::{ColumnProfile, DatasetSummary};
+use crate::domain::dataset::aggregate::DatasetSummary;
 
 use super::training_plan::{PlanType, TrainingPlan};
 

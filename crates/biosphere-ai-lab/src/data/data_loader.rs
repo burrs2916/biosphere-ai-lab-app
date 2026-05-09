@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::data::data_collator::DataCollator;
-use crate::data::sampler::{BatchSampler, DistributedSampler, DistributedSamplerConfig, SamplerStats};
+use crate::data::sampler::{BatchSampler, DistributedSampler, DistributedSamplerConfig};
 use crate::data::tokenizer::{BatchEncoding, TokenizerPipeline};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -438,11 +438,11 @@ impl DataLoader {
         result_tx: mpsc::Sender<WorkerResult>,
         worker_infos: Arc<Mutex<Vec<WorkerInfo>>>,
     ) {
-        let mut dataset: Option<Arc<dyn SampleDataset>> = None;
-        let mut tokenizer: Option<Arc<TokenizerPipeline>> = None;
-        let mut collator: Option<Arc<DataCollator>> = None;
-        let mut dynamic_batching: Option<DynamicBatchingConfig> = None;
-        let mut pin_memory = false;
+        let dataset: Option<Arc<dyn SampleDataset>> = None;
+        let tokenizer: Option<Arc<TokenizerPipeline>> = None;
+        let _collator: Option<Arc<DataCollator>> = None;
+        let dynamic_batching: Option<DynamicBatchingConfig> = None;
+        let _pin_memory = false;
         let mut samples_loaded = 0usize;
         let mut batches_produced = 0usize;
         let mut total_load_time = Duration::ZERO;
@@ -544,7 +544,7 @@ impl DataLoader {
                                     .collect();
 
                                 if let Some(ref db) = dynamic_batching {
-                                    let (ids, mask) = Self::apply_dynamic_batching(
+                                    let (ids, _mask) = Self::apply_dynamic_batching(
                                         &input_ids, &attention_mask, db,
                                     );
                                     input_ids = ids;

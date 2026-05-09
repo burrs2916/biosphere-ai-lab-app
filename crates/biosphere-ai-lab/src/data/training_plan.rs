@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use super::data_recipe::{DataRecipe, QualityThresholds};
+use super::data_recipe::DataRecipe;
 use super::global_dedup::GlobalDedupConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
