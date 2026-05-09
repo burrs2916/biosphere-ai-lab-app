@@ -58,8 +58,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
-      - name: Install PyTorch (required by torch-sys)
-        run: pip3 install torch --index-url https://download.pytorch.org/whl/cpu --break-system-packages
+      - name: Setup PyTorch via venv (required by torch-sys)
+        run: |
+          python3 -m venv /tmp/torch-env
+          source /tmp/torch-env/bin/activate
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          echo "VIRTUAL_ENV=/tmp/torch-env" >> $GITHUB_ENV
+          echo "/tmp/torch-env/bin" >> $GITHUB_PATH
 
       - run: cargo check
       - run: cargo clippy -- -W warnings
@@ -113,9 +118,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libgtk-3-dev libayatana-appindicator3-dev
 
-      - name: Install PyTorch (Ubuntu)
+      - name: Setup PyTorch via venv (Ubuntu)
         if: matrix.platform == 'ubuntu-22.04'
-        run: pip3 install torch --index-url https://download.pytorch.org/whl/cpu --break-system-packages
+        run: |
+          python3 -m venv /tmp/torch-env
+          source /tmp/torch-env/bin/activate
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          echo "VIRTUAL_ENV=/tmp/torch-env" >> $GITHUB_ENV
+          echo "/tmp/torch-env/bin" >> $GITHUB_PATH
 
       - run: pnpm install --frozen-lockfile
 
