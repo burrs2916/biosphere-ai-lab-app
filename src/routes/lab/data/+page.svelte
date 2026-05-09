@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { t } from '$lib/i18n';
 
 	onMount(() => {
 		goto('/lab/data/list');
@@ -8,7 +9,7 @@
 </script>
 
 <div class="redirect">
-	<p>正在跳转到数据集列表...</p>
+	<p>{$t('data.redirecting')}</p>
 </div>
 
 <style>

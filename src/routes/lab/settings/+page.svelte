@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getLabClient } from '$lib/lab/stores/plugins';
+	import { t } from '$lib/i18n';
 	import type { AppSettings, HardwareInfo, PluginInfo } from '$lib/lab/adapter/types';
 
 	let settings: AppSettings | null = null;
@@ -24,7 +25,7 @@
 			hardware = h;
 			engines = e;
 		} catch (e: any) {
-			error = e?.message || '加载配置失败';
+			error = e?.message || $t('settings.loadFailed');
 		} finally {
 			loading = false;
 		}
@@ -41,7 +42,7 @@
 			saved = true;
 			setTimeout(() => { saved = false; }, 2000);
 		} catch (e: any) {
-			error = e?.message || '保存失败';
+			error = e?.message || $t('settings.saveFailed');
 		} finally {
 			saving = false;
 		}
@@ -67,17 +68,17 @@
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载配置...</p>
+			<p>{$t('settings.loadingConfig')}</p>
 		</div>
 	{:else if settings}
 		<div class="settings-header">
-			<h2>系统配置</h2>
+			<h2>{$t('settings.title')}</h2>
 			<div class="header-actions">
 				{#if saved}
-					<span class="saved-badge">✓ 已保存</span>
+					<span class="saved-badge">✓ {$t('settings.saved')}</span>
 				{/if}
 				<button class="save-btn" on:click={save} disabled={saving}>
-					{saving ? '保存中...' : '保存配置'}
+					{saving ? $t('settings.saving') : $t('settings.saveConfig')}
 				</button>
 			</div>
 		</div>
@@ -89,39 +90,39 @@
 		<div class="settings-layout">
 			<nav class="settings-nav">
 				<button class="nav-item" class:active={activeSection === 'general'} on:click={() => activeSection = 'general'}>
-					<span class="nav-icon">🌐</span> 通用
+					<span class="nav-icon">🌐</span> {$t('settings.general')}
 				</button>
 				<button class="nav-item" class:active={activeSection === 'training'} on:click={() => activeSection = 'training'}>
-					<span class="nav-icon">🚀</span> 训练
+					<span class="nav-icon">🚀</span> {$t('settings.training')}
 				</button>
 				<button class="nav-item" class:active={activeSection === 'storage'} on:click={() => activeSection = 'storage'}>
-					<span class="nav-icon">💾</span> 存储
+					<span class="nav-icon">💾</span> {$t('settings.storage')}
 				</button>
 				<button class="nav-item" class:active={activeSection === 'system'} on:click={() => activeSection = 'system'}>
-					<span class="nav-icon">🖥️</span> 系统
+					<span class="nav-icon">🖥️</span> {$t('settings.system')}
 				</button>
 			</nav>
 
 			<div class="settings-content">
 				{#if activeSection === 'general'}
 					<div class="section">
-						<h3>通用设置</h3>
+						<h3>{$t('settings.generalSettings')}</h3>
 						<div class="form-group">
-							<label for="auto-f66">语言</label>
+							<label for="auto-f66">{$t('settings.language')}</label>
 							<select id="auto-f66" bind:value={settings.general.language} class="input">
 								<option value="zh-CN">简体中文</option>
 								<option value="en">English</option>
 							</select>
 						</div>
 						<div class="form-group">
-							<label for="auto-f67">主题</label>
+							<label for="auto-f67">{$t('settings.theme')}</label>
 							<select id="auto-f67" bind:value={settings.general.theme} class="input">
-								<option value="dark">深色</option>
-								<option value="light">浅色</option>
+								<option value="dark">{$t('settings.darkTheme')}</option>
+								<option value="light">{$t('settings.lightTheme')}</option>
 							</select>
 						</div>
 						<div class="form-group">
-							<label for="auto-f68">日志级别</label>
+							<label for="auto-f68">{$t('settings.logLevel')}</label>
 							<select id="auto-f68" bind:value={settings.general.log_level} class="input">
 								<option value="trace">Trace</option>
 								<option value="debug">Debug</option>
@@ -131,16 +132,16 @@
 							</select>
 						</div>
 						<div class="form-group">
-							<label for="auto-f69">自动刷新间隔 (秒)</label>
+							<label for="auto-f69">{$t('settings.autoRefreshInterval')}</label>
 							<input id="auto-f69" type="number" bind:value={settings.general.auto_refresh_interval} min="1" max="60" class="input" />
-							<span class="hint">训练状态自动刷新的时间间隔</span>
+							<span class="hint">{$t('settings.autoRefreshHint')}</span>
 						</div>
 					</div>
 				{:else if activeSection === 'training'}
 					<div class="section">
-						<h3>训练设置</h3>
+						<h3>{$t('settings.trainingSettings')}</h3>
 						<div class="form-group">
-							<label for="auto-f70">默认计算后端</label>
+							<label for="auto-f70">{$t('settings.defaultComputeBackend')}</label>
 							<select id="auto-f70" bind:value={settings.training.default_compute_backend} class="input">
 								<option value="cpu">CPU</option>
 								<option value="cuda">CUDA (NVIDIA GPU)</option>
@@ -148,10 +149,10 @@
 								<option value="metal">Metal (Apple GPU)</option>
 								<option value="rocm">ROCm (AMD GPU)</option>
 							</select>
-							<span class="hint">新训练任务的默认计算后端</span>
+							<span class="hint">{$t('settings.defaultBackendHint')}</span>
 						</div>
 						<div class="form-group">
-							<label for="auto-f71">默认引擎</label>
+							<label for="auto-f71">{$t('settings.defaultEngine')}</label>
 							<select id="auto-f71" bind:value={settings.training.default_engine} class="input">
 								{#each engines as engine}
 									<option value={engine.id}>{engine.name}</option>
@@ -159,82 +160,82 @@
 							</select>
 						</div>
 						<div class="form-group">
-							<label for="auto-f72">最大并发实验数</label>
+							<label for="auto-f72">{$t('settings.maxConcurrentExperiments')}</label>
 							<input id="auto-f72" type="number" bind:value={settings.training.max_concurrent_experiments} min="1" max="8" class="input" />
-							<span class="hint">同时运行的训练实验数量上限</span>
+							<span class="hint">{$t('settings.maxConcurrentHint')}</span>
 						</div>
 						<div class="form-group">
 							<label class="checkbox-label">
 								<input type="checkbox" bind:checked={settings.training.auto_checkpoint} />
-								自动保存检查点
+								{$t('settings.autoCheckpoint')}
 							</label>
-							<span class="hint">训练过程中自动保存检查点</span>
+							<span class="hint">{$t('settings.autoCheckpointHint')}</span>
 						</div>
 						{#if settings.training.auto_checkpoint}
 							<div class="form-group">
-								<label for="auto-f73">检查点间隔 (Epoch)</label>
+								<label for="auto-f73">{$t('settings.checkpointInterval')}</label>
 								<input id="auto-f73" type="number" bind:value={settings.training.checkpoint_interval} min="1" class="input" />
 							</div>
 						{/if}
 					</div>
 				{:else if activeSection === 'storage'}
 					<div class="section">
-						<h3>存储设置</h3>
+						<h3>{$t('settings.storageSettings')}</h3>
 						<div class="form-group">
-							<label for="data-dir">数据目录</label>
+							<label for="data-dir">{$t('settings.dataDirectory')}</label>
 							<div class="path-input">
 								<input id="data-dir" type="text" bind:value={settings.storage.data_directory} class="input" />
-								<button class="browse-btn" on:click={() => selectDirectory('data_directory')}>浏览</button>
+								<button class="browse-btn" on:click={() => selectDirectory('data_directory')}>{$t('settings.browse')}</button>
 							</div>
-							<span class="hint">训练数据文件的存储位置</span>
+							<span class="hint">{$t('settings.dataDirHint')}</span>
 						</div>
 						<div class="form-group">
-							<label for="model-dir">模型目录</label>
+							<label for="model-dir">{$t('settings.modelDirectory')}</label>
 							<div class="path-input">
 								<input id="model-dir" type="text" bind:value={settings.storage.model_directory} class="input" />
-								<button class="browse-btn" on:click={() => selectDirectory('model_directory')}>浏览</button>
+								<button class="browse-btn" on:click={() => selectDirectory('model_directory')}>{$t('settings.browse')}</button>
 							</div>
-							<span class="hint">训练完成的模型存储位置</span>
+							<span class="hint">{$t('settings.modelDirHint')}</span>
 						</div>
 						<div class="form-group">
-							<label for="ckpt-dir">检查点目录</label>
+							<label for="ckpt-dir">{$t('settings.checkpointDirectory')}</label>
 							<div class="path-input">
 								<input id="ckpt-dir" type="text" bind:value={settings.storage.checkpoint_directory} class="input" />
-								<button class="browse-btn" on:click={() => selectDirectory('checkpoint_directory')}>浏览</button>
+								<button class="browse-btn" on:click={() => selectDirectory('checkpoint_directory')}>{$t('settings.browse')}</button>
 							</div>
-							<span class="hint">训练检查点存储位置</span>
+							<span class="hint">{$t('settings.checkpointDirHint')}</span>
 						</div>
 						<div class="form-group">
-							<label for="auto-f74">最大存储空间 (GB)</label>
+							<label for="auto-f74">{$t('settings.maxStorage')}</label>
 							<input id="auto-f74" type="number" bind:value={settings.storage.max_storage_gb} min="1" step="1" class="input" />
-							<span class="hint">超过此限制时自动清理旧的检查点</span>
+							<span class="hint">{$t('settings.maxStorageHint')}</span>
 						</div>
 					</div>
 				{:else if activeSection === 'system'}
 					<div class="section">
-						<h3>系统信息</h3>
+						<h3>{$t('settings.systemInfo')}</h3>
 						{#if hardware}
 							<div class="info-grid">
 								<div class="info-card">
 									<div class="info-icon">🖥️</div>
 									<div class="info-body">
-										<h4>处理器</h4>
+										<h4>{$t('settings.processor')}</h4>
 										<p class="info-value">{hardware.cpu_model}</p>
-										<p class="info-detail">{hardware.cpu_cores} 核心</p>
+										<p class="info-detail">{hardware.cpu_cores} {$t('settings.cores')}</p>
 									</div>
 								</div>
 								<div class="info-card">
 									<div class="info-icon">💾</div>
 									<div class="info-body">
-										<h4>内存</h4>
+										<h4>{$t('settings.memory')}</h4>
 										<p class="info-value">{formatMemory(hardware.total_memory_mb)}</p>
-										<p class="info-detail">可用 {formatMemory(hardware.available_memory_mb)}</p>
+										<p class="info-detail">{$t('settings.available')} {formatMemory(hardware.available_memory_mb)}</p>
 									</div>
 								</div>
 								<div class="info-card">
 									<div class="info-icon">💻</div>
 									<div class="info-body">
-										<h4>操作系统</h4>
+										<h4>{$t('settings.os')}</h4>
 										<p class="info-value">{hardware.os_name}</p>
 										<p class="info-detail">{hardware.os_version}</p>
 									</div>
@@ -246,7 +247,7 @@
 											<div class="info-body">
 												<h4>GPU {i + 1}</h4>
 												<p class="info-value">{gpu.name}</p>
-												<p class="info-detail">显存 {formatMemory(gpu.vram_mb)} | {gpu.compute_backend}</p>
+												<p class="info-detail">{$t('settings.vram')} {formatMemory(gpu.vram_mb)} | {gpu.compute_backend}</p>
 											</div>
 										</div>
 									{/each}
@@ -255,15 +256,15 @@
 										<div class="info-icon">🎮</div>
 										<div class="info-body">
 											<h4>GPU</h4>
-											<p class="info-value">未检测到</p>
-											<p class="info-detail">将使用 CPU/WGPU 进行训练</p>
+											<p class="info-value">{$t('settings.notDetected')}</p>
+											<p class="info-detail">{$t('settings.willUseCpu')}</p>
 										</div>
 									</div>
 								{/if}
 							</div>
 
 							<div class="plugin-section">
-								<h4>已注册插件</h4>
+								<h4>{$t('settings.registeredPlugins')}</h4>
 								<div class="plugin-list">
 									{#each engines as engine}
 										<div class="plugin-item">

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { progressStore, formatETA } from '$lib/lab/stores/progress';
+	import { t } from '$lib/i18n';
 
 	export let sessionId: string;
 	export let compact: boolean = false;
@@ -65,10 +66,10 @@
 				<div class="progress-stats">
 					{#if etaLabel && progress.estimatedTimeRemaining !== null && progress.estimatedTimeRemaining > 0}
 						<span class="stat-chip eta">
-							⏱ 剩余 {etaLabel}
+							⏱ {$t('training.remaining')} {etaLabel}
 						</span>
 					{:else if progressPercent >= 100}
-						<span class="stat-chip done">✓ 已完成</span>
+						<span class="stat-chip done">✓ {$t('training.completed')}</span>
 					{/if}
 					{#if epochSpeed}
 						<span class="stat-chip speed">

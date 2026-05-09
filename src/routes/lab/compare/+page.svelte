@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import * as echarts from 'echarts';
 	import { getLabClient } from '$lib/lab/stores/plugins';
+	import { t } from '$lib/i18n';
 	import MetricsChart from '$lib/lab/components/MetricsChart.svelte';
 	import type { ExperimentSummary, ExperimentDetail, MetricSeries } from '$lib/lab/adapter/types';
 
@@ -66,7 +67,7 @@
 		try {
 			experiments = await client.listExperiments();
 		} catch (e: any) {
-			error = e?.message || '加载实验列表失败';
+			error = e?.message || $t('compare.loadListFailed');
 		} finally {
 			loading = false;
 		}
@@ -110,7 +111,7 @@
 				compareMetric = availableMetrics[0];
 			}
 		} catch (e: any) {
-			error = e?.message || '加载实验详情失败';
+			error = e?.message || $t('compare.loadDetailFailed');
 		} finally {
 			comparing = false;
 		}
@@ -271,7 +272,7 @@
 
 		return {
 			title: {
-				text: '平行坐标图',
+				text: $t('compare.parallelCoordinates'),
 				textStyle: { color: '#e5e7eb', fontSize: 14, fontWeight: 600 },
 				left: 10,
 				top: 5,
@@ -356,12 +357,12 @@
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载实验列表...</p>
+			<p>{$t('compare.loadingList')}</p>
 		</div>
 	{:else}
 		<div class="compare-header">
-			<h2>对比分析</h2>
-			<div class="header-info">选择 2-5 个实验进行对比</div>
+			<h2>{$t('compare.title')}</h2>
+			<div class="header-info">{$t('compare.selectHint')}</div>
 		</div>
 
 		{#if error}
@@ -370,7 +371,7 @@
 
 		<div class="compare-layout">
 			<div class="experiment-selector">
-				<h3>选择实验</h3>
+				<h3>{$t('compare.selectExperiments')}</h3>
 				<div class="experiment-list">
 					{#each experiments as exp}
 						<button
@@ -395,12 +396,12 @@
 						</button>
 					{/each}
 					{#if experiments.length === 0}
-						<div class="empty-state">暂无实验数据</div>
+						<div class="empty-state">{$t('compare.noExperimentData')}</div>
 					{/if}
 				</div>
 
 				<button class="compare-btn" on:click={compare} disabled={selectedIds.size < 2 || comparing}>
-					{comparing ? '加载中...' : `对比 ${selectedIds.size} 个实验`}
+					{comparing ? $t('compare.loading') : $t('compare.compareCount', { count: selectedIds.size })}
 				</button>
 			</div>
 
@@ -408,23 +409,23 @@
 				{#if !hasComparison}
 					<div class="placeholder">
 						<div class="placeholder-icon">📊</div>
-						<p>选择至少 2 个实验开始对比分析</p>
+						<p>{$t('compare.selectAtLeast2')}</p>
 					</div>
 				{:else}
 					<div class="results-section">
 						<div class="results-toolbar">
-							<h3>指标对比</h3>
+							<h3>{$t('compare.metricsComparison')}</h3>
 							<div class="view-tabs">
-								<button class="view-tab" class:active={activeView === 'chart'} on:click={() => activeView = 'chart'}>📈 折线图</button>
-								<button class="view-tab" class:active={activeView === 'scatter'} on:click={() => activeView = 'scatter'}>🔵 散点图</button>
-								<button class="view-tab" class:active={activeView === 'parallel'} on:click={() => activeView = 'parallel'}>📐 平行坐标</button>
-								<button class="view-tab" class:active={activeView === 'table'} on:click={() => activeView = 'table'}>📋 表格</button>
+								<button class="view-tab" class:active={activeView === 'chart'} on:click={() => activeView = 'chart'}>📈 {$t('compare.lineChart')}</button>
+								<button class="view-tab" class:active={activeView === 'scatter'} on:click={() => activeView = 'scatter'}>🔵 {$t('compare.scatterPlot')}</button>
+								<button class="view-tab" class:active={activeView === 'parallel'} on:click={() => activeView = 'parallel'}>📐 {$t('compare.parallelCoord')}</button>
+								<button class="view-tab" class:active={activeView === 'table'} on:click={() => activeView = 'table'}>📋 {$t('compare.table')}</button>
 							</div>
 						</div>
 
 						{#if availableMetrics.length > 0 && (activeView === 'chart' || activeView === 'scatter')}
 							<div class="metric-selector">
-								<label for="auto-f87">选择指标：</label>
+								<label for="auto-f87">{$t('compare.selectMetric')}：</label>
 								<select id="auto-f87" bind:value={compareMetric} class="metric-select">
 									{#each availableMetrics as m}
 										<option value={m}>{m}</option>
@@ -448,16 +449,16 @@
 								<table class="metrics-table">
 									<thead>
 										<tr>
-											<th>实验</th>
-											<th>状态</th>
+											<th>{$t('compare.experiment')}</th>
+											<th>{$t('compare.status')}</th>
 											{#each availableMetrics as m}
-												<th>最佳 {m}</th>
-												<th>最终 {m}</th>
+												<th>{$t('compare.best')} {m}</th>
+												<th>{$t('compare.final')} {m}</th>
 											{/each}
 											<th>Epochs</th>
-											<th>学习率</th>
-											<th>批量大小</th>
-											<th>后端</th>
+											<th>{$t('compare.learningRate')}</th>
+											<th>{$t('compare.batchSize')}</th>
+											<th>{$t('compare.backend')}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -489,7 +490,7 @@
 						{/if}
 
 						<div class="config-comparison">
-							<h4>配置差异</h4>
+							<h4>{$t('compare.configDiff')}</h4>
 							<div class="diff-grid">
 								{#each getConfigDiffs(details) as diff}
 									<div class="diff-item" class:diff-same={diff.same} class:diff-different={!diff.same}>

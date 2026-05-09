@@ -1,10 +1,18 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
+
   export let qualityScore: any = null;
 
   let expandedDimension: string | null = null;
 
   function gradeLabel(grade: string): string {
-    const map: Record<string, string> = { excellent: '优秀', good: '良好', fair: '一般', poor: '较差', critical: '严重' };
+    const map: Record<string, string> = {
+      excellent: $t('quality.gradeExcellent'),
+      good: $t('quality.gradeGood'),
+      fair: $t('quality.gradeFair'),
+      poor: $t('quality.gradePoor'),
+      critical: $t('quality.gradeCritical'),
+    };
     return map[grade] || grade;
   }
 
@@ -40,13 +48,13 @@
         <span class="score-grade">{gradeLabel(qualityScore.grade)}</span>
       </div>
       <div class="score-summary">
-        <div class="score-title">综合质量评分</div>
+        <div class="score-title">{$t('quality.overallScore')}</div>
         <div class="score-meta">
           {#if qualityScore.dimensions?.length}
-            {qualityScore.dimensions.length} 个维度评估
+            {$t('quality.dimensionsEval', { count: qualityScore.dimensions.length })}
           {/if}
           {#if qualityScore.issues?.length}
-            · {qualityScore.issues.length} 个问题
+            · {$t('quality.issuesCount', { count: qualityScore.issues.length })}
           {/if}
         </div>
       </div>
@@ -62,7 +70,7 @@
             </div>
             <div class="dim-score-area">
               <span class="dim-score" style="color: {scoreColor(dim.score)}">{dim.score.toFixed(0)}</span>
-              <span class="dim-weight">权重 {(dim.weight * 100).toFixed(0)}%</span>
+              <span class="dim-weight">{$t('quality.weight', { pct: (dim.weight * 100).toFixed(0) })}</span>
             </div>
           </div>
           <div class="dim-bar">
@@ -101,7 +109,7 @@
 
     {#if qualityScore.issues?.length > 0}
       <div class="issues-section">
-        <h5 class="section-title">发现的问题</h5>
+        <h5 class="section-title">{$t('quality.issuesFound')}</h5>
         {#each qualityScore.issues as issue}
           <div class="issue-item" class:error={issue.severity === 'error'} class:warning={issue.severity === 'warning'} class:info={issue.severity === 'info'}>
             <span class="issue-icon">{severityIcon(issue.severity)}</span>
@@ -121,7 +129,7 @@
 
     {#if qualityScore.recommendations?.length > 0}
       <div class="recs-section">
-        <h5 class="section-title">改进建议</h5>
+        <h5 class="section-title">{$t('quality.recommendations')}</h5>
         <div class="recs-list">
           {#each qualityScore.recommendations as rec}
             <div class="rec-item">{rec}</div>

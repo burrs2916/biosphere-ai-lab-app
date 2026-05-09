@@ -1,5 +1,6 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { getLabClient } from './plugins';
+import { i18n } from '$lib/i18n';
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting';
 
@@ -128,10 +129,11 @@ function createStatusBarStore() {
 export const statusBarStore = createStatusBarStore();
 
 export const connectionLabel = derived(statusBarStore, ($s) => {
+  const t = get(i18n.t);
   switch ($s.connectionStatus) {
-    case 'connected': return '已连接';
-    case 'connecting': return '连接中...';
-    case 'disconnected': return '未连接';
+    case 'connected': return t('status.connected');
+    case 'connecting': return t('status.connecting');
+    case 'disconnected': return t('status.disconnected');
   }
 });
 
@@ -145,9 +147,10 @@ export const uptimeLabel = derived(statusBarStore, ($s) => {
 });
 
 export const lastRefreshLabel = derived(statusBarStore, ($s) => {
-  if (!$s.lastRefreshAt) return '未刷新';
+  const t = get(i18n.t);
+  if (!$s.lastRefreshAt) return t('status.notRefreshed');
   const diff = Math.floor((Date.now() - $s.lastRefreshAt.getTime()) / 1000);
-  if (diff < 5) return '刚刚刷新';
-  if (diff < 60) return `${diff}秒前`;
-  return `${Math.floor(diff / 60)}分钟前`;
+  if (diff < 5) return t('status.justRefreshed');
+  if (diff < 60) return t('status.secondsAgoStatus', { seconds: diff });
+  return t('status.minutesAgoStatus', { minutes: Math.floor(diff / 60) });
 });

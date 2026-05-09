@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Skeleton from '$lib/lab/components/Skeleton.svelte';
+  import { t } from '$lib/i18n';
 
   export let columns: string[] = [];
   export let columnTypes: string[] = [];
@@ -229,10 +230,10 @@
 <div class="datatable">
   <div class="datatable-toolbar">
     <div class="datatable-info">
-      共 <strong>{filteredTotal.toLocaleString()}</strong> 行
+      {$t('dataTable.totalRows', { count: filteredTotal.toLocaleString() })}
       {#if globalSearch || Object.values(columnFilters).some(v => v)}
-        <span class="filter-badge">（已筛选，原始 {totalRows.toLocaleString()} 行）</span>
-        <button class="clear-all-filters" on:click={clearAllFilters}>清除所有筛选</button>
+        <span class="filter-badge">{$t('dataTable.filteredOriginal', { count: totalRows.toLocaleString() })}</span>
+        <button class="clear-all-filters" on:click={clearAllFilters}>{$t('dataTable.clearAllFilters')}</button>
       {/if}
     </div>
     <div class="datatable-controls">
@@ -241,7 +242,7 @@
           <span class="gs-icon">🔍</span>
           <input
             type="text"
-            placeholder="在当前数据中搜索..."
+            placeholder={$t('dataTable.searchPlaceholder')}
             bind:value={globalSearch}
             on:input={handleGlobalSearch}
             class="gs-input"
@@ -252,14 +253,14 @@
         </div>
       {/if}
       <label class="page-size-label">
-        每页
+        {$t('dataTable.perPage')}
         <select value={pageSize} on:change={handlePageSizeChange} class="page-size-select">
           <option value={25}>25</option>
           <option value={50}>50</option>
           <option value={100}>100</option>
           <option value={200}>200</option>
         </select>
-        行
+        {$t('dataTable.rows')}
       </label>
     </div>
   </div>
@@ -284,7 +285,7 @@
                       class="th-filter-btn col-menu-trigger"
                       class:active={hasFilter(col) || showColumnMenu === col}
                       on:click|stopPropagation={() => toggleColumnMenu(col)}
-                      title="列统计与筛选"
+                      title={$t('dataTable.colStatsFilter')}
                     >
                       {hasFilter(col) ? '🔍' : '☰'}
                     </button>
@@ -296,20 +297,20 @@
                     {@const maxCount = Math.max(...uniqueVals.map(v => v.count), 1)}
                     <div class="col-menu-popup" on:click|stopPropagation>
                       <div class="stats-section">
-                        <div class="stats-title">统计信息</div>
-                        <div class="stats-row"><span class="stats-label">非空值</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] != null).length}</span></div>
-                        <div class="stats-row"><span class="stats-label">空值</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] == null).length}</span></div>
-                        <div class="stats-row"><span class="stats-label">唯一值</span><span class="stats-value">{uniqueVals.length}</span></div>
+                        <div class="stats-title">{$t('dataTable.statistics')}</div>
+                        <div class="stats-row"><span class="stats-label">{$t('dataTable.nonNull')}</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] != null).length}</span></div>
+                        <div class="stats-row"><span class="stats-label">{$t('dataTable.nullValues')}</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] == null).length}</span></div>
+                        <div class="stats-row"><span class="stats-label">{$t('dataTable.uniqueValues')}</span><span class="stats-value">{uniqueVals.length}</span></div>
                         {#if numStats}
-                          <div class="stats-row"><span class="stats-label">最小值</span><span class="stats-value">{numStats.min.toFixed(2)}</span></div>
-                          <div class="stats-row"><span class="stats-label">最大值</span><span class="stats-value">{numStats.max.toFixed(2)}</span></div>
-                          <div class="stats-row"><span class="stats-label">均值</span><span class="stats-value">{numStats.mean.toFixed(2)}</span></div>
-                          <div class="stats-row"><span class="stats-label">中位数</span><span class="stats-value">{numStats.median.toFixed(2)}</span></div>
+                            <div class="stats-row"><span class="stats-label">{$t('dataTable.min')}</span><span class="stats-value">{numStats.min.toFixed(2)}</span></div>
+                            <div class="stats-row"><span class="stats-label">{$t('dataTable.max')}</span><span class="stats-value">{numStats.max.toFixed(2)}</span></div>
+                            <div class="stats-row"><span class="stats-label">{$t('dataTable.mean')}</span><span class="stats-value">{numStats.mean.toFixed(2)}</span></div>
+                            <div class="stats-row"><span class="stats-label">{$t('dataTable.median')}</span><span class="stats-value">{numStats.median.toFixed(2)}</span></div>
                         {/if}
                       </div>
 
                       <div class="stats-section">
-                        <div class="stats-title">值分布（点击筛选）</div>
+                        <div class="stats-title">{$t('dataTable.valueDistribution')}</div>
                         <div class="value-list">
                           {#each uniqueVals as uv}
                             <div class="value-item" on:click={() => filterByValue(col, uv.value)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && filterByValue(col, uv.value)}>
@@ -324,7 +325,7 @@
                       </div>
 
                       {#if hasFilter(col)}
-                        <button class="clear-filter-btn" on:click={() => clearFilter(col)}>✕ 清除此列筛选</button>
+                        <button class="clear-filter-btn" on:click={() => clearFilter(col)}>✕ {$t('dataTable.clearColFilter')}</button>
                       {/if}
                     </div>
                   {/if}
@@ -345,7 +346,7 @@
             {:else if filteredRows.length === 0}
               <tr>
                 <td colspan={columns.length + 1} class="empty-cell">
-                  {globalSearch || Object.values(columnFilters).some(v => v) ? '没有匹配的数据' : '暂无数据'}
+                  {globalSearch || Object.values(columnFilters).some(v => v) ? $t('dataTable.noMatch') : $t('dataTable.noData')}
                 </td>
               </tr>
             {:else}
@@ -381,7 +382,7 @@
                     class="th-filter-btn col-menu-trigger"
                     class:active={hasFilter(col) || showColumnMenu === col}
                     on:click|stopPropagation={() => toggleColumnMenu(col)}
-                    title="列统计与筛选"
+                    title={$t('dataTable.colStatsFilter')}
                   >
                     {hasFilter(col) ? '🔍' : '☰'}
                   </button>
@@ -393,20 +394,20 @@
                   {@const maxCount2 = Math.max(...uniqueVals2.map(v => v.count), 1)}
                   <div class="col-menu-popup" on:click|stopPropagation>
                     <div class="stats-section">
-                      <div class="stats-title">统计信息</div>
-                      <div class="stats-row"><span class="stats-label">非空值</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] != null).length}</span></div>
-                      <div class="stats-row"><span class="stats-label">空值</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] == null).length}</span></div>
-                      <div class="stats-row"><span class="stats-label">唯一值</span><span class="stats-value">{uniqueVals2.length}</span></div>
+                      <div class="stats-title">{$t('dataTable.statistics')}</div>
+                      <div class="stats-row"><span class="stats-label">{$t('dataTable.nonNull')}</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] != null).length}</span></div>
+                      <div class="stats-row"><span class="stats-label">{$t('dataTable.nullValues')}</span><span class="stats-value">{filteredRows.filter(r => r[colIdx] == null).length}</span></div>
+                      <div class="stats-row"><span class="stats-label">{$t('dataTable.uniqueValues')}</span><span class="stats-value">{uniqueVals2.length}</span></div>
                       {#if numStats2}
-                        <div class="stats-row"><span class="stats-label">最小值</span><span class="stats-value">{numStats2.min.toFixed(2)}</span></div>
-                        <div class="stats-row"><span class="stats-label">最大值</span><span class="stats-value">{numStats2.max.toFixed(2)}</span></div>
-                        <div class="stats-row"><span class="stats-label">均值</span><span class="stats-value">{numStats2.mean.toFixed(2)}</span></div>
-                        <div class="stats-row"><span class="stats-label">中位数</span><span class="stats-value">{numStats2.median.toFixed(2)}</span></div>
+                          <div class="stats-row"><span class="stats-label">{$t('dataTable.min')}</span><span class="stats-value">{numStats2.min.toFixed(2)}</span></div>
+                          <div class="stats-row"><span class="stats-label">{$t('dataTable.max')}</span><span class="stats-value">{numStats2.max.toFixed(2)}</span></div>
+                          <div class="stats-row"><span class="stats-label">{$t('dataTable.mean')}</span><span class="stats-value">{numStats2.mean.toFixed(2)}</span></div>
+                          <div class="stats-row"><span class="stats-label">{$t('dataTable.median')}</span><span class="stats-value">{numStats2.median.toFixed(2)}</span></div>
                       {/if}
                     </div>
 
                     <div class="stats-section">
-                      <div class="stats-title">值分布（点击筛选）</div>
+                      <div class="stats-title">{$t('dataTable.valueDistribution')}</div>
                       <div class="value-list">
                         {#each uniqueVals2 as uv}
                           <div class="value-item" on:click={() => filterByValue(col, uv.value)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && filterByValue(col, uv.value)}>
@@ -421,7 +422,7 @@
                     </div>
 
                     {#if hasFilter(col)}
-                      <button class="clear-filter-btn" on:click={() => clearFilter(col)}>✕ 清除此列筛选</button>
+                      <button class="clear-filter-btn" on:click={() => clearFilter(col)}>✕ {$t('dataTable.clearColFilter')}</button>
                     {/if}
                   </div>
                 {/if}
@@ -442,7 +443,7 @@
           {:else if filteredRows.length === 0}
             <tr>
               <td colspan={columns.length + 1} class="empty-cell">
-                {globalSearch || Object.values(columnFilters).some(v => v) ? '没有匹配的数据' : '暂无数据'}
+                {globalSearch || Object.values(columnFilters).some(v => v) ? $t('dataTable.noMatch') : $t('dataTable.noData')}
               </td>
             </tr>
           {:else}
@@ -479,9 +480,9 @@
       <button class="page-btn" disabled={currentPage >= totalPages - 1} on:click={() => goToPage(totalPages - 1)}>»»</button>
     </div>
     <div class="page-jump">
-      跳至
+      {$t('dataTable.goTo')}
       <input type="number" class="jump-input" min={1} max={totalPages} placeholder={String(currentPage + 1)} on:keydown={(e) => { if (e.key === 'Enter') { const val = parseInt((e.target as HTMLInputElement).value); if (val >= 1 && val <= totalPages) goToPage(val - 1); } }} />
-      页
+      {$t('dataTable.page')}
     </div>
   </div>
 </div>

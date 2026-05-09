@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { t, i18n } from '$lib/i18n';
 	import { datasetRegistryStore } from '$lib/lab/stores/dataset';
 	import { getLabClient } from '$lib/lab/stores/plugins';
 	import { taskManagerStore } from '$lib/lab/stores/taskManager';
@@ -171,7 +172,7 @@
 	};
 
 	function formatDate(iso: string): string {
-		return new Date(iso).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+		return new Date(iso).toLocaleString(i18n.getLocale() === 'zh-CN' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 	}
 
 	function formatSize(mb: number): string {
@@ -191,7 +192,7 @@
 		try {
 			const id = datasetId;
 			if (!id) {
-				error = '无效的数据集ID';
+				error = $t('dataset.detail.invalidId');
 				loading = false;
 				return;
 			}
@@ -208,10 +209,10 @@
 				profiles = currentProfiles;
 				loadPreview(0, previewPageSize);
 			} else {
-				error = '数据集不存在或已被删除';
+				error = $t('dataset.detail.notFound');
 			}
 		} catch (e: any) {
-			error = e?.toString() || '加载数据集失败';
+			error = e?.toString() || $t('dataset.detail.loadFailed');
 		} finally {
 			loading = false;
 		}
@@ -238,20 +239,20 @@
 		qualityError = null;
 
 		const taskId = taskManagerStore.createTask(
-			'数据质量评分',
-			`正在评估数据集 "${dataset?.name || id}" 的质量...`,
+			$t('dataset.detail.qualityAssessing'),
+			$t('dataset.detail.qualityAssessingDesc'),
 			false,
 			2
 		);
 
 		try {
 			const client = getLabClient();
-			taskManagerStore.advanceStep(taskId, '分析数据完整性...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.analyzingIntegrity'));
 			qualityScore = await client.datasetQualityScore(id);
-			taskManagerStore.completeTask(taskId, `质量评分: ${qualityScore.overall_score.toFixed(0)}分 (${qualityScore.grade})`);
+			taskManagerStore.completeTask(taskId, `${$t('quality.overallScore')}: ${qualityScore.overall_score.toFixed(0)}`);
 		} catch (e: any) {
-			qualityError = e?.toString() || '加载质量评分失败';
-			taskManagerStore.failTask(taskId, qualityError || '未知错误');
+			qualityError = e?.toString() || $t('dataset.detail.loadFailed');
+			taskManagerStore.failTask(taskId, qualityError || $t('common.error'));
 		} finally {
 			qualityLoading = false;
 		}
@@ -265,7 +266,7 @@
 			const client = getLabClient();
 			readinessData = await client.datasetReadinessScore(id);
 		} catch (e: any) {
-			uxStore.error('就绪度评估失败', localizeError(e).message);
+			uxStore.error($t('readiness.title'), localizeError(e).message);
 		} finally {
 			readinessLoading = false;
 		}
@@ -281,7 +282,7 @@
 			const client = getLabClient();
 			diffResult = await client.datasetVersionDiff(id, diffFromVersion, diffToVersion);
 		} catch (e: any) {
-			diffError = e?.toString() || '版本对比失败';
+			diffError = e?.toString() || $t('dataset.detail.versionDiffFailed');
 		} finally {
 			diffLoading = false;
 		}
@@ -300,7 +301,7 @@
 			const client = getLabClient();
 			rowDiffData = await client.datasetRowDiff(id, fromVersion, toVersion, rowDiffOffset, ROW_DIFF_LIMIT);
 		} catch (e: any) {
-			uxStore.error('行级对比失败', localizeError(e).message);
+			uxStore.error($t('dataset.detail.rowDiffFailed'), localizeError(e).message);
 		} finally {
 			rowDiffLoading = false;
 		}
@@ -312,10 +313,10 @@
 		try {
 			const client = getLabClient();
 			await client.dataVersionCheckout(dataset.path, version);
-			uxStore.success('回滚成功', `已回滚到版本 ${version}`);
+			uxStore.success($t('dataset.detail.rollbackSuccess'), `v${version}`);
 			await loadDataset();
 		} catch (e: any) {
-			uxStore.error('回滚失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.error($t('dataset.detail.rollbackFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		}
 	}
 
@@ -393,10 +394,10 @@
 			await datasetRegistryStore.archiveDataset(dataset.id);
 			dataset = { ...dataset, status: 'archived' };
 			confirmArchive = false;
-			uxStore.success('归档成功', `数据集 "${dataset.name}" 已归档`);
-		} catch (e: any) {
-			console.error('Failed to archive:', e);
-			uxStore.error('归档失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.success($t('dataset.detail.archiveSuccess'), `"${dataset.name}"`);
+	} catch (e: any) {
+		console.error('Failed to archive:', e);
+		uxStore.error($t('dataset.detail.archiveFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		} finally {
 			archiving = false;
 		}
@@ -407,11 +408,11 @@
 		deleting = true;
 		try {
 			await datasetRegistryStore.deleteDataset(dataset.id);
-			uxStore.success('删除成功', `数据集 "${dataset.name}" 已删除`);
+			uxStore.success($t('dataset.detail.deleteSuccess'), `"${dataset.name}"`);
 			goto('/lab/data/list');
 		} catch (e: any) {
 			console.error('Failed to delete:', e);
-			uxStore.error('删除失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.error($t('dataset.detail.deleteFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		} finally {
 			deleting = false;
 		}
@@ -424,23 +425,23 @@
 		exportResult = null;
 
 		const taskId = taskManagerStore.createTask(
-			'数据导出',
-			`正在将 "${dataset.name}" 导出为 ${exportTargetFormat.toUpperCase()}...`,
+			$t('dataset.detail.exportTask'),
+			$t('dataset.detail.exportTaskDesc'),
 			false,
 			2
 		);
 
 		try {
 			const client = getLabClient();
-			taskManagerStore.advanceStep(taskId, '读取数据...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.readingData'));
 			const result = await client.exportDataset(dataset.id, exportTargetFormat, null);
 			exportResult = result;
 			taskManagerStore.completeTask(taskId, result.message);
-			uxStore.success('导出成功', `数据集已成功导出为 ${exportTargetFormat.toUpperCase()}`);
+			uxStore.success($t('dataset.detail.exportSuccess'), `${exportTargetFormat.toUpperCase()}`);
 		} catch (e: any) {
-			exportError = e?.toString() || '导出失败';
-			taskManagerStore.failTask(taskId, exportError || '未知错误');
-			uxStore.error('导出失败', localizeError(exportError).message + '\n💡 ' + localizeError(exportError).suggestion);
+			exportError = e?.toString() || $t('dataset.detail.exportFailed');
+			taskManagerStore.failTask(taskId, exportError || $t('common.error'));
+			uxStore.error($t('dataset.detail.exportFailed'), localizeError(exportError).message + '\n💡 ' + localizeError(exportError).suggestion);
 		} finally {
 			exporting = false;
 		}
@@ -453,8 +454,8 @@
 		healthCheckResults = {};
 
 		const taskId = taskManagerStore.createTask(
-			'数据健康检查',
-			`正在全面检查 "${dataset.name}"...`,
+			$t('dataset.detail.healthCheckTitle'),
+			$t('dataset.detail.healthCheckDesc'),
 			false,
 			6
 		);
@@ -463,36 +464,36 @@
 			const client = getLabClient();
 			const id = dataset.id;
 
-			taskManagerStore.advanceStep(taskId, '验证数据完整性...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.validatingIntegrity'));
 			const integrity = await client.validateDatasetIntegrity(id).catch(() => null);
 			healthCheckResults.integrity = integrity;
 
-			taskManagerStore.advanceStep(taskId, '验证数据格式...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.validatingFormat'));
 			const validation = await client.validateDataset(id).catch(() => null);
 			healthCheckResults.validation = validation;
 
-			taskManagerStore.advanceStep(taskId, '检测数据泄露...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.detectingLeakage'));
 			const leakage = await client.datasetCheckLeakage(id).catch(() => null);
 			healthCheckResults.leakage = leakage;
 
-			taskManagerStore.advanceStep(taskId, '检查数据充分性...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.checkingSufficiency'));
 			const sufficiency = await client.datasetCheckSufficiency(id).catch(() => null);
 			healthCheckResults.sufficiency = sufficiency;
 
-			taskManagerStore.advanceStep(taskId, '计算就绪评分...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.computingReadiness'));
 			const readiness = await client.datasetReadinessScore(id).catch(() => null);
 			healthCheckResults.readiness = readiness;
 
-			taskManagerStore.advanceStep(taskId, '加载数据划分...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.loadingSplits'));
 			const splits = await client.listDatasetSplits(id).catch(() => []);
 			healthCheckResults.splits = splits;
 
-			taskManagerStore.completeTask(taskId, '数据健康检查完成');
-			uxStore.success('检查完成', `"${dataset.name}" 的健康检查已完成`);
+			taskManagerStore.completeTask(taskId, $t('dataset.detail.healthCheckComplete'));
+			uxStore.success($t('dataset.detail.checkComplete'), `"${dataset.name}"`);
 		} catch (e: any) {
-			healthCheckError = e?.toString() || '健康检查失败';
-			taskManagerStore.failTask(taskId, healthCheckError || '未知错误');
-			uxStore.error('检查失败', localizeError(healthCheckError).message + '\n💡 ' + localizeError(healthCheckError).suggestion);
+			healthCheckError = e?.toString() || $t('dataset.detail.healthCheckFailed');
+			taskManagerStore.failTask(taskId, healthCheckError || $t('common.error'));
+			uxStore.error($t('dataset.detail.checkFailed'), localizeError(healthCheckError).message + '\n💡 ' + localizeError(healthCheckError).suggestion);
 		} finally {
 			healthCheckRunning = false;
 		}
@@ -504,8 +505,8 @@
 		splitError = null;
 
 		const taskId = taskManagerStore.createTask(
-			'创建数据划分',
-			`正在为 "${dataset.name}" 创建数据划分...`,
+			$t('dataset.detail.createSplitTask'),
+			$t('dataset.detail.createSplitDesc'),
 			false,
 			2
 		);
@@ -520,11 +521,11 @@
 				seed: splitSeed,
 			});
 			showSplitModal = false;
-			taskManagerStore.completeTask(taskId, `划分创建成功: train=${result.splits.train.rows}, val=${result.splits.val.rows}, test=${result.splits.test.rows}`);
+			taskManagerStore.completeTask(taskId, $t('dataset.detail.splitCreated'));
 			await runHealthCheck();
 		} catch (e: any) {
-			splitError = e?.toString() || '创建划分失败';
-			taskManagerStore.failTask(taskId, splitError || '未知错误');
+			splitError = e?.toString() || $t('dataset.detail.splitFailed');
+			taskManagerStore.failTask(taskId, splitError || $t('common.error'));
 		} finally {
 			splitCreating = false;
 		}
@@ -537,25 +538,25 @@
 		dedupResult = null;
 
 		const taskId = taskManagerStore.createTask(
-			'数据去重',
-			`正在对 "${dataset.name}" 进行去重...`,
+			$t('dataset.detail.dedupTask'),
+			$t('dataset.detail.dedupDesc'),
 			false,
 			2
 		);
 
 		try {
 			const client = getLabClient();
-			taskManagerStore.advanceStep(taskId, '计算 MinHash 签名...');
+			taskManagerStore.advanceStep(taskId, $t('dataset.detail.computingMinhash'));
 			const result = await client.datasetDedup(dataset.id, {
 				similarity_threshold: dedupThreshold,
 				num_perm: dedupNumPerm,
 				n_gram: dedupNGram,
 			});
 			dedupResult = result;
-			taskManagerStore.completeTask(taskId, `去重完成: 移除 ${result.duplicates_removed} 条重复数据`);
+			taskManagerStore.completeTask(taskId, $t('dataset.detail.dedupRemoved', { count: result.duplicates_removed }));
 		} catch (e: any) {
-			dedupError = e?.toString() || '去重失败';
-			taskManagerStore.failTask(taskId, dedupError || '未知错误');
+			dedupError = e?.toString() || $t('dataset.detail.dedupFailed');
+			taskManagerStore.failTask(taskId, dedupError || $t('common.error'));
 		} finally {
 			dedupRunning = false;
 		}
@@ -571,7 +572,7 @@
 
 <div class="detail-page">
 	<div class="page-header">
-		<button class="btn-back" on:click={() => goto('/lab/data/list')}>← 返回列表</button>
+		<button class="btn-back" on:click={() => goto('/lab/data/list')}>{$t('dataset.detail.backToList')}</button>
 	</div>
 
 	{#if error}
@@ -596,32 +597,32 @@
 					<h2>{dataset.name}</h2>
 					<div class="header-meta">
 						<span class="status-badge {dataset.status}">
-							{dataset.status === 'active' ? '活跃' : '已归档'}
+							{dataset.status === 'active' ? $t('dataset.detail.active') : $t('dataset.detail.archived')}
 						</span>
-						<span class="meta-item">版本 {dataset.version}</span>
+						<span class="meta-item">{$t('dataset.detail.version')} {dataset.version}</span>
 						<span class="meta-item">ID: {dataset.id.slice(0, 8)}</span>
 					</div>
 				</div>
 				<div class="header-actions">
-					<button class="btn-primary" on:click={() => (showExport = true)}>📥 导出</button>
+					<button class="btn-primary" on:click={() => (showExport = true)}>{$t('dataset.detail.export')}</button>
 					{#if dataset.status === 'active'}
-						<button class="btn-secondary" on:click={() => (confirmArchive = true)}>📦 归档</button>
+						<button class="btn-secondary" on:click={() => (confirmArchive = true)}>{$t('dataset.detail.archive')}</button>
 					{/if}
-					<button class="btn-danger-outline" on:click={() => (confirmDelete = true)}>🗑 删除</button>
+					<button class="btn-danger-outline" on:click={() => (confirmDelete = true)}>{$t('dataset.detail.delete')}</button>
 				</div>
 			</div>
 
 			<div class="detail-tabs">
 				{#each [
-					{ id: 'overview', label: '📋 总览' },
-					{ id: 'readiness', label: '🎯 就绪度' },
-					{ id: 'lineage', label: '🔗 血缘' },
-					{ id: 'recipe', label: '🧪 配方' },
-					{ id: 'version', label: '📦 版本控制' },
-					{ id: 'label', label: '🏷️ 标签质量' },
-					{ id: 'analysis', label: '🔬 深度分析' },
-					{ id: 'card', label: '📋 卡片/统计' },
-					{ id: 'tools', label: '🛠️ 高级工具' },
+					{ id: 'overview', label: $t('dataset.detail.tabOverview') },
+					{ id: 'readiness', label: $t('dataset.detail.tabReadiness') },
+					{ id: 'lineage', label: $t('dataset.detail.tabLineage') },
+					{ id: 'recipe', label: $t('dataset.detail.tabRecipe') },
+					{ id: 'version', label: $t('dataset.detail.tabVersion') },
+					{ id: 'label', label: $t('dataset.detail.tabLabel') },
+					{ id: 'analysis', label: $t('dataset.detail.tabAnalysis') },
+					{ id: 'card', label: $t('dataset.detail.tabCard') },
+					{ id: 'tools', label: $t('dataset.detail.tabTools') },
 				] as tab}
 					<button class="detail-tab" class:active={activeDetailTab === tab.id} on:click={() => (activeDetailTab = tab.id)}>
 						{tab.label}
@@ -633,21 +634,21 @@
 			{#if dataset.description || showEditDesc}
 				<div class="info-card">
 					<div class="card-header">
-						<h4>描述</h4>
+						<h4>{$t('dataset.detail.description')}</h4>
 						{#if !showEditDesc}
-							<button class="btn-link" on:click={() => { editDescription = dataset?.description || ''; showEditDesc = true; }}>编辑</button>
+							<button class="btn-link" on:click={() => { editDescription = dataset?.description || ''; showEditDesc = true; }}>{$t('dataset.detail.edit')}</button>
 						{/if}
 					</div>
 					{#if showEditDesc}
 						<div class="edit-desc">
-							<textarea bind:value={editDescription} placeholder="添加数据集描述..." class="textarea" rows="3"></textarea>
+							<textarea bind:value={editDescription} placeholder={$t('dataset.detail.addDescPlaceholder')} class="textarea" rows="3"></textarea>
 							<div class="edit-actions">
-								<button class="btn-sm" on:click={() => (showEditDesc = false)}>取消</button>
-								<button class="btn-sm btn-primary-sm" on:click={saveDescription}>保存</button>
+								<button class="btn-sm" on:click={() => (showEditDesc = false)}>{$t('dataset.detail.cancel')}</button>
+								<button class="btn-sm btn-primary-sm" on:click={saveDescription}>{$t('dataset.detail.save')}</button>
 							</div>
 						</div>
 					{:else}
-						<p class="desc-text">{dataset.description || '暂无描述'}</p>
+						<p class="desc-text">{dataset.description || $t('dataset.detail.noDesc')}</p>
 					{/if}
 				</div>
 			{/if}
@@ -655,25 +656,25 @@
 			{#if profiles.length > 0}
 				<div class="info-card">
 					<div class="card-header">
-						<h4>数据分布可视化</h4>
-						<span class="viz-hint">💡 点击图表柱子可筛选数据预览</span>
+						<h4>{$t('dataset.detail.dataViz')}</h4>
+						<span class="viz-hint">{$t('dataset.detail.vizHint')}</span>
 					</div>
 
 					<div class="viz-section">
-						<h5 class="viz-subtitle">缺失值热力图</h5>
+						<h5 class="viz-subtitle">{$t('dataset.detail.missing')}</h5>
 						<MissingValueHeatmap profiles={profiles} width={Math.min(600, profiles.length * 60 + 140)} height={160} />
 					</div>
 
 					{#if chartFilterColumn}
 						<div class="chart-filter-banner">
-							<span>🔍 已筛选列 <strong>{chartFilterColumn}</strong>
+							<span>🔍 {$t('dataset.detail.filteredBy')} <strong>{chartFilterColumn}</strong>
 								{#if chartFilterRange}
-									范围 {chartFilterRange[0].toFixed(2)} – {chartFilterRange[1].toFixed(2)}
+									{$t('dataset.detail.range')} {chartFilterRange[0].toFixed(2)} – {chartFilterRange[1].toFixed(2)}
 								{:else if chartFilterValue}
 									= {chartFilterValue}
 								{/if}
 							</span>
-							<button class="clear-chart-filter" on:click={clearChartFilter}>清除筛选</button>
+							<button class="clear-chart-filter" on:click={clearChartFilter}>{$t('dataset.detail.clearFilter')}</button>
 						</div>
 					{/if}
 
@@ -727,9 +728,9 @@
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>数据预览</h4>
+					<h4>{$t('dataset.detail.dataPreview')}</h4>
 					{#if !previewData && !previewLoading}
-						<button class="btn-link" on:click={() => loadPreview(0, previewPageSize)}>加载数据</button>
+						<button class="btn-link" on:click={() => loadPreview(0, previewPageSize)}>{$t('tools.load')}</button>
 					{/if}
 				</div>
 				{#if previewLoading || previewData}
@@ -750,9 +751,9 @@
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>📊 数据质量评分</h4>
+					<h4>{$t('dataset.detail.qualityScoreTitle')}</h4>
 					<button class="btn-link" on:click={loadQualityScore} disabled={qualityLoading}>
-						{qualityLoading ? '评分中...' : '🔄 重新评分'}
+						{qualityLoading ? '...' : '🔄'}
 					</button>
 				</div>
 				{#if qualityLoading}
@@ -763,20 +764,20 @@
 					<QualityScorePanel {qualityScore} />
 				{:else}
 					<div class="quality-empty">
-						<p>点击"重新评分"获取数据质量评估</p>
+						<p>{$t('healthCheck.clickToCheck')}</p>
 					</div>
 				{/if}
 			</div>
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>🏥 数据健康检查</h4>
+					<h4>🏥 {$t('healthCheck.checking')}</h4>
 					<div class="header-actions-row">
 						<button class="btn-link" on:click={runHealthCheck} disabled={healthCheckRunning}>
-							{healthCheckRunning ? '检查中...' : '🔄 全面检查'}
+							{healthCheckRunning ? '...' : '🔄'}
 						</button>
-						<button class="btn-link" on:click={() => (showSplitModal = true)}>📐 创建划分</button>
-						<button class="btn-link" on:click={() => (showDedupModal = true)}>🔍 去重</button>
+						<button class="btn-link" on:click={() => (showSplitModal = true)}>📐 {$t('dataset.detail.createSplit')}</button>
+						<button class="btn-link" on:click={() => (showDedupModal = true)}>🔍 {$t('dataset.detail.dedupTitle')}</button>
 					</div>
 				</div>
 
@@ -789,8 +790,8 @@
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>标签</h4>
-					<button class="btn-link" on:click={() => (showAddTag = !showAddTag)}>+ 添加</button>
+					<h4>{$t('dataset.detail.tags')}</h4>
+					<button class="btn-link" on:click={() => (showAddTag = !showAddTag)}>+ {$t('dataset.detail.edit')}</button>
 				</div>
 				<div class="tags-list">
 					{#each dataset.tags as tag}
@@ -800,53 +801,53 @@
 						</span>
 					{/each}
 					{#if dataset.tags.length === 0}
-						<span class="no-data">暂无标签</span>
+						<span class="no-data">{$t('common.noData')}</span>
 					{/if}
 				</div>
 				{#if showAddTag}
 					<div class="add-tag-row">
-						<input type="text" bind:value={newTag} placeholder="输入标签名" class="input-sm" on:keydown={(e) => e.key === 'Enter' && addTag()} />
-						<button class="btn-sm btn-primary-sm" on:click={addTag} disabled={!newTag.trim()}>添加</button>
+						<input type="text" bind:value={newTag} placeholder={$t('dataset.detail.tagPlaceholder')} class="input-sm" on:keydown={(e) => e.key === 'Enter' && addTag()} />
+						<button class="btn-sm btn-primary-sm" on:click={addTag} disabled={!newTag.trim()}>{$t('dataset.detail.addTag')}</button>
 					</div>
 				{/if}
 			</div>
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>基本信息</h4>
+					<h4>{$t('dataset.detail.columnProfile')}</h4>
 				</div>
 				<div class="info-grid">
 					<div class="info-item">
-						<span class="info-label">格式</span>
+						<span class="info-label">{$t('dataset.detail.format')}</span>
 						<span class="info-value">{dataset.format.toUpperCase()}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">大小</span>
+						<span class="info-label">{$t('dataset.detail.size')}</span>
 						<span class="info-value">{formatSize(dataset.memory_size_mb)}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">行数</span>
+						<span class="info-label">{$t('dataset.detail.rows')}</span>
 						<span class="info-value">{dataset.rows.toLocaleString()}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">列数</span>
+						<span class="info-label">{$t('dataset.detail.columns')}</span>
 						<span class="info-value">{dataset.columns}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">路径</span>
+						<span class="info-label">{$t('dataset.detail.type')}</span>
 						<span class="info-value path-value">{dataset.path}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">创建时间</span>
+						<span class="info-label">{$t('dataset.detail.createdAt')}</span>
 						<span class="info-value">{formatDate(dataset.created_at)}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">更新时间</span>
+						<span class="info-label">{$t('dataset.detail.updatedAt')}</span>
 						<span class="info-value">{formatDate(dataset.updated_at)}</span>
 					</div>
 					<div class="info-item">
-						<span class="info-label">关联实验</span>
-						<span class="info-value">{dataset.experiment_ids?.length || 0} 个</span>
+						<span class="info-label">{$t('dataset.detail.experiments')}</span>
+						<span class="info-value">{dataset.experiment_ids?.length || 0}</span>
 					</div>
 				</div>
 			</div>
@@ -854,20 +855,20 @@
 			{#if profiles.length > 0}
 				<div class="info-card">
 					<div class="card-header">
-						<h4>列画像 ({profiles.length} 列)</h4>
+						<h4>{$t('dataset.detail.columnProfile')} ({profiles.length})</h4>
 					</div>
 					<div class="profiles-table-wrapper">
 						<table class="profiles-table">
 							<thead>
 								<tr>
-									<th>列名</th>
-									<th>类型</th>
-									<th>非空</th>
-									<th>空值</th>
-									<th>唯一值</th>
-									<th>均值</th>
-									<th>最小值</th>
-									<th>最大值</th>
+									<th>{$t('dataset.detail.colName')}</th>
+									<th>{$t('dataset.detail.colType')}</th>
+									<th>{$t('dataset.detail.notNull')}</th>
+									<th>{$t('dataset.detail.nullCount')}</th>
+									<th>{$t('dataset.detail.unique')}</th>
+									<th>{$t('dataset.detail.mean')}</th>
+									<th>{$t('dataset.detail.min')}</th>
+									<th>{$t('dataset.detail.max')}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -900,8 +901,8 @@
 
 			<div class="info-card">
 				<div class="card-header">
-					<h4>版本历史</h4>
-					<button class="btn-link" on:click={() => (showNewVersion = true)}>+ 新版本</button>
+					<h4>{$t('dataset.detail.versionHistory')}</h4>
+					<button class="btn-link" on:click={() => (showNewVersion = true)}>+ {$t('dataset.detail.newVersion')}</button>
 				</div>
 				{#if versionLoading}
 					<div class="loading-row"><Skeleton width="100%" height="40px" /></div>
@@ -917,12 +918,12 @@
 									<div class="version-header">
 										<span class="version-tag">{v.version}</span>
 										{#if i === 0}
-											<span class="current-badge">当前</span>
+											<span class="current-badge">{$t('dataset.detail.current')}</span>
 										{/if}
 										<span class="version-date">{formatDate(v.created_at)}</span>
 									</div>
 									<div class="version-stats">
-										{v.rows.toLocaleString()} 行 × {v.columns} 列 · {formatSize(v.memory_size_mb)}
+										{v.rows.toLocaleString()} × {v.columns} · {formatSize(v.memory_size_mb)}
 									</div>
 									{#if v.change_note}
 										<div class="version-note">📝 {v.change_note}</div>
@@ -930,7 +931,7 @@
 									{#if i > 0}
 										<div class="version-actions">
 											<button class="btn-rollback" on:click={() => rollbackToVersion(v.version)}>
-												↩ 回滚到此版本
+												↩ {$t('dataset.detail.rollbackToVersion')}
 											</button>
 										</div>
 									{/if}
@@ -939,30 +940,30 @@
 						{/each}
 					</div>
 				{:else}
-					<span class="no-data">暂无版本记录</span>
+					<span class="no-data">{$t('dataset.detail.noVersionHistory')}</span>
 				{/if}
 
 				{#if versionHistory.length >= 2}
 					<div class="diff-section">
 						<div class="diff-header">
-							<h5>版本对比</h5>
+							<h5>{$t('dataset.detail.versionDiff')}</h5>
 						</div>
 						<div class="diff-selectors">
 							<select bind:value={diffFromVersion} class="diff-select">
-								<option value="">-- 选择基准版本 --</option>
+								<option value="">-- {$t('dataset.detail.selectBaseVersion')} --</option>
 								{#each versionHistory as v}
 									<option value={v.version}>{v.version}</option>
 								{/each}
 							</select>
 							<span class="diff-arrow">→</span>
 							<select bind:value={diffToVersion} class="diff-select">
-								<option value="">-- 选择对比版本 --</option>
+								<option value="">-- {$t('dataset.detail.selectDiffVersion')} --</option>
 								{#each versionHistory as v}
 									<option value={v.version}>{v.version}</option>
 								{/each}
 							</select>
 							<button class="btn-diff" on:click={loadVersionDiff} disabled={!diffFromVersion || !diffToVersion || diffLoading}>
-								{diffLoading ? '对比中...' : '对比'}
+								{diffLoading ? '...' : $t('dataset.detail.compare')}
 							</button>
 						</div>
 						{#if diffError}
@@ -972,33 +973,33 @@
 							<div class="diff-result">
 								<div class="diff-summary">
 									<div class="diff-stat {diffResult.rows_added > 0 ? 'added' : diffResult.rows_added < 0 ? 'removed' : ''}">
-										<span class="diff-stat-label">行数变化</span>
+										<span class="diff-stat-label">{$t('dataset.detail.rowChanges')}</span>
 										<span class="diff-stat-value">
 											{diffResult.rows_added > 0 ? '+' : ''}{diffResult.rows_added.toLocaleString()}
 										</span>
 									</div>
 									<div class="diff-stat {diffResult.columns_added?.length > 0 ? 'added' : ''}">
-										<span class="diff-stat-label">新增列</span>
+										<span class="diff-stat-label">{$t('dataset.detail.addedCols')}</span>
 										<span class="diff-stat-value">{diffResult.columns_added?.length || 0}</span>
 									</div>
 									<div class="diff-stat {diffResult.columns_removed?.length > 0 ? 'removed' : ''}">
-										<span class="diff-stat-label">删除列</span>
+										<span class="diff-stat-label">{$t('dataset.detail.removedCols')}</span>
 										<span class="diff-stat-value">{diffResult.columns_removed?.length || 0}</span>
 									</div>
 									<div class="diff-stat {diffResult.columns_type_changed?.length > 0 ? 'changed' : ''}">
-										<span class="diff-stat-label">类型变更</span>
+										<span class="diff-stat-label">{$t('dataset.detail.typeChanges')}</span>
 										<span class="diff-stat-value">{diffResult.columns_type_changed?.length || 0}</span>
 									</div>
 									<div class="diff-stat">
-										<span class="diff-stat-label">Schema兼容</span>
+										<span class="diff-stat-label">{$t('dataset.detail.schemaCompat')}</span>
 										<span class="diff-stat-value">
-											{diffResult.schema_compatible ? '✅ 兼容' : '⚠️ 不兼容'}
+											{diffResult.schema_compatible ? '✅' : '⚠️'} {diffResult.schema_compatible ? $t('dataset.detail.compatible') : $t('dataset.detail.incompatible')}
 										</span>
 									</div>
 								</div>
 								{#if diffResult.columns_added?.length > 0}
 									<div class="diff-detail">
-										<span class="diff-detail-label">新增列:</span>
+										<span class="diff-detail-label">{$t('dataset.detail.addedCols')}:</span>
 										{#each diffResult.columns_added as col}
 											<span class="diff-tag added">+ {col}</span>
 										{/each}
@@ -1006,7 +1007,7 @@
 								{/if}
 								{#if diffResult.columns_removed?.length > 0}
 									<div class="diff-detail">
-										<span class="diff-detail-label">删除列:</span>
+										<span class="diff-detail-label">{$t('dataset.detail.removedCols')}:</span>
 										{#each diffResult.columns_removed as col}
 											<span class="diff-tag removed">- {col}</span>
 										{/each}
@@ -1014,7 +1015,7 @@
 								{/if}
 								{#if diffResult.columns_type_changed?.length > 0}
 									<div class="diff-detail">
-										<span class="diff-detail-label">类型变更:</span>
+										<span class="diff-detail-label">{$t('dataset.detail.typeChanges')}:</span>
 										{#each diffResult.columns_type_changed as change}
 											<span class="diff-tag changed">
 												{change.column_name}: {change.from_type} → {change.to_type}
@@ -1025,7 +1026,7 @@
 
 								<div class="row-diff-section">
 									<button class="btn-row-diff" on:click={() => loadRowDiff(diffFromVersion, diffToVersion)} disabled={rowDiffLoading}>
-										{rowDiffLoading ? '加载中...' : '📋 查看行级差异'}
+										{rowDiffLoading ? '...' : '📋 ' + $t('dataset.detail.viewRowDiff')}
 									</button>
 
 									{#if rowDiffData}
@@ -1033,13 +1034,13 @@
 											{#if rowDiffData.summary}
 												<div class="row-diff-summary">
 													{#if rowDiffData.summary.added > 0}
-														<span class="stat-added">+{rowDiffData.summary.added} 行新增</span>
+														<span class="stat-added">+{rowDiffData.summary.added} {$t('dataset.detail.rowsAdded')}</span>
 													{/if}
 													{#if rowDiffData.summary.removed > 0}
-														<span class="stat-removed">-{rowDiffData.summary.removed} 行删除</span>
+														<span class="stat-removed">-{rowDiffData.summary.removed} {$t('dataset.detail.rowsRemoved')}</span>
 													{/if}
 													{#if rowDiffData.summary.modified > 0}
-														<span class="stat-modified">~{rowDiffData.summary.modified} 行修改</span>
+														<span class="stat-modified">~{rowDiffData.summary.modified} {$t('dataset.detail.rowsModified')}</span>
 													{/if}
 												</div>
 											{/if}
@@ -1048,7 +1049,7 @@
 													<table class="row-diff-table">
 														<thead>
 															<tr>
-																<th>类型</th>
+																<th>{$t('dataset.detail.colType')}</th>
 																{#each rowDiffData.columns || [] as col}
 																	<th>{col}</th>
 																{/each}
@@ -1070,9 +1071,9 @@
 												</div>
 												{#if rowDiffData.total > rowDiffData.rows.length}
 													<div class="row-diff-more">
-														显示 {rowDiffData.rows.length} / {rowDiffData.total} 条差异
+														{$t('dataset.detail.showingDiff', { shown: rowDiffData.rows.length, total: rowDiffData.total })}
 														<button class="btn-load-more" on:click={() => { rowDiffOffset += ROW_DIFF_LIMIT; loadRowDiff(diffFromVersion, diffToVersion); }}>
-															加载更多
+															{$t('dataset.detail.loadMore')}
 														</button>
 													</div>
 												{/if}
@@ -1090,9 +1091,9 @@
 			{#if activeDetailTab === 'readiness'}
 			<div class="info-card">
 				<div class="card-header">
-					<h4>🎯 训练就绪度</h4>
+					<h4>🎯 {$t('readiness.title')}</h4>
 					<button class="btn-link" on:click={loadReadiness} disabled={readinessLoading}>
-						{readinessLoading ? '评估中...' : '🔄 重新评估'}
+						{readinessLoading ? '...' : '🔄'}
 					</button>
 				</div>
 				<TrainingReadinessDashboard
@@ -1154,15 +1155,15 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (showNewVersion = false)} on:keydown={(e) => { if (e.key === 'Escape') showNewVersion = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>创建新版本</h3>
-			<div class="form-group">
-				<label for="version-note">版本备注</label>
-				<input id="version-note" type="text" bind:value={newVersionNote} placeholder="例如: 更新了2024年数据" class="input" />
+			<h3>{$t('dataset.detail.createNewVersion')}</h3>
+			<div class="modal-body">
+				<label for="version-note">{$t('dataset.detail.versionNote')}</label>
+				<input id="version-note" type="text" bind:value={newVersionNote} placeholder={$t('dataset.detail.versionNotePlaceholder')} class="input" />
 			</div>
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (showNewVersion = false)}>取消</button>
+				<button class="btn-secondary" on:click={() => (showNewVersion = false)}>{$t('dataset.detail.cancel')}</button>
 				<button class="btn-primary" on:click={createNewVersion} disabled={creatingVersion}>
-					{creatingVersion ? '创建中...' : '创建版本'}
+					{creatingVersion ? '...' : $t('dataset.detail.createVersion')}
 				</button>
 			</div>
 		</div>
@@ -1177,12 +1178,12 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (confirmArchive = false)} on:keydown={(e) => { if (e.key === 'Escape') confirmArchive = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>确认归档</h3>
-			<p>归档数据集 "{dataset?.name}" 后，它将不再出现在活跃列表中。归档后可恢复。</p>
+			<h3>{$t('dataset.detail.confirmArchive')}</h3>
+			<p>{$t('dataset.detail.confirmArchiveDesc')}</p>
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (confirmArchive = false)}>取消</button>
-				<button class="btn-warn" on:click={archiveDataset} disabled={archiving}>
-					{archiving ? '归档中...' : '确认归档'}
+				<button class="btn-secondary" on:click={() => (confirmArchive = false)}>{$t('dataset.detail.cancel')}</button>
+				<button class="btn-danger" on:click={archiveDataset} disabled={archiving}>
+					{archiving ? '...' : $t('dataset.detail.confirmArchive')}
 				</button>
 			</div>
 		</div>
@@ -1193,12 +1194,12 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (confirmDelete = false)} on:keydown={(e) => { if (e.key === 'Escape') confirmDelete = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>确认删除</h3>
-			<p>确定要删除数据集 "{dataset?.name}" 吗？此操作不可撤销。</p>
+			<h3>{$t('dataset.detail.confirmDelete')}</h3>
+			<p>{$t('dataset.detail.confirmDeleteDesc')}</p>
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (confirmDelete = false)}>取消</button>
+				<button class="btn-secondary" on:click={() => (confirmDelete = false)}>{$t('dataset.detail.cancel')}</button>
 				<button class="btn-danger" on:click={deleteDataset} disabled={deleting}>
-					{deleting ? '删除中...' : '确认删除'}
+					{deleting ? '...' : $t('dataset.detail.confirmDelete')}
 				</button>
 			</div>
 		</div>
@@ -1209,29 +1210,29 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (showExport = false)} on:keydown={(e) => { if (e.key === 'Escape') showExport = false; }}>
 		<div class="modal modal-export" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>📥 导出数据集</h3>
+			<h3>{$t('dataset.detail.exportDataset')}</h3>
 			<p class="export-ds-name">{dataset?.name}</p>
 
 			<div class="export-format-selector">
-			<span class="export-format-label">选择导出格式:</span>
+			<span class="export-format-label">{$t('dataset.detail.selectExportFormat')}:</span>
 				<div class="format-options">
 					<label class="format-option" class:active={exportTargetFormat === 'csv'}>
 						<input type="radio" bind:group={exportTargetFormat} value="csv" />
 						<span class="format-icon">📄</span>
 						<span class="format-name">CSV</span>
-						<span class="format-desc">通用表格格式</span>
+						<span class="format-desc">{$t('dataset.detail.csvDesc')}</span>
 					</label>
 					<label class="format-option" class:active={exportTargetFormat === 'json'}>
 						<input type="radio" bind:group={exportTargetFormat} value="json" />
 						<span class="format-icon">📋</span>
 						<span class="format-name">JSON</span>
-						<span class="format-desc">结构化数据格式</span>
+						<span class="format-desc">{$t('dataset.detail.jsonDesc')}</span>
 					</label>
 					<label class="format-option" class:active={exportTargetFormat === 'parquet'}>
 						<input type="radio" bind:group={exportTargetFormat} value="parquet" />
 						<span class="format-icon">📦</span>
 						<span class="format-name">Parquet</span>
-						<span class="format-desc">高性能列式存储</span>
+						<span class="format-desc">{$t('dataset.detail.parquetDesc')}</span>
 					</label>
 				</div>
 			</div>
@@ -1242,26 +1243,26 @@
 
 			{#if exportResult}
 				<div class="export-result">
-					<div class="export-result-header">{exportResult.success ? '✅ 导出成功' : '❌ 导出失败'}</div>
+					<div class="export-result-header">{exportResult.success ? '✅ ' + $t('dataset.detail.exportSuccess') : '❌ ' + $t('dataset.detail.exportFailed')}</div>
 					<div class="export-result-details">
 						<div class="export-detail-row">
-							<span>源格式:</span>
+							<span>{$t('dataset.detail.sourceFormat')}:</span>
 							<span class="export-detail-val">{exportResult.source_format?.toUpperCase()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>目标格式:</span>
+							<span>{$t('dataset.detail.targetFormat')}:</span>
 							<span class="export-detail-val">{exportResult.target_format?.toUpperCase()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>输出路径:</span>
+							<span>{$t('dataset.detail.outputPath')}:</span>
 							<span class="export-detail-val export-path">{exportResult.output_path}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>文件大小:</span>
+							<span>{$t('dataset.detail.fileSize')}:</span>
 							<span class="export-detail-val">{(exportResult.file_size_bytes / 1024).toFixed(1)} KB</span>
 						</div>
 						<div class="export-detail-row">
-							<span>导出行数:</span>
+							<span>{$t('dataset.detail.exportedRows')}:</span>
 							<span class="export-detail-val">{exportResult.rows_exported?.toLocaleString()}</span>
 						</div>
 					</div>
@@ -1269,9 +1270,9 @@
 			{/if}
 
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (showExport = false)}>关闭</button>
+				<button class="btn-secondary" on:click={() => (showExport = false)}>{$t('dataset.detail.close')}</button>
 				<button class="btn-primary" on:click={exportDataset} disabled={exporting}>
-					{exporting ? '导出中...' : '开始导出'}
+					{exporting ? '...' : $t('dataset.detail.startExport')}
 				</button>
 			</div>
 		</div>
@@ -1282,29 +1283,29 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (showSplitModal = false)} on:keydown={(e) => { if (e.key === 'Escape') showSplitModal = false; }}>
 		<div class="modal modal-split" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>📐 创建数据划分</h3>
+			<h3>{$t('dataset.detail.createSplitTitle')}</h3>
 			<p class="export-ds-name">{dataset?.name}</p>
 
 			<div class="form-group">
-				<label for="split-name-input">划分名称</label>
+				<label for="split-name-input">{$t('dataset.detail.splitName')}</label>
 				<input id="split-name-input" class="input" type="text" bind:value={splitName} placeholder="default_split" />
 			</div>
 
 			<div class="split-ratio-config">
-				<span class="ratio-label">划分比例</span>
+				<span class="ratio-label">{$t('dataset.detail.splitRatio')}</span>
 				<div class="ratio-sliders">
 					<div class="ratio-row">
-						<span class="ratio-label">训练集</span>
+						<span class="ratio-label">{$t('dataset.detail.trainSet')}</span>
 						<input type="range" min="0" max="100" bind:value={splitTrainRatio} step="1" />
 						<span class="ratio-val">{splitTrainRatio}%</span>
 					</div>
 					<div class="ratio-row">
-						<span class="ratio-label">验证集</span>
+						<span class="ratio-label">{$t('dataset.detail.valSet')}</span>
 						<input type="range" min="0" max="100" bind:value={splitValRatio} step="1" />
 						<span class="ratio-val">{splitValRatio}%</span>
 					</div>
 					<div class="ratio-row">
-						<span class="ratio-label">测试集</span>
+						<span class="ratio-label">{$t('dataset.detail.testSet')}</span>
 						<input type="range" min="0" max="100" bind:value={splitTestRatio} step="1" />
 						<span class="ratio-val">{splitTestRatio}%</span>
 					</div>
@@ -1319,10 +1320,10 @@
 			<div class="form-row">
 				<label class="checkbox-label">
 					<input type="checkbox" bind:checked={splitShuffle} />
-					随机打乱
+					{$t('dataset.detail.randomShuffle')}
 				</label>
 				<div class="form-group-sm">
-					<label for="split-seed">随机种子</label>
+					<label for="split-seed">{$t('dataset.detail.randomSeed')}</label>
 					<input id="split-seed" class="input input-sm" type="number" bind:value={splitSeed} />
 				</div>
 			</div>
@@ -1332,9 +1333,9 @@
 			{/if}
 
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (showSplitModal = false)}>取消</button>
+				<button class="btn-secondary" on:click={() => (showSplitModal = false)}>{$t('dataset.detail.cancel')}</button>
 				<button class="btn-primary" on:click={createSplit} disabled={splitCreating}>
-					{splitCreating ? '创建中...' : '创建划分'}
+					{splitCreating ? '...' : $t('dataset.detail.createSplit')}
 				</button>
 			</div>
 		</div>
@@ -1345,22 +1346,22 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (showDedupModal = false)} on:keydown={(e) => { if (e.key === 'Escape') showDedupModal = false; }}>
 		<div class="modal modal-dedup" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>🔍 数据去重</h3>
+			<h3>{$t('dataset.detail.dedupTitle')}</h3>
 			<p class="export-ds-name">{dataset?.name}</p>
 
 			<div class="form-group">
-				<label for="dedup-threshold">相似度阈值</label>
+				<label for="dedup-threshold">{$t('dataset.detail.similarityThreshold')}</label>
 				<input id="dedup-threshold" class="input" type="number" bind:value={dedupThreshold} min="0" max="1" step="0.05" />
-				<span class="input-hint">值越低越严格（0.8 = 80%相似即判为重复）</span>
+				<span class="input-hint">{$t('dataset.detail.thresholdHint')}</span>
 			</div>
 
 			<div class="form-row">
 				<div class="form-group">
-					<label for="dedup-perm">MinHash 排列数</label>
+					<label for="dedup-perm">{$t('dataset.detail.minhashPerms')}</label>
 					<input id="dedup-perm" class="input" type="number" bind:value={dedupNumPerm} min="32" max="512" step="32" />
 				</div>
 				<div class="form-group">
-					<label for="dedup-ngram">N-gram 大小</label>
+					<label for="dedup-ngram">{$t('dataset.detail.ngramSize')}</label>
 					<input id="dedup-ngram" class="input" type="number" bind:value={dedupNGram} min="1" max="10" />
 				</div>
 			</div>
@@ -1371,26 +1372,26 @@
 
 			{#if dedupResult}
 				<div class="export-result">
-					<div class="export-result-header">✅ 去重完成</div>
+					<div class="export-result-header">✅ {$t('dataset.detail.dedupComplete')}</div>
 					<div class="export-result-details">
 						<div class="export-detail-row">
-							<span>原始行数:</span>
+							<span>{$t('dataset.detail.originalRows')}:</span>
 							<span class="export-detail-val">{dedupResult.original_rows?.toLocaleString()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>发现重复:</span>
+							<span>{$t('dataset.detail.duplicatesFound')}:</span>
 							<span class="export-detail-val">{dedupResult.duplicates_found?.toLocaleString()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>已移除:</span>
+							<span>{$t('dataset.detail.removed')}:</span>
 							<span class="export-detail-val">{dedupResult.duplicates_removed?.toLocaleString()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>剩余行数:</span>
+							<span>{$t('dataset.detail.remainingRows')}:</span>
 							<span class="export-detail-val">{dedupResult.remaining_rows?.toLocaleString()}</span>
 						</div>
 						<div class="export-detail-row">
-							<span>重复率:</span>
+							<span>{$t('dataset.detail.dedupRate')}:</span>
 							<span class="export-detail-val">{(dedupResult.dedup_ratio * 100).toFixed(2)}%</span>
 						</div>
 					</div>
@@ -1398,9 +1399,9 @@
 			{/if}
 
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (showDedupModal = false)}>关闭</button>
+				<button class="btn-secondary" on:click={() => (showDedupModal = false)}>{$t('dataset.detail.close')}</button>
 				<button class="btn-warn" on:click={runDedup} disabled={dedupRunning}>
-					{dedupRunning ? '去重中...' : '开始去重'}
+					{dedupRunning ? '...' : $t('dataset.detail.startDedup')}
 				</button>
 			</div>
 		</div>

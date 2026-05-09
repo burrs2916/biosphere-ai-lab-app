@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getLabClient } from '$lib/lab/stores/plugins';
 	import Skeleton from '$lib/lab/components/Skeleton.svelte';
+	import { t } from '$lib/i18n';
 
 	interface LineageNode {
 		id: string;
@@ -70,25 +71,25 @@
 	};
 
 	const nodeLabels: Record<string, string> = {
-		dataset: '数据集',
-		raw_data: '原始数据',
-		processed_data: '处理后数据',
-		split: '数据划分',
-		model: '模型',
-		experiment: '实验',
-		checkpoint: '检查点',
-		export: '导出',
+		dataset: $t('lineagePage.nodeTypeDataset'),
+		raw_data: $t('lineagePage.nodeTypeRawData'),
+		processed_data: $t('lineagePage.nodeTypeProcessedData'),
+		split: $t('lineagePage.nodeTypeSplit'),
+		model: $t('lineagePage.nodeTypeModel'),
+		experiment: $t('lineagePage.nodeTypeExperiment'),
+		checkpoint: $t('lineagePage.nodeTypeCheckpoint'),
+		export: $t('lineagePage.nodeTypeExport'),
 	};
 
 	const relationLabels: Record<string, string> = {
-		trained_on: '训练于',
-		derived_from: '派生自',
-		evaluated_on: '评估于',
-		split_from: '划分自',
-		preprocessed_from: '预处理自',
-		augmented_from: '增强自',
-		exported_from: '导出自',
-		depends_on: '依赖于',
+		trained_on: $t('lineagePage.relTrainedOn'),
+		derived_from: $t('lineagePage.relDerivedFrom'),
+		evaluated_on: $t('lineagePage.relEvaluatedOn'),
+		split_from: $t('lineagePage.relSplitFrom'),
+		preprocessed_from: $t('lineagePage.relPreprocessedFrom'),
+		augmented_from: $t('lineagePage.relAugmentedFrom'),
+		exported_from: $t('lineagePage.relExportedFrom'),
+		depends_on: $t('lineagePage.relDependsOn'),
 	};
 
 	function getNodeColor(type: string): string {
@@ -171,7 +172,7 @@
 			const client = getLabClient();
 			graph = await client.lineageGraph();
 		} catch (e: any) {
-			error = e?.toString() || '加载血缘图失败';
+			error = e?.toString() || $t('lineagePage.loadFailed');
 		} finally {
 			loading = false;
 		}
@@ -218,11 +219,11 @@
 <div class="lineage-page">
 	<div class="page-header">
 		<div>
-			<h2>数据血缘追踪</h2>
-			<p class="subtitle">数据集 → 实验 → 模型 全链路追踪</p>
+			<h2>{$t('lineagePage.title')}</h2>
+			<p class="subtitle">{$t('lineagePage.subtitle')}</p>
 		</div>
 		<button class="btn-refresh" on:click={loadGraph} disabled={loading}>
-			{loading ? '加载中...' : '🔄 刷新'}
+			{loading ? $t('lineagePage.loading') : `🔄 ${$t('lineagePage.refresh')}`}
 		</button>
 	</div>
 
@@ -238,11 +239,11 @@
 		<div class="lineage-layout">
 			<div class="graph-panel">
 				<div class="graph-stats">
-					<span class="stat-badge">节点: {graph.metadata.total_nodes}</span>
-					<span class="stat-badge">边: {graph.metadata.total_edges}</span>
-					<span class="stat-badge">深度: {graph.metadata.max_depth}</span>
+					<span class="stat-badge">{$t('lineagePage.nodes')}: {graph.metadata.total_nodes}</span>
+					<span class="stat-badge">{$t('lineagePage.edges')}: {graph.metadata.total_edges}</span>
+					<span class="stat-badge">{$t('lineagePage.depth')}: {graph.metadata.max_depth}</span>
 					{#if graph.metadata.has_cycles}
-						<span class="stat-badge warning">⚠ 循环依赖</span>
+						<span class="stat-badge warning">⚠ {$t('lineagePage.cyclicDependency')}</span>
 					{/if}
 				</div>
 				<svg width={svgWidth} height={svgHeight} viewBox="0 0 {svgWidth} {svgHeight}" class="lineage-svg">
@@ -328,20 +329,20 @@
 						</h3>
 						<div class="detail-grid">
 							<div class="detail-item">
-								<span class="detail-label">类型</span>
+								<span class="detail-label">{$t('lineagePage.type')}</span>
 								<span class="detail-value">{getNodeLabel(selectedNode.node_type)}</span>
 							</div>
 							<div class="detail-item">
-								<span class="detail-label">版本</span>
+								<span class="detail-label">{$t('lineagePage.version')}</span>
 								<span class="detail-value">v{selectedNode.version}</span>
 							</div>
 							<div class="detail-item">
-								<span class="detail-label">创建时间</span>
+								<span class="detail-label">{$t('lineagePage.createdAt')}</span>
 								<span class="detail-value">{formatDate(selectedNode.created_at)}</span>
 							</div>
 							{#if selectedNode.digest}
 								<div class="detail-item">
-									<span class="detail-label">数据摘要</span>
+									<span class="detail-label">{$t('lineagePage.dataDigest')}</span>
 									<span class="detail-value mono">{truncateDigest(selectedNode.digest)}</span>
 								</div>
 							{/if}
@@ -352,26 +353,26 @@
 						{:else}
 							{#if selectedNodeTrace}
 								<div class="trace-section">
-									<h4 class="section-subtitle">上下游分析</h4>
+									<h4 class="section-subtitle">{$t('lineagePage.updownstreamAnalysis')}</h4>
 									<div class="trace-row">
-										<span class="trace-label">上游 ({selectedNodeTrace.upstream?.length || 0})</span>
+										<span class="trace-label">{$t('lineagePage.upstream')} ({selectedNodeTrace.upstream?.length || 0})</span>
 										<div class="trace-nodes">
 											{#each selectedNodeTrace.upstream || [] as up}
 												<span class="trace-chip">{up.name || up}</span>
 											{/each}
 											{#if !selectedNodeTrace.upstream?.length}
-												<span class="trace-empty">无</span>
+												<span class="trace-empty">{$t('lineagePage.none')}</span>
 											{/if}
 										</div>
 									</div>
 									<div class="trace-row">
-										<span class="trace-label">下游 ({selectedNodeTrace.downstream?.length || 0})</span>
+										<span class="trace-label">{$t('lineagePage.downstream')} ({selectedNodeTrace.downstream?.length || 0})</span>
 										<div class="trace-nodes">
 											{#each selectedNodeTrace.downstream || [] as down}
 												<span class="trace-chip">{down.name || down}</span>
 											{/each}
 											{#if !selectedNodeTrace.downstream?.length}
-												<span class="trace-empty">无</span>
+												<span class="trace-empty">{$t('lineagePage.none')}</span>
 											{/if}
 										</div>
 									</div>
@@ -380,15 +381,15 @@
 
 							{#if selectedNodeImpact}
 								<div class="impact-section">
-									<h4 class="section-subtitle">影响分析</h4>
+									<h4 class="section-subtitle">{$t('lineagePage.impactAnalysis')}</h4>
 									<div class="impact-severity" class:high={selectedNodeImpact.severity === 'high'} class:medium={selectedNodeImpact.severity === 'medium'} class:low={selectedNodeImpact.severity === 'low'}>
-										严重程度: {selectedNodeImpact.severity === 'high' ? '🔴 高' : selectedNodeImpact.severity === 'medium' ? '🟡 中' : '🟢 低'}
+										{$t('lineagePage.severity')}: {selectedNodeImpact.severity === 'high' ? `🔴 ${$t('lineagePage.high')}` : selectedNodeImpact.severity === 'medium' ? `🟡 ${$t('lineagePage.medium')}` : `🟢 ${$t('lineagePage.low')}`}
 									</div>
 									<div class="impact-stat">
-										直接影响: {selectedNodeImpact.directly_affected?.length || 0} 个节点
+										{$t('lineagePage.directImpact')}: {selectedNodeImpact.directly_affected?.length || 0} {$t('lineagePage.nodesCount')}
 									</div>
 									<div class="impact-stat">
-										间接影响: {selectedNodeImpact.indirectly_affected?.length || 0} 个节点
+										{$t('lineagePage.indirectImpact')}: {selectedNodeImpact.indirectly_affected?.length || 0} {$t('lineagePage.nodesCount')}
 									</div>
 									{#if selectedNodeImpact.recommendations?.length}
 										<div class="impact-recommendations">
@@ -403,8 +404,8 @@
 					</div>
 				{:else}
 					<div class="detail-empty">
-						<p>👆 点击图中节点查看详情</p>
-						<p class="hint">包括上下游分析和影响评估</p>
+						<p>👆 {$t('lineagePage.clickNodeHint')}</p>
+						<p class="hint">{$t('lineagePage.clickNodeHintDetail')}</p>
 					</div>
 				{/if}
 			</div>
@@ -412,8 +413,8 @@
 	{:else}
 		<div class="empty-state">
 			<div class="empty-icon">🔗</div>
-			<h3>暂无血缘数据</h3>
-			<p>注册数据集并运行实验后，血缘关系将自动建立</p>
+			<h3>{$t('lineagePage.noLineageData')}</h3>
+			<p>{$t('lineagePage.noLineageDataHint')}</p>
 		</div>
 	{/if}
 </div>

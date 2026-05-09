@@ -1,11 +1,12 @@
 <script lang="ts">
   import { getLabClient } from '$lib/lab/stores/plugins';
   import { taskManagerStore } from '$lib/lab/stores/taskManager';
+  import { t } from '$lib/i18n';
 
   export let datasetPath: string = '';
   export let datasetId: string = '';
 
-  $: versionLabel = datasetId ? `数据集 ${datasetId.slice(0, 8)}` : '数据集';
+  $: versionLabel = datasetId ? `${$t('dvc.dataset')} ${datasetId.slice(0, 8)}` : $t('dvc.dataset');
 
   let commits: any[] = [];
   let branches: any[] = [];
@@ -31,7 +32,7 @@
       initialized = true;
       await refreshLog();
     } catch (e: any) {
-      error = e?.toString() || '初始化版本控制失败';
+      error = e?.toString() || $t('dvc.initFailed');
     } finally {
       loading = false;
     }
@@ -52,7 +53,7 @@
       currentBranch = branchResult.current_branch || 'main';
       initialized = true;
     } catch (e: any) {
-      error = e?.toString() || '加载版本日志失败';
+      error = e?.toString() || $t('dvc.loadLogFailed');
     } finally {
       loading = false;
     }
@@ -60,43 +61,42 @@
 
   async function commit() {
     if (!datasetPath || !commitMessage.trim()) return;
-    const taskId = taskManagerStore.createTask('版本提交', `正在提交: ${commitMessage}`, false);
+    const taskId = taskManagerStore.createTask($t('dvc.commitTask'), $t('dvc.committing', { message: commitMessage }), false);
     try {
       const client = getLabClient();
       await client.dataVersionCommit(datasetPath, commitMessage);
       commitMessage = '';
-      taskManagerStore.completeTask(taskId, '提交成功');
+      taskManagerStore.completeTask(taskId, $t('dvc.commitSuccess'));
       await refreshLog();
     } catch (e: any) {
-      taskManagerStore.failTask(taskId, e?.toString() || '提交失败');
+      taskManagerStore.failTask(taskId, e?.toString() || $t('dvc.commitFailed'));
     }
   }
 
   async function checkout(version: string) {
     if (!datasetPath) return;
-    const taskId = taskManagerStore.createTask('版本切换', `正在切换到 ${version}...`, false);
+    const taskId = taskManagerStore.createTask($t('dvc.checkoutTask'), $t('dvc.checkingOut', { version }), false);
     try {
       const client = getLabClient();
       await client.dataVersionCheckout(datasetPath, version);
-      taskManagerStore.completeTask(taskId, `已切换到 ${version}`);
+      taskManagerStore.completeTask(taskId, $t('dvc.checkedOut', { version }));
       await refreshLog();
     } catch (e: any) {
-      taskManagerStore.failTask(taskId, e?.toString() || '切换失败');
+      taskManagerStore.failTask(taskId, e?.toString() || $t('dvc.checkoutFailed'));
     }
   }
 
   async function createBranch() {
     if (!datasetPath || !newBranchName.trim()) return;
-    const taskId = taskManagerStore.createTask('创建分支', `正在创建分支 ${newBranchName}...`, false);
+    const taskId = taskManagerStore.createTask($t('dvc.branchTask'), $t('dvc.creatingBranch', { name: newBranchName }), false);
     try {
       const client = getLabClient();
       await client.dataVersionCreateBranch(datasetPath, newBranchName);
-      taskManagerStore.completeTask(taskId, `分支 ${newBranchName} 创建成功`);
+      taskManagerStore.completeTask(taskId, $t('dvc.branchCreated', { name: newBranchName }));
       newBranchName = '';
       showBranchDialog = false;
-      await refreshLog();
     } catch (e: any) {
-      taskManagerStore.failTask(taskId, e?.toString() || '创建分支失败');
+      taskManagerStore.failTask(taskId, e?.toString() || $t('dvc.branchFailed'));
     }
   }
 
@@ -108,7 +108,7 @@
       const client = getLabClient();
       diffResult = await client.dataVersionDiff(datasetPath, selectedFromVersion, selectedToVersion);
     } catch (e: any) {
-      error = e?.toString() || '获取差异失败';
+      error = e?.toString() || $t('dvc.diffFailed');
     } finally {
       diffLoading = false;
     }
@@ -123,7 +123,7 @@
 
 <div class="version-control">
   <div class="vc-header">
-    <h3>📦 {versionLabel} - 版本控制</h3>
+    <h3>{$t('dvc.title', { label: versionLabel })}</h3>
     {#if initialized}
       <button class="btn-sm" on:click={refreshLog}>🔄</button>
     {/if}
@@ -131,9 +131,9 @@
 
   {#if !initialized}
     <div class="vc-init">
-      <p class="init-desc">启用版本控制以追踪数据变更历史</p>
+      <p class="init-desc">{$t('dvc.initDesc')}</p>
       <button class="btn-primary" on:click={initVersionControl} disabled={loading}>
-        {loading ? '初始化中...' : '🚀 启用版本控制'}
+        {loading ? $t('dvc.initializing') : $t('dvc.enableVc')}
       </button>
     </div>
   {:else}
@@ -147,52 +147,52 @@
           </span>
         {/each}
       </div>
-      <button class="btn-sm" on:click={() => (showBranchDialog = true)}>+ 分支</button>
+      <button class="btn-sm" on:click={() => (showBranchDialog = true)}>+ {$t('dvc.branch')}</button>
     </div>
 
     {#if showBranchDialog}
       <div class="branch-dialog">
-        <input class="input" type="text" bind:value={newBranchName} placeholder="新分支名称" />
-        <button class="btn-primary-sm" on:click={createBranch} disabled={!newBranchName.trim()}>创建</button>
-        <button class="btn-sm" on:click={() => (showBranchDialog = false)}>取消</button>
+        <input class="input" type="text" bind:value={newBranchName} placeholder={$t('dvc.newBranchPlaceholder')} />
+        <button class="btn-primary-sm" on:click={createBranch} disabled={!newBranchName.trim()}>{$t('dvc.create')}</button>
+        <button class="btn-sm" on:click={() => (showBranchDialog = false)}>{$t('confirm.cancel')}</button>
       </div>
     {/if}
 
     <div class="commit-form">
-      <input class="input" type="text" bind:value={commitMessage} placeholder="提交信息..." />
-      <button class="btn-primary-sm" on:click={commit} disabled={!commitMessage.trim()}>📝 提交</button>
+      <input class="input" type="text" bind:value={commitMessage} placeholder={$t('dvc.commitPlaceholder')} />
+      <button class="btn-primary-sm" on:click={commit} disabled={!commitMessage.trim()}>📝 {$t('dvc.commit')}</button>
     </div>
 
     <div class="diff-form">
       <select class="input" bind:value={selectedFromVersion}>
-        <option value="">从版本</option>
+        <option value="">{$t('dvc.fromVersion')}</option>
         {#each commits as c}
           <option value={c.version}>{c.version} - {c.message}</option>
         {/each}
       </select>
       <span class="diff-arrow">→</span>
       <select class="input" bind:value={selectedToVersion}>
-        <option value="">到版本</option>
+        <option value="">{$t('dvc.toVersion')}</option>
         {#each commits as c}
           <option value={c.version}>{c.version} - {c.message}</option>
         {/each}
       </select>
       <button class="btn-sm" on:click={showDiff} disabled={!selectedFromVersion || !selectedToVersion || diffLoading}>
-        {diffLoading ? '...' : '🔍 对比'}
+        {diffLoading ? '...' : `🔍 ${$t('versionDiff.compare')}`}
       </button>
     </div>
 
     {#if diffResult}
       <div class="diff-result">
         <div class="diff-summary">
-          <span class="diff-added">+{diffResult.files_added?.length || 0} 文件</span>
-          <span class="diff-removed">-{diffResult.files_removed?.length || 0} 文件</span>
-          <span class="diff-modified">~{diffResult.files_modified?.length || 0} 文件</span>
-          <span class="diff-rows">±{diffResult.row_change || 0} 行</span>
+          <span class="diff-added">+{diffResult.files_added?.length || 0} {$t('dvc.files')}</span>
+          <span class="diff-removed">-{diffResult.files_removed?.length || 0} {$t('dvc.files')}</span>
+          <span class="diff-modified">~{diffResult.files_modified?.length || 0} {$t('dvc.files')}</span>
+          <span class="diff-rows">±{diffResult.row_change || 0} {$t('versionDiff.rows')}</span>
         </div>
         {#if diffResult.files_added?.length}
           <div class="diff-section">
-            <div class="diff-section-title" style="color: #10b981">新增文件</div>
+            <div class="diff-section-title" style="color: #10b981">{$t('dvc.addedFiles')}</div>
             {#each diffResult.files_added as f}
               <div class="diff-file">+ {f}</div>
             {/each}
@@ -200,7 +200,7 @@
         {/if}
         {#if diffResult.files_modified?.length}
           <div class="diff-section">
-            <div class="diff-section-title" style="color: #f59e0b">修改文件</div>
+            <div class="diff-section-title" style="color: #f59e0b">{$t('dvc.modifiedFiles')}</div>
             {#each diffResult.files_modified as f}
               <div class="diff-file">~ {f}</div>
             {/each}
@@ -211,7 +211,7 @@
 
     <div class="commit-list">
       {#if commits.length === 0}
-        <div class="empty-commits">暂无提交记录</div>
+        <div class="empty-commits">{$t('dvc.noCommits')}</div>
       {:else}
         {#each commits as commit, i}
           <div class="commit-item">
@@ -226,7 +226,7 @@
                 <span class="commit-time">{formatTime(commit.timestamp)}</span>
               </div>
               <div class="commit-message">{commit.message}</div>
-              <button class="checkout-btn" on:click={() => checkout(commit.version)}>切换</button>
+              <button class="checkout-btn" on:click={() => checkout(commit.version)}>{$t('dvc.checkout')}</button>
             </div>
           </div>
         {/each}

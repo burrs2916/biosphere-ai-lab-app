@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let graph: any = null;
   export let selectedNodeId: string | null = null;
@@ -142,19 +143,19 @@
 {#if !graph || !graph.nodes || graph.nodes.length === 0}
   <div class="lineage-empty">
     <span class="empty-icon">🔗</span>
-    <p>暂无血缘数据</p>
-    <p class="empty-hint">注册数据集并运行实验后，血缘关系将自动生成</p>
+    <p>{$t('lineage.noData')}</p>
+    <p class="empty-hint">{$t('lineage.noDataHint')}</p>
   </div>
 {:else}
   <div class="lineage-toolbar">
-    <button class="toolbar-btn" on:click={resetView} title="重置视图">🔄</button>
-    <button class="toolbar-btn" on:click={() => { zoom = Math.min(3, zoom + 0.2); }} title="放大">➕</button>
-    <button class="toolbar-btn" on:click={() => { zoom = Math.max(0.3, zoom - 0.2); }} title="缩小">➖</button>
+    <button class="toolbar-btn" on:click={resetView} title={$t('lineage.resetView')}>🔄</button>
+    <button class="toolbar-btn" on:click={() => { zoom = Math.min(3, zoom + 0.2); }} title={$t('lineage.zoomIn')}>➕</button>
+    <button class="toolbar-btn" on:click={() => { zoom = Math.max(0.3, zoom - 0.2); }} title={$t('lineage.zoomOut')}>➖</button>
     <span class="zoom-label">{(zoom * 100).toFixed(0)}%</span>
-    <span class="node-count">{nodes.length} 节点 · {edges.length} 边</span>
+    <span class="node-count">{$t('lineage.nodeCount', { nodes: nodes.length, edges: edges.length })}</span>
   </div>
   <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-  <div class="lineage-canvas" role="application" aria-label="数据血缘图 - 可拖拽和缩放"
+  <div class="lineage-canvas" role="application" aria-label={$t('lineage.ariaLabel')}
     on:mousedown={startPan}
     on:mousemove={doPan}
     on:mouseup={stopPan}
@@ -209,7 +210,7 @@
   {#if selectedNodeId}
     <div class="node-detail">
       <div class="detail-header">
-        <span>📌 选中节点</span>
+        <span>📌 {$t('lineage.selectedNode')}</span>
         <button class="close-btn" on:click={() => { selectedNodeId = null; }}>✕</button>
       </div>
       <div class="detail-id">{selectedNodeId}</div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { taskManagerStore, activeTaskCount, formatETA, formatElapsed } from '$lib/lab/stores/taskManager';
   import { uxStore } from '$lib/lab/stores/uxStore';
+  import { t } from '$lib/i18n';
 
   let expanded = false;
 
@@ -41,7 +42,7 @@
 
 {#if tasks.length > 0}
   <div class="task-panel" class:expanded>
-    <button class="task-panel-toggle" on:click={() => (expanded = !expanded)} aria-label="任务进度面板">
+    <button class="task-panel-toggle" on:click={() => (expanded = !expanded)} aria-label={$t('task.progressPanel')}>
       <span class="toggle-icon">{hasActive ? '⏳' : '📋'}</span>
       {#if hasActive}
         <span class="toggle-badge">{$activeTaskCount}</span>
@@ -51,12 +52,12 @@
     {#if expanded}
       <div class="task-panel-content">
         <div class="panel-header">
-          <h4>后台任务</h4>
+          <h4>{$t('task.backgroundTasks')}</h4>
           <div class="panel-actions">
             {#if completedTasks.length > 0}
-              <button class="btn-clear" on:click={() => taskManagerStore.clearCompleted()}>清除已完成</button>
+              <button class="btn-clear" on:click={() => taskManagerStore.clearCompleted()}>{$t('task.clearCompleted')}</button>
             {/if}
-            <button class="btn-collapse" on:click={() => (expanded = false)}>收起</button>
+            <button class="btn-collapse" on:click={() => (expanded = false)}>{$t('task.collapse')}</button>
           </div>
         </div>
 
@@ -69,7 +70,7 @@
                   <span class="task-name">{task.name}</span>
                   <span class="task-step">
                     {#if stepDisplay(task)}
-                      步骤 {stepDisplay(task)}
+                      {$t('task.step')} {stepDisplay(task)}
                       {#if task.stepLabel}· {task.stepLabel}{/if}
                     {:else}
                       {task.progressMessage}
@@ -90,9 +91,9 @@
                 ></div>
               </div>
               <div class="task-footer">
-                <span class="task-elapsed">已用 {formatElapsed(task.startedAt, null)}</span>
+                <span class="task-elapsed">{$t('task.elapsed')} {formatElapsed(task.startedAt, null)}</span>
                 {#if task.cancellable}
-                  <button class="btn-cancel" on:click={() => taskManagerStore.cancelTask(task.id)}>取消</button>
+                  <button class="btn-cancel" on:click={() => taskManagerStore.cancelTask(task.id)}>{$t('task.cancel')}</button>
                 {/if}
               </div>
             </div>
@@ -106,13 +107,13 @@
                   <span class="task-name">{task.name}</span>
                   <span class="task-step">
                     {#if task.status === 'completed'}
-                      {task.result || '完成'}
+                      {task.result || $t('task.done')}
                     {:else}
-                      {task.error || '失败'}
+                      {task.error || $t('task.failed')}
                     {/if}
                   </span>
                 </div>
-                <span class="task-elapsed">耗时 {formatElapsed(task.startedAt, task.completedAt)}</span>
+                <span class="task-elapsed">{$t('task.duration')} {formatElapsed(task.startedAt, task.completedAt)}</span>
               </div>
             </div>
           {/each}

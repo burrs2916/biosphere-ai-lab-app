@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getLabClient, pluginStore } from '$lib/lab/stores/plugins';
 	import { datasetRegistryStore } from '$lib/lab/stores/dataset';
+	import { t } from '$lib/i18n';
 	import type { TrainingConfig, HparamSpace, HparamRange, HparamValue, TuneStrategy, TuneResult, TrialResult, PluginInfo, DatasetSummary, ComputeBackend, DataFormat } from '$lib/lab/adapter/types';
 
 	let tuneStrategy: 'grid' | 'random' = 'grid';
@@ -154,7 +155,7 @@
 			showPreview = true;
 			error = null;
 		} catch (e: any) {
-			error = e?.toString() || '预览失败';
+			error = e?.toString() || $t('tune.previewFailed');
 		}
 	}
 
@@ -174,7 +175,7 @@
 			};
 			tuneResult = await client.startHyperparameterTuning(tuneConfig);
 		} catch (e: any) {
-			error = e?.toString() || '调优失败';
+			error = e?.toString() || $t('tune.tuningFailed');
 		} finally {
 			tuning = false;
 		}
@@ -198,8 +199,8 @@
 </script>
 
 <div class="tune-page">
-	<h1>超参数调优</h1>
-	<p class="subtitle">自动搜索最佳超参数组合，支持 Grid Search 和 Random Search</p>
+	<h1>{$t('tune.title')}</h1>
+	<p class="subtitle">{$t('tune.subtitle')}</p>
 
 	{#if error}
 		<div class="error-banner">{error}</div>
@@ -208,10 +209,10 @@
 	<div class="tune-layout">
 		<div class="tune-config">
 			<section class="config-section">
-				<h2>基础训练配置</h2>
+				<h2>{$t('tune.baseTrainingConfig')}</h2>
 				<div class="form-grid">
 					<div class="form-group">
-						<label for="auto-f51">计算引擎</label>
+						<label for="auto-f51">{$t('tune.computeEngine')}</label>
 						<select id="auto-f51" bind:value={engineId}>
 							{#each availableEngines as engine}
 								<option value={engine.id}>{engine.name}</option>
@@ -219,18 +220,18 @@
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f52">模型</label>
+						<label for="auto-f52">{$t('tune.model')}</label>
 						<select id="auto-f52" bind:value={modelId}>
 							<option value="mlp">MLP</option>
 							<option value="cnn">CNN</option>
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f53">数据路径</label>
+						<label for="auto-f53">{$t('tune.dataPath')}</label>
 						<input id="auto-f53" type="text" bind:value={dataPath} placeholder="/path/to/data.csv" />
 					</div>
 					<div class="form-group">
-						<label for="auto-f54">数据格式</label>
+						<label for="auto-f54">{$t('tune.dataFormat')}</label>
 						<select id="auto-f54" bind:value={dataFormat}>
 							<option value="csv">CSV</option>
 							<option value="json">JSON</option>
@@ -242,7 +243,7 @@
 						<input id="auto-f55" type="number" bind:value={epochs} min="1" />
 					</div>
 					<div class="form-group">
-						<label for="auto-f56">优化器</label>
+						<label for="auto-f56">{$t('tune.optimizer')}</label>
 						<select id="auto-f56" bind:value={optimizerType}>
 							<option value="Adam">Adam</option>
 							<option value="AdamW">AdamW</option>
@@ -251,11 +252,11 @@
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f57">损失函数</label>
+						<label for="auto-f57">{$t('tune.lossFunction')}</label>
 						<input id="auto-f57" type="text" bind:value={lossFunction} />
 					</div>
 					<div class="form-group">
-						<label for="auto-f58">计算后端</label>
+						<label for="auto-f58">{$t('tune.computeBackend')}</label>
 						<select id="auto-f58" bind:value={computeBackend}>
 							<option value="cpu">CPU</option>
 							<option value="cuda">CUDA</option>
@@ -263,81 +264,81 @@
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f59">验证集比例</label>
+						<label for="auto-f59">{$t('tune.validationSplit')}</label>
 						<input id="auto-f59" type="number" bind:value={validationSplit} min="0" max="1" step="0.05" />
 					</div>
 					<div class="form-group">
-						<label for="auto-f60">目标列</label>
+						<label for="auto-f60">{$t('tune.targetColumn')}</label>
 						<input id="auto-f60" type="text" bind:value={targetColumn} />
 					</div>
 					<div class="form-group">
-						<label for="auto-f61">特征列 (逗号分隔)</label>
+						<label for="auto-f61">{$t('tune.featureColumns')}</label>
 						<input id="auto-f61" type="text" bind:value={featureColumns} />
 					</div>
 				</div>
 			</section>
 
 			<section class="config-section">
-				<h2>超参数搜索空间</h2>
+				<h2>{$t('tune.hparamSearchSpace')}</h2>
 				<div class="hparam-entries">
 					{#each hparamEntries as entry, i}
 						<div class="hparam-row">
-							<input type="text" bind:value={entry.name} placeholder="参数名" class="param-name" />
+							<input type="text" bind:value={entry.name} placeholder={$t('tune.paramName')} class="param-name" />
 							<select bind:value={entry.type} class="param-type">
-								<option value="float">浮点范围</option>
-								<option value="int">整数范围</option>
-								<option value="choice">枚举选择</option>
+								<option value="float">{$t('tune.floatRange')}</option>
+								<option value="int">{$t('tune.intRange')}</option>
+								<option value="choice">{$t('tune.choiceEnum')}</option>
 							</select>
 							{#if entry.type === 'choice'}
-								<input type="text" bind:value={entry.choices} placeholder="值1,值2,值3" class="param-choices" />
+								<input type="text" bind:value={entry.choices} placeholder={$t('tune.choicePlaceholder')} class="param-choices" />
 							{:else}
-								<input type="number" bind:value={entry.min} step="any" class="param-min" placeholder="最小" />
-								<input type="number" bind:value={entry.max} step="any" class="param-max" placeholder="最大" />
+								<input type="number" bind:value={entry.min} step="any" class="param-min" placeholder={$t('tune.min')} />
+								<input type="number" bind:value={entry.max} step="any" class="param-max" placeholder={$t('tune.max')} />
 							{/if}
 							<button class="btn-remove" on:click={() => removeHparamEntry(i)}>✕</button>
 						</div>
 					{/each}
 				</div>
-				<button class="btn-add" on:click={addHparamEntry}>+ 添加参数</button>
+				<button class="btn-add" on:click={addHparamEntry}>+ {$t('tune.addParam')}</button>
 			</section>
 
 			<section class="config-section">
-				<h2>调优策略</h2>
+				<h2>{$t('tune.tuningStrategy')}</h2>
 				<div class="strategy-options">
 					<label class="radio-label">
 						<input type="radio" name="strategy" bind:group={tuneStrategy} value="grid" />
-						<span>Grid Search (穷举搜索)</span>
+						<span>Grid Search ({$t('tune.exhaustiveSearch')})</span>
 					</label>
 					<label class="radio-label">
 						<input type="radio" name="strategy" bind:group={tuneStrategy} value="random" />
-						<span>Random Search (随机搜索)</span>
+						<span>Random Search ({$t('tune.randomSearch')})</span>
 					</label>
 				</div>
 				{#if tuneStrategy === 'random'}
 					<div class="form-group" style="margin-top: 12px;">
-						<label for="auto-f62">试验次数</label>
+						<label for="auto-f62">{$t('tune.nTrials')}</label>
 						<input id="auto-f62" type="number" bind:value={nTrials} min="1" max="1000" />
 					</div>
 				{/if}
 				<div class="form-grid" style="margin-top: 12px;">
 					<div class="form-group">
-						<label for="auto-f63">优化指标</label>
+						<label for="auto-f63">{$t('tune.optimizeMetric')}</label>
 						<select id="auto-f63" bind:value={metricToOptimize}>
-							<option value="val_loss">验证损失 (val_loss)</option>
-							<option value="train_loss">训练损失 (train_loss)</option>
-							<option value="accuracy">准确率 (accuracy)</option>
-							<option value="val_accuracy">验证准确率 (val_accuracy)</option>
+							<option value="val_loss">{$t('tune.valLoss')} (val_loss)</option>
+							<option value="train_loss">{$t('tune.trainLoss')} (train_loss)</option>
+							<option value="accuracy">{$t('tune.accuracy')} (accuracy)</option>
+							<option value="val_accuracy">{$t('tune.valAccuracy')} (val_accuracy)</option>
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f64">优化方向</label>
+						<label for="auto-f64">{$t('tune.optimizeDirection')}</label>
 						<select id="auto-f64" bind:value={maximize}>
-							<option value={false}>最小化</option>
-							<option value={true}>最大化</option>
+							<option value={false}>{$t('tune.minimize')}</option>
+							<option value={true}>{$t('tune.maximize')}</option>
 						</select>
 					</div>
 					<div class="form-group">
-						<label for="auto-f65">最大并发数</label>
+						<label for="auto-f65">{$t('tune.maxConcurrency')}</label>
 						<input id="auto-f65" type="number" bind:value={maxConcurrent} min="1" max="10" />
 					</div>
 				</div>
@@ -345,10 +346,10 @@
 
 			<div class="action-bar">
 				<button class="btn-preview" on:click={previewCombinationsAction} disabled={tuning}>
-					预览参数组合
+					{$t('tune.previewCombinations')}
 				</button>
 				<button class="btn-start" on:click={startTuning} disabled={tuning}>
-					{tuning ? '调优中...' : '开始调优'}
+					{tuning ? $t('tune.tuning') : $t('tune.startTuning')}
 				</button>
 			</div>
 		</div>
@@ -356,7 +357,7 @@
 		<div class="tune-results">
 			{#if showPreview && previewCombinations.length > 0}
 				<section class="preview-section">
-					<h2>参数组合预览 ({previewCombinations.length} 个组合)</h2>
+					<h2>{$t('tune.comboPreview', { count: previewCombinations.length })}</h2>
 					<div class="preview-table-wrapper">
 						<table class="preview-table">
 							<thead>
@@ -379,7 +380,7 @@
 							</tbody>
 						</table>
 						{#if previewCombinations.length > 50}
-							<p class="more-hint">... 还有 {previewCombinations.length - 50} 个组合未显示</p>
+							<p class="more-hint">... {$t('tune.moreCombos', { count: previewCombinations.length - 50 })}</p>
 						{/if}
 					</div>
 				</section>
@@ -387,29 +388,29 @@
 
 			{#if tuneResult}
 				<section class="result-section">
-					<h2>调优结果</h2>
+					<h2>{$t('tune.tuningResult')}</h2>
 					<div class="result-summary">
 						<div class="summary-card">
-							<div class="summary-label">调优 ID</div>
+							<div class="summary-label">{$t('tune.tuneId')}</div>
 							<div class="summary-value">{tuneResult.tune_id.slice(0, 8)}...</div>
 						</div>
 						<div class="summary-card">
-							<div class="summary-label">总试验数</div>
+							<div class="summary-label">{$t('tune.totalTrials')}</div>
 							<div class="summary-value">{tuneResult.trials.length}</div>
 						</div>
 						<div class="summary-card">
-							<div class="summary-label">已完成</div>
+							<div class="summary-label">{$t('tune.completed')}</div>
 							<div class="summary-value">{tuneResult.trials.filter(t => t.status === 'Completed').length}</div>
 						</div>
 						<div class="summary-card">
-							<div class="summary-label">失败</div>
+							<div class="summary-label">{$t('tune.failed')}</div>
 							<div class="summary-value">{tuneResult.trials.filter(t => t.status === 'Failed').length}</div>
 						</div>
 					</div>
 
 					{#if tuneResult.best_params}
 						<div class="best-params">
-							<h3>最佳参数</h3>
+							<h3>{$t('tune.bestParams')}</h3>
 							<div class="params-grid">
 								{#each Object.entries(tuneResult.best_params) as [key, value]}
 									<div class="param-item">
@@ -420,22 +421,22 @@
 							</div>
 							{#if tuneResult.best_trial?.metric_value !== null}
 								<p class="best-metric">
-									最佳 {metricToOptimize}: <strong>{tuneResult.best_trial?.metric_value?.toFixed(6)}</strong>
+									{$t('tune.best')} {metricToOptimize}: <strong>{tuneResult.best_trial?.metric_value?.toFixed(6)}</strong>
 								</p>
 							{/if}
 						</div>
 					{/if}
 
-					<h3 style="margin-top: 20px;">所有试验</h3>
+					<h3 style="margin-top: 20px;">{$t('tune.allTrials')}</h3>
 					<div class="trials-table-wrapper">
 						<table class="trials-table">
 							<thead>
 								<tr>
 									<th>#</th>
-									<th>实验 ID</th>
-									<th>参数</th>
-									<th>指标值</th>
-									<th>状态</th>
+									<th>{$t('tune.experimentId')}</th>
+									<th>{$t('tune.params')}</th>
+									<th>{$t('tune.metricValue')}</th>
+									<th>{$t('tune.status')}</th>
 								</tr>
 							</thead>
 							<tbody>

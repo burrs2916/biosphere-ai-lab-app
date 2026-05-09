@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { getLabClient } from '$lib/lab/stores/plugins';
+	import { t } from '$lib/i18n';
 	import { datasetRegistryStore, activeDatasets } from '$lib/lab/stores/dataset';
 	import type {
 		TrainingPlan, DataRecipe, PlanType, PlanPhase, QualityGate,
@@ -12,7 +13,7 @@
 	} from '$lib/lab/adapter/types';
 
 	let currentStep = 0;
-	const steps = ['基本信息', '数据配方', '训练阶段', '质量门禁', '预算配置', '确认创建'];
+	const steps = [$t('plan.stepBasicInfo'), $t('plan.stepDataRecipe'), $t('plan.stepTrainingPhases'), $t('plan.stepQualityGates'), $t('plan.stepBudgetConfig'), $t('plan.stepConfirm')];
 	let submitting = false;
 	let error: string | null = null;
 	let success: string | null = null;
@@ -156,17 +157,17 @@
 	let newTag = '';
 
 	const planTypeLabels: Record<PlanType, string> = {
-		'Pretraining': '预训练',
-		'FineTuning': '微调',
-		'InstructionTuning': '指令微调',
+		'Pretraining': $t('plan.typePretraining'),
+		'FineTuning': $t('plan.typeFineTuning'),
+		'InstructionTuning': $t('plan.typeInstructionTuning'),
 		'RLHF': 'RLHF',
-		'Custom': '自定义'
+		'Custom': $t('plan.typeCustom')
 	};
 
 	const presetLabels: Record<string, string> = {
-		'llm_pretraining': 'LLM 预训练',
-		'sft': 'SFT 监督微调',
-		'rlhf': 'RLHF 偏好对齐'
+		'llm_pretraining': $t('plan.presetLlmPretraining'),
+		'sft': $t('plan.presetSft'),
+		'rlhf': $t('plan.presetRlhf')
 	};
 
 	onMount(() => {
@@ -211,7 +212,7 @@
 						dedupConfig = plan.dedup_config;
 					}
 				} catch (e: any) {
-					error = '加载训练计划失败: ' + (e?.toString() || '未知错误');
+					error = $t('plan.loadFailed') + ': ' + (e?.toString() || $t('plan.unknownError'));
 				}
 			})();
 		}
@@ -246,7 +247,7 @@
 			recipeJson = await client.dataRecipePresets(selectedPreset);
 			recipeValid = true;
 		} catch (e: any) {
-			recipeError = e?.toString() || '加载预设失败';
+			recipeError = e?.toString() || $t('plan.loadPresetFailed');
 			recipeValid = false;
 		} finally {
 			recipeLoading = false;
@@ -263,10 +264,10 @@
 			const result = JSON.parse(resultStr);
 			recipeValid = result.valid;
 			if (!result.valid) {
-				recipeError = result.error || '配方验证失败';
+				recipeError = result.error || $t('plan.recipeValidationFailed');
 			}
 		} catch (e: any) {
-			recipeError = e?.toString() || '验证失败';
+			recipeError = e?.toString() || $t('plan.validationFailed');
 			recipeValid = false;
 		} finally {
 			recipeLoading = false;
@@ -282,7 +283,7 @@
 			const plan = buildPlan();
 			recommendResult = await client.datasetRecommendForPlan(JSON.stringify(plan));
 		} catch (e: any) {
-			recommendError = e?.toString() || '推荐失败';
+			recommendError = e?.toString() || $t('plan.recommendFailed');
 		} finally {
 			recommendLoading = false;
 		}
@@ -396,7 +397,7 @@
 			validationResult = JSON.parse(valStr);
 			planSummary = JSON.parse(summaryStr);
 		} catch (e: any) {
-			error = e?.toString() || '验证失败';
+			error = e?.toString() || $t('plan.validationFailed');
 		} finally {
 			validating = false;
 		}
@@ -414,19 +415,19 @@
 			const validationResult = await client.trainingPlanValidate(planJson);
 			const parsed = JSON.parse(validationResult);
 			if (!parsed.is_valid) {
-				error = '计划验证失败:\n' + (parsed.errors || []).join('\n');
+				error = $t('plan.planValidationFailed') + ':\n' + (parsed.errors || []).join('\n');
 				submitting = false;
 				return;
 			}
 			if (parsed.warnings && parsed.warnings.length > 0) {
-				console.warn('计划警告:', parsed.warnings);
+				console.warn($t('plan.planWarnings') + ':', parsed.warnings);
 			}
 
 			const planId = await client.trainingPlanSave(planJson);
-			success = `训练计划 "${planName}" 保存成功！`;
+			success = $t('plan.saveSuccess', { name: planName });
 			setTimeout(() => goto('/lab/plans'), 1500);
 		} catch (e: any) {
-			error = e?.toString() || '保存失败';
+			error = e?.toString() || $t('plan.saveFailed');
 		} finally {
 			submitting = false;
 		}
@@ -458,8 +459,8 @@
 </script>
 
 <div class="plan-page">
-	<h2>训练计划配置</h2>
-	<p class="subtitle">创建声明式训练计划，定义数据配方、训练阶段和质量门禁</p>
+	<h2>{$t('plan.title')}</h2>
+	<p class="subtitle">{$t('plan.subtitle')}</p>
 
 	{#if error}
 		<div class="error-banner">{error}</div>
@@ -484,18 +485,18 @@
 	<div class="step-content">
 		<!-- Step 1: 基本信息 -->
 		{#if currentStep === 0}
-			<h3>基本信息</h3>
+			<h3>{$t('plan.basicInfo')}</h3>
 			<div class="form-grid">
 				<div class="form-group">
-					<label for="auto-f1">计划名称</label>
-					<input id="auto-f1" class="input" type="text" bind:value={planName} placeholder="例如: llama3-8b-pretraining" />
+					<label for="auto-f1">{$t('plan.planName')}</label>
+					<input id="auto-f1" class="input" type="text" bind:value={planName} placeholder={$t('plan.planNamePlaceholder')} />
 				</div>
 				<div class="form-group">
-					<label for="auto-f2">版本</label>
+					<label for="auto-f2">{$t('plan.version')}</label>
 					<input id="auto-f2" class="input" type="text" bind:value={planVersion} placeholder="1.0" />
 				</div>
 				<div class="form-group">
-					<label for="auto-f3">计划类型</label>
+					<label for="auto-f3">{$t('plan.planType')}</label>
 					<select id="auto-f3" class="input" bind:value={planType}>
 						{#each Object.entries(planTypeLabels) as [key, label]}
 							<option value={key}>{label}</option>
@@ -503,33 +504,33 @@
 					</select>
 				</div>
 				<div class="form-group">
-					<label for="auto-f4">输出目录</label>
+					<label for="auto-f4">{$t('plan.outputDir')}</label>
 					<input id="auto-f4" class="input" type="text" bind:value={outputDir} placeholder="./training_output" />
 				</div>
 				<div class="form-group">
-					<label for="auto-f5">随机种子</label>
+					<label for="auto-f5">{$t('plan.randomSeed')}</label>
 					<input id="auto-f5" class="input" type="number" bind:value={planSeed} />
 				</div>
 			</div>
 			<div class="form-group full-width">
-				<label for="auto-f6">描述</label>
-				<textarea id="auto-f6" class="input textarea" bind:value={planDescription} placeholder="描述训练计划的目标和范围..." rows="3"></textarea>
+				<label for="auto-f6">{$t('plan.description')}</label>
+				<textarea id="auto-f6" class="input textarea" bind:value={planDescription} placeholder={$t('plan.descriptionPlaceholder')} rows="3"></textarea>
 			</div>
 
 		<!-- Step 2: 数据配方 -->
 		{:else if currentStep === 1}
-			<h3>数据配方</h3>
+			<h3>{$t('plan.dataRecipe')}</h3>
 			<div class="form-group">
-				<span class="field-label">配方模式</span>
-				<div class="mode-toggle" role="group" aria-label="配方模式">
-					<button class="mode-btn" class:active={recipeMode === 'preset'} on:click={() => recipeMode = 'preset'}>使用预设</button>
-					<button class="mode-btn" class:active={recipeMode === 'custom'} on:click={() => recipeMode = 'custom'}>自定义配方</button>
+				<span class="field-label">{$t('plan.recipeMode')}</span>
+				<div class="mode-toggle" role="group" aria-label={$t('plan.recipeMode')}>
+					<button class="mode-btn" class:active={recipeMode === 'preset'} on:click={() => recipeMode = 'preset'}>{$t('plan.usePreset')}</button>
+					<button class="mode-btn" class:active={recipeMode === 'custom'} on:click={() => recipeMode = 'custom'}>{$t('plan.customRecipe')}</button>
 				</div>
 			</div>
 
 			{#if recipeMode === 'preset'}
 				<div class="form-group">
-					<span class="field-label">选择预设配方</span>
+					<span class="field-label">{$t('plan.selectPreset')}</span>
 					<div class="preset-grid">
 						{#each Object.entries(presetLabels) as [key, label]}
 							<button
@@ -545,9 +546,9 @@
 				</div>
 
 				<div class="form-group">
-					<span class="field-label">智能推荐</span>
+					<span class="field-label">{$t('plan.smartRecommend')}</span>
 					<button class="btn-recommend" on:click={getRecommendations} disabled={recommendLoading}>
-						{recommendLoading ? '分析中...' : '🤖 智能推荐数据集'}
+						{recommendLoading ? $t('plan.analyzing') : `🤖 ${$t('plan.smartRecommendDataset')}`}
 					</button>
 					{#if recommendError}
 						<div class="error-text">{recommendError}</div>
@@ -558,9 +559,9 @@
 								<div class="recommend-item" class:excellent={rec.suitability === 'excellent'} class:good={rec.suitability === 'good'} class:fair={rec.suitability === 'fair'} class:poor={rec.suitability === 'poor'}>
 									<div class="rec-header">
 										<span class="rec-name">{rec.dataset_name}</span>
-										<span class="rec-score">{rec.score.toFixed(0)}分</span>
+										<span class="rec-score">{rec.score.toFixed(0)}{$t('plan.scoreUnit')}</span>
 										<span class="rec-level">
-											{rec.suitability === 'excellent' ? '⭐ 强烈推荐' : rec.suitability === 'good' ? '👍 推荐' : rec.suitability === 'fair' ? '👌 可选' : '⚠️ 不推荐'}
+											{rec.suitability === 'excellent' ? `⭐ ${$t('plan.stronglyRecommended')}` : rec.suitability === 'good' ? `👍 ${$t('plan.recommended')}` : rec.suitability === 'fair' ? `👌 ${$t('plan.optional')}` : `⚠️ ${$t('plan.notRecommended')}`}
 										</span>
 									</div>
 									<div class="rec-reasons">
@@ -569,13 +570,13 @@
 										{/each}
 									</div>
 									<div class="rec-match">
-										<span class="match-item">类型: {rec.match_details.type_match.toFixed(0)}%</span>
-										<span class="match-item">规模: {rec.match_details.size_match.toFixed(0)}%</span>
-										<span class="match-item">质量: {rec.match_details.quality_match.toFixed(0)}%</span>
-										<span class="match-item">特征: {rec.match_details.feature_match.toFixed(0)}%</span>
+										<span class="match-item">{$t('plan.matchType')}: {rec.match_details.type_match.toFixed(0)}%</span>
+										<span class="match-item">{$t('plan.matchScale')}: {rec.match_details.size_match.toFixed(0)}%</span>
+										<span class="match-item">{$t('plan.matchQuality')}: {rec.match_details.quality_match.toFixed(0)}%</span>
+										<span class="match-item">{$t('plan.matchFeature')}: {rec.match_details.feature_match.toFixed(0)}%</span>
 									</div>
 									<button class="btn-apply" on:click={() => applyRecommendation(rec)}>
-										+ 添加到配方
+										+ {$t('plan.addToRecipe')}
 									</button>
 								</div>
 							{/each}
@@ -583,18 +584,18 @@
 					{/if}
 				</div>
 				{#if recipeLoading}
-					<div class="loading-text">加载预设配方...</div>
+					<div class="loading-text">{$t('plan.loadingPreset')}</div>
 				{/if}
 				{#if recipeJson}
 					<div class="recipe-preview">
 						<div class="preview-header">
-							<span class="preview-label">配方预览</span>
-							<button class="btn-text" on:click={validateRecipe}>验证配方</button>
+							<span class="preview-label">{$t('plan.recipePreview')}</span>
+							<button class="btn-text" on:click={validateRecipe}>{$t('plan.validateRecipe')}</button>
 						</div>
 						<pre class="recipe-json">{recipeJson.substring(0, 500)}{recipeJson.length > 500 ? '...' : ''}</pre>
 						{#if recipeValid !== null}
 							<span class="validation-badge" class:valid={recipeValid} class:invalid={!recipeValid}>
-								{recipeValid ? '✓ 配方有效' : '✗ 配方无效'}
+								{recipeValid ? `✓ ${$t('plan.recipeValid')}` : `✗ ${$t('plan.recipeInvalid')}`}
 							</span>
 						{/if}
 						{#if recipeError}
@@ -604,49 +605,49 @@
 				{/if}
 			{:else}
 				<div class="form-group">
-					<label for="auto-f7">配方名称</label>
+					<label for="auto-f7">{$t('plan.recipeName')}</label>
 					<input id="auto-f7" class="input" type="text" bind:value={customRecipe.name} />
 				</div>
 				<div class="form-group">
-					<label for="auto-f8">混合策略</label>
+					<label for="auto-f8">{$t('plan.mixingStrategy')}</label>
 					<select id="auto-f8" class="input" bind:value={customRecipe.mixing_strategy}>
-						<option value="Proportional">按比例混合</option>
-						<option value="Interleaved">交错混合</option>
+						<option value="Proportional">{$t('plan.proportionalMix')}</option>
+						<option value="Interleaved">{$t('plan.interleavedMix')}</option>
 					</select>
 				</div>
 				<div class="form-group">
-					<label for="auto-f9">目标样本数</label>
-					<input id="auto-f9" class="input" type="number" bind:value={customRecipe.total_samples_target} placeholder="留空表示不限制" />
+					<label for="auto-f9">{$t('plan.targetSamples')}</label>
+					<input id="auto-f9" class="input" type="number" bind:value={customRecipe.total_samples_target} placeholder={$t('plan.targetSamplesPlaceholder')} />
 				</div>
 
-				<h4>数据集列表</h4>
+				<h4>{$t('plan.datasetList')}</h4>
 				<div class="dataset-list">
 					{#each customRecipe.datasets as ds, i}
 						<div class="dataset-item">
 							<span class="ds-name">{ds.name}</span>
 							<span class="ds-source">{ds.source}</span>
-							<span class="ds-weight">权重: {ds.weight}</span>
+							<span class="ds-weight">{$t('plan.weight')}: {ds.weight}</span>
 							<button class="btn-icon-danger" on:click={() => removeRecipeDataset(i)}>✕</button>
 						</div>
 					{/each}
 				</div>
 
 				<div class="add-dataset-form">
-					<input class="input" type="text" bind:value={newRecipeDataset.name} placeholder="数据集名称" />
-					<input class="input" type="text" bind:value={newRecipeDataset.source} placeholder="数据源 (如 hf://org/dataset)" />
-					<input class="input" type="number" bind:value={newRecipeDataset.weight} placeholder="权重" step="0.1" />
+					<input class="input" type="text" bind:value={newRecipeDataset.name} placeholder={$t('plan.datasetNamePlaceholder')} />
+					<input class="input" type="text" bind:value={newRecipeDataset.source} placeholder={$t('plan.dataSourcePlaceholder')} />
+					<input class="input" type="number" bind:value={newRecipeDataset.weight} placeholder={$t('plan.weight')} step="0.1" />
 					<select class="input" bind:value={newRecipeDataset.split}>
 						<option value="train">train</option>
 						<option value="validation">validation</option>
 						<option value="test">test</option>
 					</select>
-					<button class="btn-primary btn-sm" on:click={addRecipeDataset}>添加数据集</button>
+					<button class="btn-primary btn-sm" on:click={addRecipeDataset}>{$t('plan.addDataset')}</button>
 				</div>
 
-				<button class="btn-secondary" on:click={validateRecipe}>验证配方</button>
+				<button class="btn-secondary" on:click={validateRecipe}>{$t('plan.validateRecipe')}</button>
 				{#if recipeValid !== null}
 					<span class="validation-badge" class:valid={recipeValid} class:invalid={!recipeValid}>
-						{recipeValid ? '✓ 配方有效' : '✗ 配方无效'}
+						{recipeValid ? `✓ ${$t('plan.recipeValid')}` : `✗ ${$t('plan.recipeInvalid')}`}
 					</span>
 				{/if}
 				{#if recipeError}
@@ -656,66 +657,66 @@
 
 		<!-- Step 3: 训练阶段 -->
 		{:else if currentStep === 2}
-			<h3>训练阶段</h3>
-			<p class="hint">每个阶段使用一个数据配方，可以有不同的学习率和步数</p>
+			<h3>{$t('plan.trainingPhases')}</h3>
+			<p class="hint">{$t('plan.trainingPhasesHint')}</p>
 
 			<div class="phases-list">
 				{#each phases as phase, i}
 					<div class="phase-card">
 						<div class="phase-header">
-							<h4>阶段 {i + 1}</h4>
+							<h4>{$t('plan.phase')} {i + 1}</h4>
 							{#if phases.length > 1}
-								<button class="btn-icon-danger" on:click={() => removePhase(i)}>删除</button>
+								<button class="btn-icon-danger" on:click={() => removePhase(i)}>{$t('plan.delete')}</button>
 							{/if}
 						</div>
 						<div class="form-grid">
 							<div class="form-group">
-								<label for="auto-f10">阶段名称</label>
+								<label for="auto-f10">{$t('plan.phaseName')}</label>
 								<input id="auto-f10" class="input" type="text" bind:value={phase.name} />
 							</div>
 							<div class="form-group">
-								<label for="auto-f11">训练步数</label>
+								<label for="auto-f11">{$t('plan.trainingSteps')}</label>
 								<input id="auto-f11" class="input" type="number" bind:value={phase.steps} />
 							</div>
 							<div class="form-group">
-								<label for="auto-f12">批次大小</label>
+								<label for="auto-f12">{$t('plan.batchSize')}</label>
 								<input id="auto-f12" class="input" type="number" bind:value={phase.batch_size} />
 							</div>
 							<div class="form-group">
-								<label for="auto-f13">学习率</label>
+								<label for="auto-f13">{$t('plan.learningRate')}</label>
 								<input id="auto-f13" class="input" type="number" bind:value={phase.learning_rate} step="0.0001" />
 							</div>
 							<div class="form-group">
-								<label for="auto-f14">预热步数</label>
+								<label for="auto-f14">{$t('plan.warmupSteps')}</label>
 								<input id="auto-f14" class="input" type="number" bind:value={phase.warmup_steps} />
 							</div>
 							<div class="form-group">
-								<label for="auto-f15">权重衰减</label>
+								<label for="auto-f15">{$t('plan.weightDecay')}</label>
 								<input id="auto-f15" class="input" type="number" bind:value={phase.weight_decay} step="0.01" />
 							</div>
 							<div class="form-group">
-								<label for="auto-f16">最大序列长度</label>
+								<label for="auto-f16">{$t('plan.maxSeqLength')}</label>
 								<input id="auto-f16" class="input" type="number" bind:value={phase.max_seq_length} />
 							</div>
 						</div>
-						<button class="btn-text" on:click={() => applyRecipeToPhase(i)}>应用当前配方到此阶段</button>
+						<button class="btn-text" on:click={() => applyRecipeToPhase(i)}>{$t('plan.applyRecipeToPhase')}</button>
 					</div>
 				{/each}
 			</div>
-			<button class="btn-secondary" on:click={addPhase}>+ 添加阶段</button>
+			<button class="btn-secondary" on:click={addPhase}>+ {$t('plan.addPhase')}</button>
 
 		<!-- Step 4: 质量门禁 -->
 		{:else if currentStep === 3}
-			<h3>质量门禁</h3>
-			<p class="hint">设置数据质量检查规则，不满足条件的数据将被警告、跳过或中止</p>
+			<h3>{$t('plan.qualityGates')}</h3>
+			<p class="hint">{$t('plan.qualityGatesHint')}</p>
 
 			<div class="gates-list">
 				{#each qualityGates as gate, i}
 					<div class="gate-item">
 						<div class="gate-info">
 							<span class="gate-name">{gate.name}</span>
-							<span class="gate-metric">指标: {gate.metric}</span>
-							<span class="gate-threshold">阈值: {gate.threshold}</span>
+							<span class="gate-metric">{$t('plan.metric')}: {gate.metric}</span>
+							<span class="gate-threshold">{$t('plan.threshold')}: {gate.threshold}</span>
 							<span class="gate-action badge-{gate.action}">{gate.action}</span>
 						</div>
 						<button class="btn-icon-danger" on:click={() => removeQualityGate(i)}>✕</button>
@@ -724,62 +725,62 @@
 			</div>
 
 			<div class="add-gate-form">
-				<input class="input" type="text" bind:value={newGate.name} placeholder="门禁名称" />
-				<input class="input" type="text" bind:value={newGate.metric} placeholder="指标 (如 text_length)" />
-				<input class="input" type="number" bind:value={newGate.threshold} placeholder="阈值" step="0.01" />
+				<input class="input" type="text" bind:value={newGate.name} placeholder={$t('plan.gateNamePlaceholder')} />
+				<input class="input" type="text" bind:value={newGate.metric} placeholder={$t('plan.metricPlaceholder')} />
+				<input class="input" type="number" bind:value={newGate.threshold} placeholder={$t('plan.threshold')} step="0.01" />
 				<select class="input" bind:value={newGate.action}>
-					<option value="warn">警告</option>
-					<option value="skip">跳过</option>
-					<option value="abort">中止</option>
+					<option value="warn">{$t('plan.actionWarn')}</option>
+					<option value="skip">{$t('plan.actionSkip')}</option>
+					<option value="abort">{$t('plan.actionAbort')}</option>
 				</select>
-				<button class="btn-primary btn-sm" on:click={addQualityGate}>添加门禁</button>
+				<button class="btn-primary btn-sm" on:click={addQualityGate}>{$t('plan.addGate')}</button>
 			</div>
 
-			<h4 style="margin-top: 1.5rem;">高级配置</h4>
+			<h4 style="margin-top: 1.5rem;">{$t('plan.advancedConfig')}</h4>
 			<div class="form-grid">
 				<div class="form-group">
 					<label class="checkbox-label">
 						<input type="checkbox" bind:checked={enableDedup} />
-						启用全局去重
+						{$t('plan.enableGlobalDedup')}
 					</label>
 				</div>
 				{#if enableDedup}
 					<div class="form-group">
-						<label for="auto-f17">相似度阈值</label>
+						<label for="auto-f17">{$t('plan.similarityThreshold')}</label>
 						<input id="auto-f17" class="input" type="number" bind:value={dedupConfig.similarity_threshold} step="0.05" />
 					</div>
 				{/if}
 				<div class="form-group">
 					<label class="checkbox-label">
 						<input type="checkbox" bind:checked={enablePreprocessing} />
-						启用预处理
+						{$t('plan.enablePreprocessing')}
 					</label>
 				</div>
 				{#if enablePreprocessing}
 					<div class="form-group">
-						<label for="auto-f18">分词器路径</label>
-						<input id="auto-f18" class="input" type="text" bind:value={preprocessing.tokenizer_path} placeholder="tokenizer.json 路径" />
+						<label for="auto-f18">{$t('plan.tokenizerPath')}</label>
+						<input id="auto-f18" class="input" type="text" bind:value={preprocessing.tokenizer_path} placeholder={$t('plan.tokenizerPathPlaceholder')} />
 					</div>
 					<div class="form-group">
-						<label for="auto-f19">最大序列长度</label>
+						<label for="auto-f19">{$t('plan.maxSeqLength')}</label>
 						<input id="auto-f19" class="input" type="number" bind:value={preprocessing.max_seq_length} />
 					</div>
 					<div class="form-group">
 						<label class="checkbox-label">
 							<input type="checkbox" bind:checked={preprocessing.packing} />
-							序列打包
+							{$t('plan.sequencePacking')}
 						</label>
 					</div>
 				{/if}
 				<div class="form-group">
 					<label class="checkbox-label">
 						<input type="checkbox" bind:checked={enableValidation} />
-						启用验证集
+						{$t('plan.enableValidation')}
 					</label>
 				</div>
 				{#if enableValidation}
 					<div class="form-group">
-						<label for="auto-f20">验证集比例</label>
+						<label for="auto-f20">{$t('plan.valSplit')}</label>
 						<input id="auto-f20" class="input" type="number" bind:value={validation.val_split} step="0.01" />
 					</div>
 				{/if}
@@ -787,45 +788,45 @@
 
 		<!-- Step 5: 预算配置 -->
 		{:else if currentStep === 4}
-			<h3>数据预算</h3>
-			<p class="hint">设置训练数据的总预算限制</p>
+			<h3>{$t('plan.dataBudget')}</h3>
+			<p class="hint">{$t('plan.dataBudgetHint')}</p>
 
 			<div class="form-grid">
 				<div class="form-group">
-					<label for="auto-f21">最大 Token 数</label>
+					<label for="auto-f21">{$t('plan.maxTokens')}</label>
 					<input id="auto-f21" class="input" type="number" bind:value={dataBudget.max_tokens} />
 					<span class="hint">{formatTokens(dataBudget.max_tokens)} tokens</span>
 				</div>
 				<div class="form-group">
-					<label for="auto-f22">最大样本数</label>
+					<label for="auto-f22">{$t('plan.maxSamples')}</label>
 					<input id="auto-f22" class="input" type="number" bind:value={dataBudget.max_samples} />
 				</div>
 				<div class="form-group">
-					<label for="auto-f23">最大费用 (USD)</label>
+					<label for="auto-f23">{$t('plan.maxCost')}</label>
 					<input id="auto-f23" class="input" type="number" bind:value={dataBudget.max_cost_usd} />
 				</div>
 			</div>
 
-			<h4 style="margin-top: 1.5rem;">实验追踪</h4>
+			<h4 style="margin-top: 1.5rem;">{$t('plan.experimentTracking')}</h4>
 			<div class="form-group">
 				<label class="checkbox-label">
 					<input type="checkbox" bind:checked={enableTracking} />
-					启用实验追踪
+					{$t('plan.enableTracking')}
 				</label>
 			</div>
 			{#if enableTracking}
 				<div class="form-grid">
 					<div class="form-group">
-						<label for="auto-f24">项目名称</label>
-						<input id="auto-f24" class="input" type="text" bind:value={experimentTracking.project_name} placeholder="例如: llama3-experiments" />
+						<label for="auto-f24">{$t('plan.projectName')}</label>
+						<input id="auto-f24" class="input" type="text" bind:value={experimentTracking.project_name} placeholder={$t('plan.projectNamePlaceholder')} />
 					</div>
 					<div class="form-group">
-						<label for="auto-f25">日志间隔 (步)</label>
+						<label for="auto-f25">{$t('plan.logInterval')}</label>
 						<input id="auto-f25" class="input" type="number" bind:value={experimentTracking.log_interval_steps} />
 					</div>
 				</div>
 				<div class="form-group">
-				<span class="field-label">标签</span>
+				<span class="field-label">{$t('plan.tags')}</span>
 					<div class="tag-list">
 						{#each experimentTracking.tags as tag, i}
 							<span class="tag">
@@ -835,41 +836,41 @@
 						{/each}
 					</div>
 					<div class="add-tag-form">
-						<input class="input" type="text" bind:value={newTag} placeholder="添加标签..." />
-						<button class="btn-primary btn-sm" on:click={addTag}>添加</button>
+						<input class="input" type="text" bind:value={newTag} placeholder={$t('plan.addTagPlaceholder')} />
+						<button class="btn-primary btn-sm" on:click={addTag}>{$t('plan.add')}</button>
 					</div>
 				</div>
 			{/if}
 
 		<!-- Step 6: 确认创建 -->
 		{:else if currentStep === 5}
-			<h3>确认创建</h3>
+			<h3>{$t('plan.confirmCreate')}</h3>
 
 			<div class="summary-section">
-				<h4>计划概览</h4>
+				<h4>{$t('plan.planOverview')}</h4>
 				<div class="summary-grid">
 					<div class="summary-item">
-						<span class="summary-label">名称</span>
-						<span class="summary-value">{planName || '(未设置)'}</span>
+						<span class="summary-label">{$t('plan.name')}</span>
+						<span class="summary-value">{planName || $t('plan.notSet')}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">类型</span>
+						<span class="summary-label">{$t('plan.type')}</span>
 						<span class="summary-value">{planTypeLabels[planType]}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">版本</span>
+						<span class="summary-label">{$t('plan.version')}</span>
 						<span class="summary-value">{planVersion}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">阶段数</span>
+						<span class="summary-label">{$t('plan.phaseCount')}</span>
 						<span class="summary-value">{phases.length}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">质量门禁</span>
-						<span class="summary-value">{qualityGates.length} 条规则</span>
+						<span class="summary-label">{$t('plan.qualityGates')}</span>
+						<span class="summary-value">{$t('plan.rulesCount', { count: qualityGates.length })}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">Token 预算</span>
+						<span class="summary-label">{$t('plan.tokenBudget')}</span>
 						<span class="summary-value">{formatTokens(dataBudget.max_tokens)}</span>
 					</div>
 				</div>
@@ -877,22 +878,22 @@
 
 			{#if planSummary}
 				<div class="summary-section">
-					<h4>后端验证结果</h4>
+					<h4>{$t('plan.backendValidationResult')}</h4>
 					<div class="summary-grid">
 						<div class="summary-item">
-							<span class="summary-label">预估 Token</span>
+							<span class="summary-label">{$t('plan.estimatedTokens')}</span>
 							<span class="summary-value">{formatTokens(planSummary.total_estimated_tokens)}</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-label">预估样本</span>
+							<span class="summary-label">{$t('plan.estimatedSamples')}</span>
 							<span class="summary-value">{planSummary.total_estimated_samples.toLocaleString()}</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-label">预估费用</span>
+							<span class="summary-label">{$t('plan.estimatedCost')}</span>
 							<span class="summary-value">{formatCost(planSummary.total_estimated_cost_usd)}</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-label">数据集数</span>
+							<span class="summary-label">{$t('plan.datasetsCount')}</span>
 							<span class="summary-value">{planSummary.datasets_count}</span>
 						</div>
 					</div>
@@ -901,15 +902,15 @@
 
 			{#if validationResult}
 				<div class="validation-section">
-					<h4>验证检查</h4>
+					<h4>{$t('plan.validationChecks')}</h4>
 					{#if validationResult.is_valid}
-						<div class="valid-badge">✓ 计划有效</div>
+						<div class="valid-badge">✓ {$t('plan.planValid')}</div>
 					{:else}
-						<div class="invalid-badge">✗ 计划存在问题</div>
+						<div class="invalid-badge">✗ {$t('plan.planHasIssues')}</div>
 					{/if}
 					{#if validationResult.errors.length > 0}
 						<div class="check-list errors">
-							<h5>错误 ({validationResult.errors.length})</h5>
+							<h5>{$t('plan.errors')} ({validationResult.errors.length})</h5>
 							{#each validationResult.errors as err}
 								<div class="check-item error">✗ {err}</div>
 							{/each}
@@ -917,7 +918,7 @@
 					{/if}
 					{#if validationResult.warnings.length > 0}
 						<div class="check-list warnings">
-							<h5>警告 ({validationResult.warnings.length})</h5>
+							<h5>{$t('plan.warnings')} ({validationResult.warnings.length})</h5>
 							{#each validationResult.warnings as warn}
 								<div class="check-item warning">⚠ {warn}</div>
 							{/each}
@@ -928,10 +929,10 @@
 
 			<div class="action-buttons">
 				<button class="btn-secondary" on:click={validatePlan} disabled={validating}>
-					{validating ? '验证中...' : '验证计划'}
+					{validating ? $t('plan.validating') : $t('plan.validatePlan')}
 				</button>
 				<button class="btn-primary" on:click={createPlan} disabled={submitting || !planName}>
-					{submitting ? '创建中...' : '创建训练计划'}
+					{submitting ? $t('plan.creating') : $t('plan.createPlan')}
 				</button>
 			</div>
 		{/if}
@@ -939,10 +940,10 @@
 
 	<!-- 导航按钮 -->
 	<div class="step-nav">
-		<button class="btn-secondary" on:click={prevStep} disabled={currentStep === 0}>上一步</button>
+		<button class="btn-secondary" on:click={prevStep} disabled={currentStep === 0}>{$t('plan.prevStep')}</button>
 		<span class="step-counter">{currentStep + 1} / {steps.length}</span>
 		{#if currentStep < steps.length - 1}
-			<button class="btn-primary" on:click={nextStep}>下一步</button>
+			<button class="btn-primary" on:click={nextStep}>{$t('plan.nextStep')}</button>
 		{/if}
 	</div>
 </div>

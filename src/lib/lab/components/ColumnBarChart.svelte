@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, afterUpdate, createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let topValues: [string, number][] = [];
   export let columnName: string = '';
@@ -101,13 +102,13 @@
     ctx.fillStyle = '#94a3b8';
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(columnName || '分类分布', width / 2, height - 2);
+    ctx.fillText(columnName || $t('chart.categoryDist'), width / 2, height - 2);
 
     if (localSelectedValue) {
       ctx.fillStyle = '#f59e0b';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`已选: ${localSelectedValue}`, width / 2, padding.top - 2);
+      ctx.fillText($t('chart.selected', { value: localSelectedValue }), width / 2, padding.top - 2);
     }
   }
 
@@ -136,7 +137,7 @@
       tooltip = {
         x: mx + 10,
         y: my - 10,
-        text: `${label}: ${count}条`,
+        text: `${label}: ${count}${$t('chart.items')}`,
       };
     } else {
       tooltip = null;
@@ -190,7 +191,7 @@
     on:click={handleClick}
     on:dblclick={handleDblClick}
     role="img"
-    aria-label="{columnName} 分类分布图"
+    aria-label="{columnName} {$t('chart.categoryChart')}"
   ></canvas>
   {#if tooltip}
     <div
@@ -201,7 +202,7 @@
     </div>
   {/if}
   {#if localSelectedValue}
-    <button class="clear-selection" on:click={handleDblClick} title="清除选区">✕</button>
+    <button class="clear-selection" on:click={handleDblClick} title={$t('chart.clearSelection')}>✕</button>
   {/if}
 </div>
 

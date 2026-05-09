@@ -1,6 +1,7 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { SessionId, LabEvent } from '../adapter/types';
 import { onLabEvent } from '../adapter/events';
+import { i18n } from '$lib/i18n';
 
 export interface TrainingProgress {
   sessionId: string;
@@ -59,7 +60,7 @@ function createProgressStore() {
                 totalEpochs: 0,
                 currentBatch: 0,
                 totalBatches: 0,
-                message: '训练已启动',
+                message: get(i18n.t)('progress.trainingStarted'),
                 startedAt: new Date(),
                 lastUpdatedAt: new Date(),
                 estimatedTimeRemaining: null,
@@ -227,13 +228,14 @@ function createProgressStore() {
 export const progressStore = createProgressStore();
 
 export function formatETA(seconds: number | null): string {
-  if (seconds === null) return '计算中...';
-  if (seconds <= 0) return '即将完成';
-  if (seconds < 60) return `${Math.ceil(seconds)} 秒`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分 ${Math.ceil(seconds % 60)} 秒`;
+  const t = get(i18n.t);
+  if (seconds === null) return t('progress.calculating');
+  if (seconds <= 0) return t('progress.almostDone');
+  if (seconds < 60) return t('progress.secondsOnly', { seconds: Math.ceil(seconds) });
+  if (seconds < 3600) return t('progress.minSec', { minutes: Math.floor(seconds / 60), seconds: Math.ceil(seconds % 60) });
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h} 时 ${m} 分`;
+  return t('progress.hourMin', { hours: h, minutes: m });
 }
 
 export function formatDuration(startTime: Date | null, endTime: Date | null): string {

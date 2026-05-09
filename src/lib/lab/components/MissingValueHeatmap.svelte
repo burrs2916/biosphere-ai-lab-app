@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, afterUpdate } from 'svelte';
   import type { ColumnProfile } from '$lib/lab/adapter/types';
+  import { t } from '$lib/i18n';
 
   export let profiles: ColumnProfile[] = [];
   export let width: number = 500;
@@ -115,7 +116,7 @@
       tooltip = {
         x: mx + 10,
         y: my - 10,
-        text: `${p.name}: ${p.null_count}/${p.total_count} 缺失 (${(ratio * 100).toFixed(1)}%)`,
+        text: `${p.name}: ${p.null_count}/${p.total_count} ${$t('chart.missing')} (${(ratio * 100).toFixed(1)}%)`,
       };
     } else {
       tooltip = null;

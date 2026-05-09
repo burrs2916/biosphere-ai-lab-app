@@ -4,6 +4,7 @@
 	import { getLabClient } from '$lib/lab/stores/plugins';
 	import { datasetRegistryStore } from '$lib/lab/stores/dataset';
 	import { taskManagerStore } from '$lib/lab/stores/taskManager';
+	import { t } from '$lib/i18n';
 	import type { DataLoadConfig, DataFormat, PipelineStep, PreprocessType, DataPreview } from '$lib/lab/adapter/types';
 	import Skeleton from '$lib/lab/components/Skeleton.svelte';
 
@@ -16,34 +17,34 @@
 	};
 
 	const stepTypes: PreprocessStepDef[] = [
-		{ id: 'normalize', type: 'Normalize', label: '归一化', desc: '将数值列缩放到 [0,1] 范围', defaultParams: { column: '' } },
-		{ id: 'standardize', type: 'Standardize', label: '标准化', desc: '转换为均值0标准差1的分布', defaultParams: { column: '' } },
-		{ id: 'one_hot', type: 'OneHotEncode', label: 'One-Hot编码', desc: '将分类列转为独热向量', defaultParams: { column: '' } },
-		{ id: 'label_encode', type: 'LabelEncode', label: '标签编码', desc: '将分类列转为整数标签', defaultParams: { column: '' } },
-		{ id: 'fill_missing', type: 'FillMissing', label: '填充缺失值', desc: '用指定值填充空值', defaultParams: { column: '', fill_value: '0' } },
-		{ id: 'drop_missing', type: 'DropMissing', label: '删除缺失行', desc: '删除包含空值的行', defaultParams: { column: '' } },
+		{ id: 'normalize', type: 'Normalize', label: $t('workshop.normalize'), desc: $t('workshop.normalizeDesc'), defaultParams: { column: '' } },
+		{ id: 'standardize', type: 'Standardize', label: $t('workshop.standardize'), desc: $t('workshop.standardizeDesc'), defaultParams: { column: '' } },
+		{ id: 'one_hot', type: 'OneHotEncode', label: $t('workshop.oneHotEncode'), desc: $t('workshop.oneHotEncodeDesc'), defaultParams: { column: '' } },
+		{ id: 'label_encode', type: 'LabelEncode', label: $t('workshop.labelEncode'), desc: $t('workshop.labelEncodeDesc'), defaultParams: { column: '' } },
+		{ id: 'fill_missing', type: 'FillMissing', label: $t('workshop.fillMissing'), desc: $t('workshop.fillMissingDesc'), defaultParams: { column: '', fill_value: '0' } },
+		{ id: 'drop_missing', type: 'DropMissing', label: $t('workshop.dropMissing'), desc: $t('workshop.dropMissingDesc'), defaultParams: { column: '' } },
 	];
 
 	const presetTemplates: { name: string; desc: string; steps: { type: string; params: Record<string, string> }[] }[] = [
 		{
-			name: '数值清洗',
-			desc: '填充缺失值 + 标准化',
+			name: $t('workshop.numericCleaning'),
+			desc: $t('workshop.numericCleaningDesc'),
 			steps: [
 				{ type: 'FillMissing', params: { column: '', fill_value: '0' } },
 				{ type: 'Standardize', params: { column: '' } },
 			],
 		},
 		{
-			name: '分类编码',
-			desc: '填充缺失值 + 标签编码',
+			name: $t('workshop.categoricalEncoding'),
+			desc: $t('workshop.categoricalEncodingDesc'),
 			steps: [
 				{ type: 'FillMissing', params: { column: '', fill_value: 'unknown' } },
 				{ type: 'LabelEncode', params: { column: '' } },
 			],
 		},
 		{
-			name: '完整预处理',
-			desc: '填充缺失 + 标准化数值 + One-Hot分类',
+			name: $t('workshop.fullPreprocess'),
+			desc: $t('workshop.fullPreprocessDesc'),
 			steps: [
 				{ type: 'FillMissing', params: { column: '', fill_value: '0' } },
 				{ type: 'Normalize', params: { column: '' } },
@@ -113,7 +114,7 @@
 			const config = buildLoadConfig();
 			preview = await client.previewData(config, previewPage * previewPageSize, previewPageSize);
 		} catch (e: any) {
-			error = e?.toString() || '加载预览失败';
+			error = e?.toString() || $t('workshop.loadPreviewFailed');
 		} finally {
 			previewLoading = false;
 		}
@@ -176,12 +177,12 @@
 		if (steps.length === 0) return;
 		executing = true;
 		executeProgress = 0;
-		executeMessage = '开始执行预处理管道...';
+		executeMessage = $t('workshop.startingPipeline');
 		error = null;
 
 		const taskId = taskManagerStore.createTask(
-			'数据预处理管道',
-			`执行 ${steps.length} 个预处理步骤`,
+			$t('workshop.dataPreprocessPipeline'),
+			$t('workshop.executeStepsCount', { count: steps.length }),
 			true
 		);
 
@@ -189,9 +190,9 @@
 			const client = getLabClient();
 			const pipelineSteps = buildPipelineSteps();
 
-			taskManagerStore.updateProgress(taskId, 10, '正在初始化预处理引擎...');
+			taskManagerStore.updateProgress(taskId, 10, $t('workshop.initializingEngine'));
 			executeProgress = 10;
-			executeMessage = '正在初始化预处理引擎...';
+			executeMessage = $t('workshop.initializingEngine');
 
 			await new Promise((r) => setTimeout(r, 300));
 
@@ -199,7 +200,7 @@
 				const step = pipelineSteps[i];
 				const stepLabel = getStepLabel(step.step_type);
 				const progress = 10 + Math.round(((i + 1) / pipelineSteps.length) * 80);
-				const msg = `执行步骤 ${i + 1}/${pipelineSteps.length}: ${stepLabel}`;
+				const msg = $t('workshop.executingStep', { current: i + 1, total: pipelineSteps.length, label: stepLabel });
 				taskManagerStore.updateProgress(taskId, progress, msg);
 				executeProgress = progress;
 				executeMessage = msg;
@@ -208,14 +209,14 @@
 			const result = await client.preprocessData(filePath, fileFormat, pipelineSteps);
 
 			executeProgress = 100;
-			executeMessage = `预处理完成！处理了 ${result.total_rows.toLocaleString()} 行数据`;
-			taskManagerStore.completeTask(taskId, `处理了 ${result.total_rows.toLocaleString()} 行数据`);
+			executeMessage = $t('workshop.preprocessComplete', { rows: result.total_rows.toLocaleString() });
+			taskManagerStore.completeTask(taskId, $t('workshop.processedRows', { rows: result.total_rows.toLocaleString() }));
 			preview = result;
 			showRegisterAfter = true;
 		} catch (e: any) {
-			error = e?.toString() || '管道执行失败';
-			executeMessage = '执行失败';
-			taskManagerStore.failTask(taskId, e?.toString() || '管道执行失败');
+			error = e?.toString() || $t('workshop.pipelineFailed');
+			executeMessage = $t('workshop.executeFailed');
+			taskManagerStore.failTask(taskId, e?.toString() || $t('workshop.pipelineFailed'));
 		} finally {
 			executing = false;
 		}
@@ -228,7 +229,7 @@
 			await datasetRegistryStore.registerDataset(regName.trim(), fileFormat, filePath);
 			goto('/lab/data/list');
 		} catch (e: any) {
-			error = e?.toString() || '注册失败';
+			error = e?.toString() || $t('workshop.registerFailed');
 		} finally {
 			registering = false;
 		}
@@ -242,7 +243,7 @@
 
 	function getStepLabel(type: PreprocessType | string): string {
 		if (typeof type === 'object' && type !== null && 'Custom' in type) {
-			return `自定义: ${(type as { Custom: string }).Custom}`;
+			return `${$t('workshop.custom')}: ${(type as { Custom: string }).Custom}`;
 		}
 		return stepTypes.find((s) => s.type === type)?.label || String(type);
 	}
@@ -253,27 +254,27 @@
 <div class="workshop-page">
 	<div class="page-header">
 		<div>
-			<h2>数据工坊</h2>
-			<p class="desc">导入数据文件，构建预处理管道，预览处理结果</p>
+			<h2>{$t('workshop.title')}</h2>
+			<p class="desc">{$t('workshop.desc')}</p>
 		</div>
 		<div class="header-actions">
-			<button class="btn-secondary" on:click={() => goto('/lab/data/list')}>📋 数据集列表</button>
+			<button class="btn-secondary" on:click={() => goto('/lab/data/list')}>📋 {$t('workshop.datasetList')}</button>
 		</div>
 	</div>
 
 	<div class="workshop-layout">
 		<div class="panel panel-left">
 			<div class="panel-section">
-				<h4>1. 选择数据文件</h4>
+				<h4>{$t('workshop.step1SelectFile')}</h4>
 				<div class="file-selector">
 					<input
 						type="text"
 						bind:value={filePath}
-						placeholder="选择或输入文件路径..."
+						placeholder={$t('workshop.selectOrInputPath')}
 						class="input"
 						readonly
 					/>
-					<button class="btn-browse" on:click={selectFile}>浏览文件</button>
+					<button class="btn-browse" on:click={selectFile}>{$t('workshop.browseFile')}</button>
 				</div>
 				{#if filePath}
 					<div class="file-info">
@@ -284,10 +285,10 @@
 			</div>
 
 			<div class="panel-section">
-				<h4>2. 预处理管道</h4>
+				<h4>{$t('workshop.step2Pipeline')}</h4>
 
 				<div class="preset-templates">
-					<span class="preset-label">预设模板:</span>
+					<span class="preset-label">{$t('workshop.presetTemplates')}:</span>
 					{#each presetTemplates as tmpl}
 						<button class="preset-btn" on:click={() => applyPreset(tmpl)} title={tmpl.desc}>
 							{tmpl.name}
@@ -302,9 +303,9 @@
 								<span class="step-number">{i + 1}</span>
 								<span class="step-type">{getStepLabel(step.type)}</span>
 								<div class="step-actions">
-									<button class="step-btn" on:click={() => moveStepUp(i)} disabled={i === 0} title="上移">↑</button>
-									<button class="step-btn" on:click={() => moveStepDown(i)} disabled={i === steps.length - 1} title="下移">↓</button>
-									<button class="step-btn step-remove" on:click={() => removeStep(step.id)} title="删除">✕</button>
+									<button class="step-btn" on:click={() => moveStepUp(i)} disabled={i === 0} title={$t('workshop.moveUp')}>↑</button>
+									<button class="step-btn" on:click={() => moveStepDown(i)} disabled={i === steps.length - 1} title={$t('workshop.moveDown')}>↓</button>
+									<button class="step-btn step-remove" on:click={() => removeStep(step.id)} title={$t('workshop.delete')}>✕</button>
 								</div>
 							</div>
 							<div class="step-params">
@@ -329,7 +330,7 @@
 				</div>
 
 				<div class="add-step-area">
-					<span class="add-label">添加步骤:</span>
+					<span class="add-label">{$t('workshop.addStep')}:</span>
 					<div class="step-buttons">
 						{#each stepTypes as st}
 							<button class="add-step-btn" on:click={() => addStep(st)} title={st.desc}>
@@ -345,7 +346,7 @@
 						on:click={executePipeline}
 						disabled={executing || !filePath}
 					>
-						{executing ? '⏳ 执行中...' : '▶ 执行管道'}
+						{executing ? `⏳ ${$t('workshop.executing')}` : `▶ ${$t('workshop.executePipeline')}`}
 					</button>
 				{/if}
 
@@ -365,16 +366,16 @@
 
 			{#if showRegisterAfter}
 				<div class="panel-section">
-					<h4>3. 注册为数据集</h4>
+					<h4>{$t('workshop.step3Register')}</h4>
 					<div class="register-row">
 						<input
 							type="text"
 							bind:value={regName}
-							placeholder="数据集名称"
+							placeholder={$t('workshop.datasetName')}
 							class="input"
 						/>
 						<button class="btn-primary" on:click={registerAfterProcess} disabled={registering || !regName.trim()}>
-							{registering ? '注册中...' : '注册'}
+							{registering ? $t('workshop.registering') : $t('workshop.register')}
 						</button>
 					</div>
 				</div>
@@ -382,11 +383,11 @@
 		</div>
 
 		<div class="panel panel-right">
-			<h4>数据预览</h4>
+			<h4>{$t('workshop.dataPreview')}</h4>
 			{#if !filePath}
 				<div class="empty-preview">
 					<div class="empty-icon">📂</div>
-					<p>选择数据文件以预览内容</p>
+					<p>{$t('workshop.selectFileToPreview')}</p>
 				</div>
 			{:else if previewLoading}
 				<div class="skeleton-preview">
@@ -420,12 +421,12 @@
 					</table>
 				</div>
 				<div class="pagination">
-					<button class="btn-sm" on:click={prevPage} disabled={previewPage === 0}>← 上一页</button>
-					<span class="page-info">第 {previewPage + 1} 页（共 {preview?.total_rows?.toLocaleString() || '?'} 行）</span>
-					<button class="btn-sm" on:click={nextPage} disabled={preview && preview.rows.length < previewPageSize}>下一页 →</button>
+					<button class="btn-sm" on:click={prevPage} disabled={previewPage === 0}>← {$t('workshop.prevPage')}</button>
+					<span class="page-info">{$t('workshop.pageInfo', { page: previewPage + 1, rows: preview?.total_rows?.toLocaleString() || '?' })}</span>
+					<button class="btn-sm" on:click={nextPage} disabled={preview && preview.rows.length < previewPageSize}>{$t('workshop.nextPage')} →</button>
 				</div>
 			{:else}
-				<div class="empty-preview"><p>无数据可预览</p></div>
+				<div class="empty-preview"><p>{$t('workshop.noDataToPreview')}</p></div>
 			{/if}
 		</div>
 	</div>

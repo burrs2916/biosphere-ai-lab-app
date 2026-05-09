@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import * as echarts from 'echarts';
 	import type { MetricSeries } from '$lib/lab/adapter/types';
+	import { t } from '$lib/i18n';
 
 	export let series: Record<string, MetricSeries> = {};
 	export let height: string = '400px';
@@ -74,7 +75,7 @@
 
 			if (smooth && s.values.length > 5) {
 				seriesList.push({
-					name: `${name} (原始)`,
+					name: `${name} (${$t('metrics.raw')})`,
 					type: 'line',
 					data: steps.map((s, i) => [s, rawValues[i]]),
 					smooth: false,
@@ -109,7 +110,7 @@
 					if (!Array.isArray(params)) return '';
 					let html = `<div style="margin-bottom:4px;color:#9ca3af">${xAxisName} ${params[0]?.data?.[0] ?? ''}</div>`;
 					for (const p of params) {
-						if (p.seriesName.includes('(原始)')) continue;
+						if (p.seriesName.includes(`(${$t('metrics.raw')})`)) continue;
 						const val = p.data?.[1];
 						html += `<div style="display:flex;align-items:center;gap:6px;margin:2px 0">
 							<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
@@ -268,7 +269,7 @@
 		<div class="smooth-control">
 			<label class="smooth-label">
 				<input type="checkbox" bind:checked={smooth} on:change={updateChart} />
-				<span>平滑</span>
+				<span>{$t('metrics.smooth')}</span>
 			</label>
 			{#if smooth}
 				<input
@@ -285,14 +286,14 @@
 		<div class="scale-control">
 			<label class="smooth-label">
 				<input type="checkbox" bind:checked={logScale} on:change={updateChart} />
-				<span>对数坐标</span>
+				<span>{$t('metrics.logScale')}</span>
 			</label>
 		</div>
 		<div class="align-control">
 			<select bind:value={alignBy} on:change={updateChart} class="align-select">
-				<option value="step">按步数</option>
-				<option value="epoch">按Epoch</option>
-				<option value="time">按时间</option>
+				<option value="step">{$t('metrics.byStep')}</option>
+				<option value="epoch">{$t('metrics.byEpoch')}</option>
+				<option value="time">{$t('metrics.byTime')}</option>
 			</select>
 		</div>
 	</div>

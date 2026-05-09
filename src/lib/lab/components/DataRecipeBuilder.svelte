@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLabClient } from '$lib/lab/stores/plugins';
   import { taskManagerStore } from '$lib/lab/stores/taskManager';
+  import { t } from '$lib/i18n';
 
   export let availableDatasets: any[] = [];
 
@@ -30,13 +31,13 @@
   $: datasetOptions = availableDatasets.map((d: any) => ({ id: d.id, name: d.name }));
 
   const presets = [
-    { name: 'LLM 预训练', desc: '70%代码 + 20%数学 + 10%通用', entries: [
+    { name: $t('recipe.presetLLM'), desc: $t('recipe.presetLLMDesc'), entries: [
       { weight: 0.7, tag: 'code' }, { weight: 0.2, tag: 'math' }, { weight: 0.1, tag: 'general' }
     ], strategy: 'Proportional', curriculum: true },
-    { name: 'SFT 微调', desc: '指令数据 + 对话数据', entries: [
+    { name: $t('recipe.presetSFT'), desc: $t('recipe.presetSFTDesc'), entries: [
       { weight: 0.6, tag: 'instruction' }, { weight: 0.4, tag: 'dialogue' }
     ], strategy: 'Interleaved', curriculum: false },
-    { name: 'RLHF 偏好', desc: '提示 + 选择 + 拒绝', entries: [
+    { name: $t('recipe.presetRLHF'), desc: $t('recipe.presetRLHFDesc'), entries: [
       { weight: 0.34, tag: 'prompt' }, { weight: 0.33, tag: 'chosen' }, { weight: 0.33, tag: 'rejected' }
     ], strategy: 'Staged', curriculum: false },
   ];
@@ -124,7 +125,7 @@
       const result = await client.dataRecipeValidate(buildRecipeJson());
       validationError = null;
     } catch (e: any) {
-      validationError = e?.toString() || '验证失败';
+      validationError = e?.toString() || $t('recipe.validationFailed');
     }
   }
 
@@ -134,8 +135,8 @@
     executeResult = null;
 
     const taskId = taskManagerStore.createTask(
-      '数据配方执行',
-      `正在执行配方 "${recipeName}"...`,
+      $t('recipe.executeTask'),
+      $t('recipe.executing', { name: recipeName }),
       false
     );
 
@@ -143,10 +144,10 @@
       const client = getLabClient();
       const result = await client.dataRecipeExecute(buildRecipeJson(), totalSamplesTarget || undefined);
       executeResult = JSON.parse(result);
-      taskManagerStore.completeTask(taskId, `配方执行完成，生成 ${executeResult.samples_yielded || 0} 个样本`);
+      taskManagerStore.completeTask(taskId, $t('recipe.executeComplete', { count: executeResult.samples_yielded || 0 }));
     } catch (e: any) {
-      executeError = e?.toString() || '执行失败';
-      taskManagerStore.failTask(taskId, executeError || '未知错误');
+      executeError = e?.toString() || $t('recipe.executeFailed');
+      taskManagerStore.failTask(taskId, executeError || $t('task.unknownError'));
     } finally {
       executing = false;
     }
@@ -155,9 +156,9 @@
 
 <div class="recipe-builder">
   <div class="recipe-header">
-    <h3>🧪 数据配方构建器</h3>
+    <h3>{$t('recipe.title')}</h3>
     <button class="btn-link" on:click={() => (showPresets = !showPresets)}>
-      {showPresets ? '收起预设' : '📋 加载预设'}
+      {showPresets ? $t('recipe.collapsePresets') : $t('recipe.loadPresets')}
     </button>
   </div>
 
@@ -174,23 +175,23 @@
 
   <div class="form-row">
     <div class="form-group flex-1">
-      <label for="recipe-name">配方名称</label>
+      <label for="recipe-name">{$t('recipe.recipeName')}</label>
       <input id="recipe-name" class="input" type="text" bind:value={recipeName} placeholder="my_recipe" />
     </div>
     <div class="form-group" style="width:100px">
-      <label for="recipe-seed">随机种子</label>
+      <label for="recipe-seed">{$t('recipe.randomSeed')}</label>
       <input id="recipe-seed" class="input" type="number" bind:value={seed} />
     </div>
   </div>
 
   <div class="form-group">
-    <label for="recipe-desc">描述</label>
-    <input id="recipe-desc" class="input" type="text" bind:value={recipeDescription} placeholder="配方描述..." />
+    <label for="recipe-desc">{$t('recipe.description')}</label>
+    <input id="recipe-desc" class="input" type="text" bind:value={recipeDescription} placeholder={$t('recipe.descPlaceholder')} />
   </div>
 
   <div class="section-header">
-    <h4>数据集混合</h4>
-    <button class="btn-sm btn-primary-sm" on:click={addEntry}>+ 添加数据集</button>
+    <h4>{$t('recipe.datasetMix')}</h4>
+    <button class="btn-sm btn-primary-sm" on:click={addEntry}>+ {$t('recipe.addDataset')}</button>
   </div>
 
   {#if recipeEntries.length > 0}
@@ -199,19 +200,19 @@
         <div class="entry-row">
           {#if datasetOptions.length > 0}
             <select class="input entry-select" on:change={(e) => { const opt = datasetOptions.find((d: any) => d.id === (e.target as HTMLSelectElement).value); if (opt) { entry.dataset_id = opt.id; entry.name = opt.name; } }}>
-              <option value="">选择数据集</option>
+              <option value="">{$t('recipe.selectDataset')}</option>
               {#each datasetOptions as opt}
                 <option value={opt.id} selected={entry.dataset_id === opt.id}>{opt.name}</option>
               {/each}
             </select>
           {:else}
-            <input class="input entry-name" type="text" bind:value={entry.name} placeholder="数据集名称/标签" />
+            <input class="input entry-name" type="text" bind:value={entry.name} placeholder={$t('recipe.datasetNamePlaceholder')} />
           {/if}
           <div class="weight-group">
             <input type="range" min="0" max="1" step="0.01" bind:value={entry.weight} />
             <span class="weight-val">{(entry.weight * 100).toFixed(0)}%</span>
           </div>
-          <input class="input input-sm" type="number" bind:value={entry.max_samples} placeholder="最大样本" />
+          <input class="input input-sm" type="number" bind:value={entry.max_samples} placeholder={$t('recipe.maxSamples')} />
           <button class="btn-remove" on:click={() => removeEntry(i)}>✕</button>
         </div>
       {/each}
@@ -223,46 +224,46 @@
       {/each}
     </div>
     {#if weightWarning}
-      <div class="weight-warning">⚠️ 权重总和 = {totalWeight.toFixed(2)}，建议归一化到 1.0</div>
+      <div class="weight-warning">⚠️ {$t('recipe.weightWarning', { total: totalWeight.toFixed(2) })}</div>
     {/if}
-    <button class="btn-sm" on:click={normalizeWeights}>归一化权重</button>
+    <button class="btn-sm" on:click={normalizeWeights}>{$t('recipe.normalizeWeights')}</button>
   {:else}
-    <div class="empty-entries">点击"添加数据集"开始构建配方</div>
+    <div class="empty-entries">{$t('recipe.emptyEntries')}</div>
   {/if}
 
-  <div class="section-header"><h4>混合策略</h4></div>
+  <div class="section-header"><h4>{$t('recipe.mixingStrategy')}</h4></div>
   <div class="strategy-options">
     {#each ['Proportional', 'Interleaved', 'Staged'] as strategy}
       <label class="radio-label">
         <input type="radio" name="strategy" bind:group={mixingStrategy} value={strategy} />
-        <span>{strategy === 'Proportional' ? '比例混合' : strategy === 'Interleaved' ? '交错混合' : '分阶段混合'}</span>
+        <span>{strategy === 'Proportional' ? $t('recipe.proportional') : strategy === 'Interleaved' ? $t('recipe.interleaved') : $t('recipe.staged')}</span>
       </label>
     {/each}
   </div>
 
   <details class="advanced-section">
-    <summary>高级配置</summary>
+    <summary>{$t('recipe.advancedConfig')}</summary>
     <div class="advanced-content">
       <label class="checkbox-label">
         <input type="checkbox" bind:checked={curriculumEnabled} />
-        课程学习
+        {$t('recipe.curriculumLearning')}
       </label>
       {#if curriculumEnabled}
         <div class="form-row">
           <div class="form-group">
-            <label for="curriculum-pacing">节奏</label>
+            <label for="curriculum-pacing">{$t('recipe.pacing')}</label>
             <select id="curriculum-pacing" class="input" bind:value={curriculumPacing}>
-              <option value="Linear">线性</option>
-              <option value="Cosine">余弦</option>
-              <option value="Root">平方根</option>
+              <option value="Linear">{$t('recipe.linear')}</option>
+              <option value="Cosine">{$t('recipe.cosine')}</option>
+              <option value="Root">{$t('recipe.root')}</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="curriculum-warmup">预热步数</label>
+            <label for="curriculum-warmup">{$t('recipe.warmupSteps')}</label>
             <input id="curriculum-warmup" class="input" type="number" bind:value={curriculumWarmup} />
           </div>
           <div class="form-group">
-            <label for="curriculum-total">总步数</label>
+            <label for="curriculum-total">{$t('recipe.totalSteps')}</label>
             <input id="curriculum-total" class="input" type="number" bind:value={curriculumTotalSteps} />
           </div>
         </div>
@@ -270,35 +271,35 @@
 
       <label class="checkbox-label">
         <input type="checkbox" bind:checked={dynamicRatioEnabled} />
-        动态比例调度
+        {$t('recipe.dynamicRatioSchedule')}
       </label>
       {#if dynamicRatioEnabled}
         <div class="form-group">
-          <label for="ratio-schedule">调度策略</label>
+          <label for="ratio-schedule">{$t('recipe.scheduleStrategy')}</label>
           <select id="ratio-schedule" class="input" bind:value={ratioSchedule}>
-            <option value="Linear">线性</option>
-            <option value="Cosine">余弦</option>
+            <option value="Linear">{$t('recipe.linear')}</option>
+              <option value="Cosine">{$t('recipe.cosine')}</option>
           </select>
         </div>
       {/if}
 
       <div class="form-group">
-        <label for="total-samples">目标样本数</label>
-        <input id="total-samples" class="input" type="number" bind:value={totalSamplesTarget} placeholder="留空为无限" />
+        <label for="total-samples">{$t('recipe.targetSamples')}</label>
+        <input id="total-samples" class="input" type="number" bind:value={totalSamplesTarget} placeholder={$t('recipe.leaveEmptyForInfinite')} />
       </div>
 
-      <div class="section-header"><h4>质量阈值</h4></div>
+      <div class="section-header"><h4>{$t('recipe.qualityThresholds')}</h4></div>
       <div class="form-row">
         <div class="form-group">
-          <label for="quality-min">最低质量分</label>
+          <label for="quality-min">{$t('recipe.minQualityScore')}</label>
           <input id="quality-min" class="input" type="number" bind:value={qualityMinScore} min="0" max="100" />
         </div>
         <div class="form-group">
-          <label for="quality-toxicity">最大毒性</label>
+          <label for="quality-toxicity">{$t('recipe.maxToxicity')}</label>
           <input id="quality-toxicity" class="input" type="number" bind:value={qualityMaxToxicity} min="0" max="1" step="0.1" />
         </div>
         <div class="form-group">
-          <label for="quality-repetition">最大重复率</label>
+          <label for="quality-repetition">{$t('recipe.maxRepetition')}</label>
           <input id="quality-repetition" class="input" type="number" bind:value={qualityMaxRepetition} min="0" max="1" step="0.1" />
         </div>
       </div>
@@ -315,20 +316,20 @@
 
   {#if executeResult}
     <div class="result-box">
-      <div class="result-header">✅ 配方执行完成</div>
+      <div class="result-header">✅ {$t('recipe.executeCompleteShort')}</div>
       <div class="result-details">
-        <span>生成样本: {executeResult.samples_yielded || 0}</span>
-        <span>总步数: {executeResult.total_steps || 0}</span>
+        <span>{$t('recipe.samplesYielded')}: {executeResult.samples_yielded || 0}</span>
+          <span>{$t('recipe.totalSteps')}: {executeResult.total_steps || 0}</span>
       </div>
     </div>
   {/if}
 
   <div class="actions">
     <button class="btn-secondary" on:click={validateRecipe} disabled={!recipeName || recipeEntries.length === 0}>
-      ✅ 验证配方
+      ✅ {$t('recipe.validate')}
     </button>
-    <button class="btn-primary" on:click={executeRecipe} disabled={executing || !recipeName || recipeEntries.length === 0}>
-      {executing ? '执行中...' : '🚀 执行配方'}
+    <button class="btn-primary-sm" on:click={executeRecipe} disabled={executing || !recipeName.trim()}>
+      {executing ? $t('recipe.executingBtn') : $t('recipe.execute')}
     </button>
   </div>
 </div>

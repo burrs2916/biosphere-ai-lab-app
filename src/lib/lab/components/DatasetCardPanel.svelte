@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLabClient } from '$lib/lab/stores/plugins';
   import { taskManagerStore } from '$lib/lab/stores/taskManager';
+  import { t } from '$lib/i18n';
 
   export let datasetId: string = '';
 
@@ -22,23 +23,23 @@
       const client = getLabClient();
       card = await client.datasetGetCard(datasetId);
     } catch (e: any) {
-      error = e?.toString() || '加载卡片失败';
+      error = e?.toString() || $t('cardPanel.loadCardFailed');
     } finally { cardLoading = false; }
   }
 
   async function saveCard() {
     if (!datasetId) return;
     cardLoading = true; error = null;
-    const taskId = taskManagerStore.createTask('保存卡片', '正在更新数据集卡片...', false);
+    const taskId = taskManagerStore.createTask($t('cardPanel.saveCard'), $t('cardPanel.updatingCard'), false);
     try {
       const client = getLabClient();
       await client.datasetSetCard(datasetId, editCard);
       card = { ...editCard };
       editing = false;
-      taskManagerStore.completeTask(taskId, '卡片已更新');
+      taskManagerStore.completeTask(taskId, $t('cardPanel.cardUpdated'));
     } catch (e: any) {
-      error = e?.toString() || '保存失败';
-      taskManagerStore.failTask(taskId, error || '未知错误');
+      error = e?.toString() || $t('cardPanel.saveFailed');
+      taskManagerStore.failTask(taskId, error || $t('task.unknownError'));
     } finally { cardLoading = false; }
   }
 
@@ -49,7 +50,7 @@
       const client = getLabClient();
       stats = await client.datasetUsageStats(datasetId);
     } catch (e: any) {
-      error = e?.toString() || '加载统计失败';
+      error = e?.toString() || $t('cardPanel.loadStatsFailed');
     } finally { statsLoading = false; }
   }
 
@@ -60,7 +61,7 @@
       const client = getLabClient();
       searchResults = await client.datasetDiscoverySearch(searchQuery);
     } catch (e: any) {
-      error = e?.toString() || '搜索失败';
+      error = e?.toString() || $t('cardPanel.searchFailed');
     } finally { searchLoading = false; }
   }
 
@@ -77,30 +78,30 @@
   <div class="panel-sections">
     <div class="card-section">
       <div class="section-header">
-        <h3>📋 数据集卡片</h3>
-        <button class="btn-sm" on:click={startEdit}>✏️ 编辑</button>
+        <h3>{$t('cardPanel.cardTitle')}</h3>
+        <button class="btn-sm" on:click={startEdit}>{$t('cardPanel.edit')}</button>
       </div>
 
       {#if editing}
         <div class="edit-form">
-          <div class="form-group"><label for="card-name">名称</label><input id="card-name" class="input" type="text" bind:value={editCard.name} /></div>
-          <div class="form-group"><label for="card-desc">描述</label><textarea id="card-desc" class="input textarea" bind:value={editCard.description}></textarea></div>
+          <div class="form-group"><label for="card-name">{$t('cardPanel.name')}</label><input id="card-name" class="input" type="text" bind:value={editCard.name} /></div>
+          <div class="form-group"><label for="card-desc">{$t('cardPanel.description')}</label><textarea id="card-desc" class="input textarea" bind:value={editCard.description}></textarea></div>
           <div class="form-row">
-            <div class="form-group flex-1"><label for="card-license">许可证</label><input id="card-license" class="input" type="text" bind:value={editCard.license} /></div>
-            <div class="form-group flex-1"><label for="card-homepage">主页</label><input id="card-homepage" class="input" type="text" bind:value={editCard.homepage} /></div>
+            <div class="form-group flex-1"><label for="card-license">{$t('cardPanel.license')}</label><input id="card-license" class="input" type="text" bind:value={editCard.license} /></div>
+              <div class="form-group flex-1"><label for="card-homepage">{$t('cardPanel.homepage')}</label><input id="card-homepage" class="input" type="text" bind:value={editCard.homepage} /></div>
           </div>
-          <div class="form-group"><label for="card-citation">引用</label><input id="card-citation" class="input" type="text" bind:value={editCard.citation} /></div>
-          <div class="form-group"><label for="card-usage">使用说明</label><textarea id="card-usage" class="input textarea" bind:value={editCard.usage_notes}></textarea></div>
-          <div class="form-group"><label for="card-issues">已知问题 (逗号分隔)</label><input id="card-issues" class="input" type="text" bind:value={editCard.known_issues} /></div>
+          <div class="form-group"><label for="card-citation">{$t('cardPanel.citation')}</label><input id="card-citation" class="input" type="text" bind:value={editCard.citation} /></div>
+            <div class="form-group"><label for="card-usage">{$t('cardPanel.usageNotes')}</label><textarea id="card-usage" class="input textarea" bind:value={editCard.usage_notes}></textarea></div>
+            <div class="form-group"><label for="card-issues">{$t('cardPanel.knownIssues')}</label><input id="card-issues" class="input" type="text" bind:value={editCard.known_issues} /></div>
           <div class="edit-actions">
-            <button class="btn-primary-sm" on:click={saveCard}>💾 保存</button>
-            <button class="btn-sm" on:click={() => (editing = false)}>取消</button>
+            <button class="btn-primary-sm" on:click={saveCard}>💾 {$t('cardPanel.save')}</button>
+              <button class="btn-sm" on:click={() => (editing = false)}>{$t('confirm.cancel')}</button>
           </div>
         </div>
       {:else if card}
         <div class="card-display">
-          <div class="card-title">{card.name || '未命名数据集'}</div>
-          <div class="card-desc">{card.description || '暂无描述'}</div>
+          <div class="card-title">{card.name || $t('cardPanel.unnamedDataset')}</div>
+          <div class="card-desc">{card.description || $t('cardPanel.noDescription')}</div>
 
           <div class="card-meta">
             {#if card.license}<span class="meta-tag">📜 {card.license}</span>{/if}
@@ -108,7 +109,7 @@
             {#if card.languages}<span class="meta-tag">🌐 {card.languages?.join(', ')}</span>{/if}
             {#if card.quality_score != null}
               <span class="meta-tag quality" style="background: {card.quality_score >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)'}; color: {card.quality_score >= 80 ? '#10b981' : '#f59e0b'}">
-                质量 {card.quality_score}/100
+                {$t('cardPanel.quality')} {card.quality_score}/100
               </span>
             {/if}
           </div>
@@ -123,7 +124,7 @@
 
           {#if card.known_issues?.length}
             <div class="card-issues">
-              <h4>⚠️ 已知问题</h4>
+              <h4>⚠️ {$t('cardPanel.knownIssuesTitle')}</h4>
               {#each card.known_issues as issue}
                 <div class="issue-item">{issue}</div>
               {/each}
@@ -132,49 +133,49 @@
 
           {#if card.citation}
             <div class="card-citation">
-              <h4>📖 引用</h4>
+              <h4>📖 {$t('cardPanel.citation')}</h4>
               <code>{card.citation}</code>
             </div>
           {/if}
 
           {#if card.usage_notes}
             <div class="card-usage">
-              <h4>📝 使用说明</h4>
+              <h4>📝 {$t('cardPanel.usageNotesTitle')}</h4>
               <p>{card.usage_notes}</p>
             </div>
           {/if}
         </div>
       {:else}
-        <div class="empty-state">加载中...</div>
+        <div class="empty-state">{$t('common.loading')}</div>
       {/if}
     </div>
 
     <div class="stats-section">
       <div class="section-header">
-        <h3>📊 使用统计</h3>
+        <h3>{$t('cardPanel.usageStats')}</h3>
         <button class="btn-sm" on:click={loadStats}>🔄</button>
       </div>
       {#if stats}
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-value">{stats.total_experiments}</div>
-            <div class="stat-label">总实验数</div>
+            <div class="stat-label">{$t('cardPanel.totalExperiments')}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" style="color: #3b82f6">{stats.active_experiments}</div>
-            <div class="stat-label">进行中</div>
+            <div class="stat-label">{$t('cardPanel.inProgress')}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" style="color: #10b981">{stats.completed_experiments}</div>
-            <div class="stat-label">已完成</div>
+            <div class="stat-label">{$t('cardPanel.completed')}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value" style="color: #ef4444">{stats.failed_experiments}</div>
-            <div class="stat-label">失败</div>
+            <div class="stat-label">{$t('cardPanel.failed')}</div>
           </div>
         </div>
         {#if stats.avg_accuracy != null}
-          <div class="avg-accuracy">平均精度: <strong>{(stats.avg_accuracy * 100).toFixed(1)}%</strong></div>
+          <div class="avg-accuracy">{$t('cardPanel.avgAccuracy')}: <strong>{(stats.avg_accuracy * 100).toFixed(1)}%</strong></div>
         {/if}
         {#if stats.usage_timeline?.length}
           <div class="timeline-chart">
@@ -183,36 +184,36 @@
               <div class="timeline-bar" style="height: {(item.experiments / maxExp) * 60}px">
                 <span class="timeline-val">{item.experiments}</span>
               </div>
-              <span class="timeline-label">{item.date.split('-')[1]}月</span>
+              <span class="timeline-label">{$t('cardPanel.month', { month: item.date.split('-')[1] })}</span>
             {/each}
           </div>
         {/if}
       {:else}
-        <div class="empty-state">加载中...</div>
+        <div class="empty-state">{$t('common.loading')}</div>
       {/if}
     </div>
   </div>
 
   <div class="discovery-section">
     <div class="section-header">
-      <h3>🔍 数据集发现</h3>
+      <h3>{$t('cardPanel.datasetDiscovery')}</h3>
     </div>
     <div class="search-form">
-      <input class="input search-input" type="text" bind:value={searchQuery} placeholder="搜索数据集..." on:keydown={(e) => e.key === 'Enter' && search()} />
+      <input class="input search-input" type="text" bind:value={searchQuery} placeholder={$t('cardPanel.searchPlaceholder')} on:keydown={(e) => e.key === 'Enter' && search()} />
       <button class="btn-primary-sm" on:click={search} disabled={searchLoading || !searchQuery.trim()}>
         {searchLoading ? '...' : '🔍'}
       </button>
     </div>
     {#if searchResults}
       <div class="search-results">
-        <div class="results-count">找到 {searchResults.total_results} 个结果</div>
+        <div class="results-count">{$t('cardPanel.foundResults', { count: searchResults.total_results })}</div>
         {#each searchResults.results as result}
           <div class="result-item">
             <div class="result-name">{result.name}</div>
             <div class="result-meta">
               <span>{result.format}</span>
-              <span>{result.rows?.toLocaleString()} 行</span>
-              <span class="relevance">相关度 {(result.relevance * 100).toFixed(0)}%</span>
+              <span>{result.rows?.toLocaleString()} {$t('versionDiff.rows')}</span>
+              <span class="relevance">{$t('cardPanel.relevance')} {(result.relevance * 100).toFixed(0)}%</span>
             </div>
           </div>
         {/each}

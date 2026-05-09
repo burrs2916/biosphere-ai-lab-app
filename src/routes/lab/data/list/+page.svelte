@@ -39,7 +39,7 @@
 		show: false,
 		title: '',
 		message: '',
-		confirmLabel: '确定',
+		confirmLabel: $t('confirm.ok'),
 		danger: false,
 		onConfirm: () => {},
 	};
@@ -283,13 +283,13 @@
 			clearSelection();
 			uxStore.commitOptimisticUpdate(optId);
 			if (failCount === 0) {
-				uxStore.success('批量归档完成', `成功归档 ${successCount} 个数据集`);
+				uxStore.success($t('dataList.batchArchiveDone'), $t('dataList.batchArchiveSuccess', { count: successCount }));
 			} else {
-				uxStore.warning('批量归档部分完成', `成功 ${successCount} 个，失败 ${failCount} 个`);
+				uxStore.warning($t('dataList.batchArchivePartial'), $t('dataList.batchPartialSuccess', { success: successCount, fail: failCount }));
 			}
 		} catch (e: any) {
 			uxStore.rollbackOptimisticUpdate(optId);
-			uxStore.error('批量归档失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.error($t('dataList.batchArchiveFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		} finally {
 			batchArchiving = false;
 		}
@@ -315,13 +315,13 @@
 			clearSelection();
 			uxStore.commitOptimisticUpdate(optId);
 			if (failCount === 0) {
-				uxStore.success('批量删除完成', `成功删除 ${successCount} 个数据集`);
+				uxStore.success($t('dataList.batchDeleteDone'), $t('dataList.batchDeleteSuccess', { count: successCount }));
 			} else {
-				uxStore.warning('批量删除部分完成', `成功 ${successCount} 个，失败 ${failCount} 个`);
+				uxStore.warning($t('dataList.batchDeletePartial'), $t('dataList.batchPartialSuccess', { success: successCount, fail: failCount }));
 			}
 		} catch (e: any) {
 			uxStore.rollbackOptimisticUpdate(optId);
-			uxStore.error('批量删除失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.error($t('dataList.batchDeleteFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		} finally {
 			batchDeleting = false;
 		}
@@ -350,13 +350,13 @@
 			clearSelection();
 			uxStore.commitOptimisticUpdate(optId);
 			if (failCount === 0) {
-				uxStore.success('批量恢复完成', `成功恢复 ${successCount} 个数据集`);
+				uxStore.success($t('dataList.batchRestoreDone'), $t('dataList.batchRestoreSuccess', { count: successCount }));
 			} else {
-				uxStore.warning('批量恢复部分完成', `成功 ${successCount} 个，失败 ${failCount} 个`);
+				uxStore.warning($t('dataList.batchRestorePartial'), $t('dataList.batchPartialSuccess', { success: successCount, fail: failCount }));
 			}
 		} catch (e: any) {
 			uxStore.rollbackOptimisticUpdate(optId);
-			uxStore.error('批量恢复失败', localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
+			uxStore.error($t('dataList.batchRestoreFailed'), localizeError(e).message + '\n💡 ' + localizeError(e).suggestion);
 		} finally {
 			batchRestoring = false;
 		}
@@ -392,10 +392,10 @@
 			regPath = '';
 			regNameTouched = false;
 			regPathTouched = false;
-			uxStore.success('注册成功', `数据集 "${regName.trim()}" 已成功注册`);
+			uxStore.success($t('dataList.registerSuccess'), $t('dataList.registerSuccessMsg', { name: regName.trim() }));
 		} catch (e: any) {
-			regError = e?.toString() || '注册失败';
-			uxStore.error('注册失败', localizeError(regError).message + '\n💡 ' + localizeError(regError).suggestion);
+			regError = e?.toString() || $t('dataList.registerFailed');
+			uxStore.error($t('dataList.registerFailed'), localizeError(regError).message + '\n💡 ' + localizeError(regError).suggestion);
 		} finally {
 			registering = false;
 		}

@@ -1,8 +1,10 @@
 import { writable } from 'svelte/store';
+import { get } from 'svelte/store';
 import { getLabClient } from './plugins';
 import { toastStore } from './toast';
 import { notificationStore } from './notification';
 import { translateError } from '../utils/errorMessages';
+import { i18n } from '$lib/i18n';
 import type { ExperimentSummary, ExperimentDetail, MetricsTimeline, TrainingConfig, LabEvent } from '../adapter/types';
 
 function createExperimentStore() {
@@ -155,7 +157,7 @@ function createExperimentStore() {
         const client = getLabClient();
         const experimentId = await client.startTraining(name, taskType, config);
         await this.refresh();
-        toastStore.success(`训练「${name}」已启动`);
+        toastStore.success(get(i18n.t)('experiment.trainingStarted', { name }));
         return experimentId;
       } catch (e: any) {
         console.error('Failed to start training:', e);
@@ -170,7 +172,7 @@ function createExperimentStore() {
         const client = getLabClient();
         await client.stopTraining(experimentId);
         await this.refresh();
-        toastStore.warning('训练已停止');
+        toastStore.warning(get(i18n.t)('experiment.trainingStopped'));
       } catch (e: any) {
         console.error('Failed to stop training:', e);
         const advice = translateError(e.message || '');
@@ -183,7 +185,7 @@ function createExperimentStore() {
         const client = getLabClient();
         await client.pauseTraining(experimentId);
         await this.refresh();
-        toastStore.info('训练已暂停');
+        toastStore.info(get(i18n.t)('experiment.trainingPaused'));
       } catch (e: any) {
         console.error('Failed to pause training:', e);
         const advice = translateError(e.message || '');
@@ -196,7 +198,7 @@ function createExperimentStore() {
         const client = getLabClient();
         await client.resumeTraining(experimentId);
         await this.refresh();
-        toastStore.info('训练已恢复');
+        toastStore.info(get(i18n.t)('experiment.trainingResumed'));
       } catch (e: any) {
         console.error('Failed to resume training:', e);
         const advice = translateError(e.message || '');
@@ -217,16 +219,16 @@ function createExperimentStore() {
             const sid = event.payload.session_id;
             const expId = sid ? sessionToExperiment.get(sid) : undefined;
             if (sid) sessionToExperiment.delete(sid);
-            notificationStore.notify('training_completed', '训练已完成', '训练任务已成功完成', expId);
+            notificationStore.notify('training_completed', get(i18n.t)('experiment.trainingCompleted'), get(i18n.t)('experiment.trainingCompletedMsg'), expId);
             break;
           }
           case 'SessionFailed': {
             debouncedRefresh();
-            const errMsg = (event.payload as { error?: string })?.error || '未知错误';
+            const errMsg = (event.payload as { error?: string })?.error || get(i18n.t)('experiment.unknownError');
             const sid2 = event.payload.session_id;
             const expId2 = sid2 ? sessionToExperiment.get(sid2) : undefined;
             if (sid2) sessionToExperiment.delete(sid2);
-            notificationStore.notify('training_failed', '训练失败', errMsg, expId2);
+            notificationStore.notify('training_failed', get(i18n.t)('experiment.trainingFailed'), errMsg, expId2);
             break;
           }
           case 'SessionCancelled': {
@@ -234,7 +236,7 @@ function createExperimentStore() {
             const sid3 = event.payload.session_id;
             const expId3 = sid3 ? sessionToExperiment.get(sid3) : undefined;
             if (sid3) sessionToExperiment.delete(sid3);
-            notificationStore.notify('training_cancelled', '训练已取消', '训练任务已被取消', expId3);
+            notificationStore.notify('training_cancelled', get(i18n.t)('experiment.trainingCancelled'), get(i18n.t)('experiment.trainingCancelledMsg'), expId3);
             break;
           }
           case 'SessionPaused':

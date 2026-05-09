@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { getLabClient } from '$lib/lab/stores/plugins';
+	import { t } from '$lib/i18n';
 
 	interface PlanSummary {
 		id: string;
@@ -23,12 +24,15 @@
 	let deleteConfirm: string | null = null;
 	let deleting = false;
 
-	const planTypeLabels: Record<string, string> = {
-		Pretraining: '预训练',
-		SFT: '监督微调',
-		RLHF: 'RLHF',
-		DPO: 'DPO',
-		ContinuedPretraining: '继续预训练',
+	const planTypeLabels = (type: string): string => {
+		const map: Record<string, string> = {
+			Pretraining: $t('plans.pretraining'),
+			SFT: $t('plans.sft'),
+			RLHF: 'RLHF',
+			DPO: 'DPO',
+			ContinuedPretraining: $t('plans.continuedPretraining'),
+		};
+		return map[type] || type;
 	};
 
 	function formatTokens(tokens: number): string {
@@ -60,7 +64,7 @@
 			const client = getLabClient();
 			plans = await client.trainingPlanList();
 		} catch (e: any) {
-			error = e?.toString() || '加载训练计划列表失败';
+			error = e?.toString() || $t('plans.loadFailed');
 		} finally {
 			loading = false;
 		}
@@ -74,7 +78,7 @@
 			plans = plans.filter((p) => p.id !== planId);
 			deleteConfirm = null;
 		} catch (e: any) {
-			error = e?.toString() || '删除失败';
+			error = e?.toString() || $t('plans.deleteFailed');
 		} finally {
 			deleting = false;
 		}
@@ -92,12 +96,12 @@
 <div class="plans-page">
 	<div class="page-header">
 		<div>
-			<h2>训练计划</h2>
-			<p class="desc">管理声明式训练计划，定义数据配方、训练阶段和质量门禁</p>
+			<h2>{$t('plans.title')}</h2>
+			<p class="desc">{$t('plans.desc')}</p>
 		</div>
 		<div class="header-actions">
-			<button class="btn-secondary" on:click={loadPlans} disabled={loading}>🔄 刷新</button>
-			<button class="btn-primary" on:click={() => goto('/lab/plan')}>+ 创建计划</button>
+			<button class="btn-secondary" on:click={loadPlans} disabled={loading}>🔄 {$t('plans.refresh')}</button>
+			<button class="btn-primary" on:click={() => goto('/lab/plan')}>+ {$t('plans.createPlan')}</button>
 		</div>
 	</div>
 
@@ -111,29 +115,29 @@
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<span>加载训练计划中...</span>
+			<span>{$t('plans.loadingPlans')}</span>
 		</div>
 	{:else if plans.length === 0}
 		<div class="empty-state">
 			<div class="empty-icon">📋</div>
-			<h3>暂无训练计划</h3>
-			<p>创建声明式训练计划来定义数据配方、训练阶段和质量门禁</p>
-			<button class="btn-primary" on:click={() => goto('/lab/plan')}>创建第一个计划</button>
+			<h3>{$t('plans.noPlans')}</h3>
+			<p>{$t('plans.noPlansDesc')}</p>
+			<button class="btn-primary" on:click={() => goto('/lab/plan')}>{$t('plans.createFirstPlan')}</button>
 		</div>
 	{:else}
 		<div class="plans-table-wrapper">
 			<table class="plans-table">
 				<thead>
 					<tr>
-						<th>计划名称</th>
-						<th>类型</th>
-						<th>阶段</th>
-						<th>数据集</th>
-						<th>预估Tokens</th>
-						<th>预估步数</th>
-						<th>GPU时</th>
-						<th>更新时间</th>
-						<th>操作</th>
+						<th>{$t('plans.planName')}</th>
+						<th>{$t('plans.type')}</th>
+						<th>{$t('plans.phases')}</th>
+						<th>{$t('plans.datasets')}</th>
+						<th>{$t('plans.estimatedTokens')}</th>
+						<th>{$t('plans.estimatedSteps')}</th>
+						<th>{$t('plans.gpuHours')}</th>
+						<th>{$t('plans.updatedAt')}</th>
+						<th>{$t('plans.actions')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -150,7 +154,7 @@
 							</td>
 							<td>
 								<span class="plan-type-badge {plan.plan_type.toLowerCase()}">
-									{planTypeLabels[plan.plan_type] || plan.plan_type}
+									{planTypeLabels(plan.plan_type)}
 								</span>
 							</td>
 							<td class="num-cell">{plan.phases_count}</td>
@@ -160,8 +164,8 @@
 							<td class="num-cell">{formatGpuHours(plan.estimated_gpu_hours)}</td>
 							<td class="date-cell">{formatDate(plan.modified_at)}</td>
 							<td class="actions-cell">
-								<button class="btn-sm" on:click={() => viewPlan(plan.id)}>查看</button>
-								<button class="btn-sm btn-danger" on:click={() => (deleteConfirm = plan.id)}>删除</button>
+								<button class="btn-sm" on:click={() => viewPlan(plan.id)}>{$t('plans.view')}</button>
+								<button class="btn-sm btn-danger" on:click={() => (deleteConfirm = plan.id)}>{$t('plans.delete')}</button>
 							</td>
 						</tr>
 					{/each}
@@ -175,12 +179,12 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div class="modal-overlay" role="presentation" on:click={() => (deleteConfirm = null)} on:keydown={(e) => { if (e.key === 'Escape') deleteConfirm = null; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-			<h3>确认删除</h3>
-			<p>确定要删除训练计划 "{plans.find((p) => p.id === deleteConfirm)?.name}" 吗？此操作不可撤销。</p>
+			<h3>{$t('plans.confirmDelete')}</h3>
+			<p>{$t('plans.confirmDeleteMsg', { name: plans.find((p) => p.id === deleteConfirm)?.name || '' })}</p>
 			<div class="modal-actions">
-				<button class="btn-secondary" on:click={() => (deleteConfirm = null)}>取消</button>
+				<button class="btn-secondary" on:click={() => (deleteConfirm = null)}>{$t('confirm.cancel')}</button>
 				<button class="btn-danger" on:click={() => deleteConfirm && deletePlan(deleteConfirm)} disabled={deleting}>
-					{deleting ? '删除中...' : '确认删除'}
+					{deleting ? $t('plans.deleting') : $t('plans.confirmDeleteBtn')}
 				</button>
 			</div>
 		</div>

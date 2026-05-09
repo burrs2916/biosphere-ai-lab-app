@@ -4,10 +4,11 @@
 	import { experimentStore } from '$lib/lab/stores/experiment';
 	import { datasetRegistryStore, activeDatasets } from '$lib/lab/stores/dataset';
 	import { getLabClient, pluginStore } from '$lib/lab/stores/plugins';
+	import { t } from '$lib/i18n';
 	import type { TrainingConfig, OptimizerConfig, TaskType, ComputeBackend, DataFormat, EarlyStoppingConfig, LrSchedulerConfig, DatasetInfo, DatasetSummary, PluginInfo } from '$lib/lab/adapter/types';
 
 	let currentStep = 0;
-	const steps = ['基本信息', '数据配置', '模型与超参数', '确认启动'];
+	const steps = [$t('trainNew.stepBasicInfo'), $t('trainNew.stepDataConfig'), $t('trainNew.stepModelHparams'), $t('trainNew.stepConfirm')];
 	let submitting = false;
 	let error: string | null = null;
 
@@ -63,8 +64,8 @@
 	let linearNumIters = 100;
 
 	const modelOptions = [
-		{ value: 'mlp', label: 'MLP (多层感知机)', desc: '适用于表格数据分类/回归' },
-		{ value: 'cnn', label: 'CNN (卷积神经网络)', desc: '适用于图像数据分类/检测' },
+		{ value: 'mlp', label: `MLP (${$t('trainNew.mlp')})`, desc: $t('trainNew.mlpDesc') },
+		{ value: 'cnn', label: `CNN (${$t('trainNew.cnn')})`, desc: $t('trainNew.cnnDesc') },
 	];
 
 	onMount(async () => {
@@ -301,22 +302,22 @@
 	function getValidationMessage(): string | null {
 		switch (currentStep) {
 			case 0:
-				if (name.trim().length === 0) return '请输入训练名称';
-				if (name.trim().length > 128) return '训练名称不能超过128个字符';
+				if (name.trim().length === 0) return $t('trainNew.valEnterName');
+				if (name.trim().length > 128) return $t('trainNew.valNameTooLong');
 				return null;
 			case 1:
-				if (dataSourceMode === 'registered' && !selectedDatasetId) return '请选择已注册的数据集';
-				if (dataSourceMode === 'file' && !dataPath.trim()) return '请输入数据路径';
-				if (validationSplit + testSplit >= 1.0) return '验证集比例 + 测试集比例之和必须小于1';
+				if (dataSourceMode === 'registered' && !selectedDatasetId) return $t('trainNew.valSelectDataset');
+				if (dataSourceMode === 'file' && !dataPath.trim()) return $t('trainNew.valEnterDataPath');
+				if (validationSplit + testSplit >= 1.0) return $t('trainNew.valSplitSum');
 				return null;
 			case 2:
-				if (epochs <= 0) return '训练轮数必须大于0';
-				if (epochs > 10000) return '训练轮数不能超过10000';
-				if (batchSize <= 0) return '批量大小必须大于0';
-				if (batchSize > 4096) return '批量大小不能超过4096';
-				if (learningRate <= 0) return '学习率必须大于0';
-				if (learningRate > 100) return '学习率过大，请检查';
-				if (taskType === 'classification' && (!targetColumn || targetColumn.trim() === '')) return '分类任务需要指定目标列';
+				if (epochs <= 0) return $t('trainNew.valEpochsPositive');
+				if (epochs > 10000) return $t('trainNew.valEpochsMax');
+				if (batchSize <= 0) return $t('trainNew.valBatchPositive');
+				if (batchSize > 4096) return $t('trainNew.valBatchMax');
+				if (learningRate <= 0) return $t('trainNew.valLrPositive');
+				if (learningRate > 100) return $t('trainNew.valLrTooLarge');
+				if (taskType === 'classification' && (!targetColumn || targetColumn.trim() === '')) return $t('trainNew.valClassificationTarget');
 				return null;
 			default:
 				return null;
@@ -344,30 +345,29 @@
 			if (experimentId) {
 				goto(`/lab/experiments/${experimentId}`);
 			} else {
-				error = '创建训练失败';
+				error = $t('trainNew.createFailed');
 			}
 		} catch (e: any) {
-			error = e?.message || '启动训练时出错';
+			error = e?.message || $t('trainNew.startError');
 		} finally {
 			submitting = false;
 		}
 	}
 
 	const taskTypes = [
-		{ value: 'classification', label: '分类', icon: '🏷️' },
-		{ value: 'regression', label: '回归', icon: '📊' },
-		{ value: 'clustering', label: '聚类', icon: '🔮' },
-		{ value: 'detection', label: '检测', icon: '🎯' },
-		{ value: 'segmentation', label: '分割', icon: '✂️' },
-		{ value: 'generation', label: '生成', icon: '✨' },
-		{ value: 'nlp', label: 'NLP', icon: '💬' },
-		{ value: 'custom', label: '自定义', icon: '🔧' },
+		{ value: 'classification', label: $t('trainNew.taskClassification'), icon: '🏷️' },
+		{ value: 'regression', label: $t('trainNew.taskRegression'), icon: '📊' },
+		{ value: 'clustering', label: $t('trainNew.taskClustering'), icon: '🔮' },
+		{ value: 'detection', label: $t('trainNew.taskDetection'), icon: '🎯' },
+		{ value: 'segmentation', label: $t('trainNew.taskSegmentation'), icon: '✂️' },
+		{ value: 'generation', label: $t('trainNew.taskGeneration'), icon: '✨' },
+		{ value: 'custom', label: $t('trainNew.taskCustom'), icon: '🔧' },
 	];
 </script>
 
 <div class="wizard-page">
-	<h2>新建训练</h2>
-	<p class="desc">配置训练参数，启动模型训练</p>
+	<h2>{$t('trainNew.title')}</h2>
+	<p class="desc">{$t('trainNew.desc')}</p>
 
 	<div class="stepper">
 		{#each steps as step, i}
@@ -384,10 +384,10 @@
 	<div class="step-content">
 		{#if currentStep === 0}
 			<div class="form-section">
-				<h3>实验名称</h3>
-				<input type="text" bind:value={name} placeholder="例如: iris-classification-v1" class="input" />
+				<h3>{$t('trainNew.experimentName')}</h3>
+				<input type="text" bind:value={name} placeholder={$t('trainNew.experimentNamePlaceholder')} class="input" />
 
-				<h3>任务类型</h3>
+				<h3>{$t('trainNew.taskType')}</h3>
 				<div class="task-grid">
 					{#each taskTypes as t}
 						<button class="task-card" class:selected={taskType === t.value} on:click={() => taskType = t.value as TaskType}>
@@ -397,7 +397,7 @@
 					{/each}
 				</div>
 
-				<h3>计算引擎</h3>
+				<h3>{$t('trainNew.computeEngine')}</h3>
 				<select bind:value={engineId} class="input">
 					{#each availableEngines as engine}
 						<option value={engine.id}>{engine.name}</option>
@@ -413,36 +413,36 @@
 
 		{:else if currentStep === 1}
 			<div class="form-section">
-				<h3>数据来源</h3>
+				<h3>{$t('trainNew.dataSource')}</h3>
 				<div class="source-mode-tabs">
 					<button class="source-tab" class:active={dataSourceMode === 'file'} on:click={() => dataSourceMode = 'file'}>
-						📁 选择文件
+						📁 {$t('trainNew.selectFile')}
 					</button>
 					<button class="source-tab" class:active={dataSourceMode === 'registered'} on:click={() => { dataSourceMode = 'registered'; loadRegisteredDatasets(); }}>
-						📦 已注册数据集
+						📦 {$t('trainNew.registeredDatasets')}
 					</button>
 				</div>
 
 				{#if dataSourceMode === 'file'}
-					<h3>数据路径</h3>
+					<h3>{$t('trainNew.dataPath')}</h3>
 					<div class="input-with-button">
-						<input type="text" bind:value={dataPath} placeholder="点击选择文件或目录" class="input" readonly />
-						<button class="btn-browse" on:click={selectDataFile}>选择文件</button>
-						<button class="btn-browse" on:click={selectDataDirectory}>选择目录</button>
+						<input type="text" bind:value={dataPath} placeholder={$t('trainNew.clickToSelect')} class="input" readonly />
+						<button class="btn-browse" on:click={selectDataFile}>{$t('trainNew.selectFileBtn')}</button>
+						<button class="btn-browse" on:click={selectDataDirectory}>{$t('trainNew.selectDirBtn')}</button>
 					</div>
 
-					<h3>数据格式</h3>
+					<h3>{$t('trainNew.dataFormat')}</h3>
 					<select bind:value={dataFormat} class="input">
 						<option value="csv">CSV</option>
 						<option value="json">JSON</option>
 						<option value="parquet">Parquet</option>
 					</select>
 				{:else}
-					<h3>选择已注册数据集</h3>
+					<h3>{$t('trainNew.selectRegisteredDataset')}</h3>
 					{#if registeredDatasets.length === 0}
 						<div class="empty-datasets">
-							<p>暂无已注册数据集</p>
-							<a href="/lab/data" class="link-btn">前往注册 →</a>
+							<p>{$t('trainNew.noRegisteredDatasets')}</p>
+							<a href="/lab/data" class="link-btn">{$t('trainNew.goRegister')} →</a>
 						</div>
 					{:else}
 						<div class="dataset-selector">
@@ -457,11 +457,11 @@
 										<span class="dataset-option-format">{ds.format.toUpperCase()}</span>
 									</div>
 									<div class="dataset-option-meta">
-										<span>{ds.rows.toLocaleString()} 行</span>
-										<span>{ds.columns} 列</span>
+										<span>{ds.rows.toLocaleString()} {$t('trainNew.rows')}</span>
+										<span>{ds.columns} {$t('trainNew.cols')}</span>
 										<span>{ds.memory_size_mb < 1 ? (ds.memory_size_mb * 1024).toFixed(1) + ' KB' : ds.memory_size_mb.toFixed(1) + ' MB'}</span>
 										{#if ds.has_missing_values}
-											<span class="missing-badge">有空值</span>
+											<span class="missing-badge">{$t('trainNew.hasMissingValues')}</span>
 										{/if}
 									</div>
 									{#if ds.tags.length > 0}
@@ -479,11 +479,11 @@
 
 				<div class="form-row">
 					<div class="form-field">
-						<label for="auto-f26">验证集比例</label>
+						<label for="auto-f26">{$t('trainNew.valSplit')}</label>
 						<input id="auto-f26" type="number" bind:value={validationSplit} min="0" max="1" step="0.05" class="input" />
 					</div>
 					<div class="form-field">
-						<label for="auto-f27">测试集比例</label>
+						<label for="auto-f27">{$t('trainNew.testSplit')}</label>
 						<input id="auto-f27" type="number" bind:value={testSplit} min="0" max="1" step="0.05" class="input" />
 					</div>
 				</div>
@@ -492,18 +492,18 @@
 					<div class="form-field">
 						<label class="checkbox-label">
 							<input type="checkbox" bind:checked={shuffle} />
-							随机打乱数据
+							{$t('trainNew.shuffleData')}
 						</label>
 					</div>
 					<div class="form-field">
-						<label for="auto-f28">随机种子</label>
-						<input id="auto-f28" type="number" bind:value={seed} class="input" placeholder="留空为随机" />
+						<label for="auto-f28">{$t('trainNew.randomSeed')}</label>
+						<input id="auto-f28" type="number" bind:value={seed} class="input" placeholder={$t('trainNew.randomSeedPlaceholder')} />
 					</div>
 				</div>
 
 				{#if datasetInfo}
-					<h3>列配置</h3>
-					<p class="hint-text">选择目标列（标签）和特征列。点击列名切换角色。</p>
+					<h3>{$t('trainNew.columnConfig')}</h3>
+					<p class="hint-text">{$t('trainNew.columnConfigHint')}</p>
 					<div class="column-grid">
 						{#each datasetInfo.column_names as col, i}
 							<button
@@ -533,58 +533,58 @@
 						{/each}
 					</div>
 					<div class="column-summary">
-						<span class="summary-tag target-tag">🎯 目标列: {targetColumn || '(未选择)'}</span>
-						<span class="summary-tag feature-tag">📊 特征列: {featureColumns.length} 个</span>
+						<span class="summary-tag target-tag">🎯 {$t('trainNew.targetCol')}: {targetColumn || $t('trainNew.notSelected')}</span>
+						<span class="summary-tag feature-tag">📊 {$t('trainNew.featureCols')}: {featureColumns.length} {$t('trainNew.countUnit')}</span>
 					</div>
 				{/if}
 
-				<h3>学习率调度器</h3>
+				<h3>{$t('trainNew.lrScheduler')}</h3>
 				<div class="form-field">
-					<label for="auto-f29">调度策略</label>
+					<label for="auto-f29">{$t('trainNew.schedulerStrategy')}</label>
 					<select id="auto-f29" bind:value={lrSchedulerType} class="input">
-						<option value="Constant">Constant (恒定学习率)</option>
-						<option value="Step">Step (阶梯衰减)</option>
-						<option value="Exponential">Exponential (指数衰减)</option>
-						<option value="CosineAnnealing">Cosine Annealing (余弦退火)</option>
-						<option value="Linear">Linear (线性衰减)</option>
+						<option value="Constant">Constant ({$t('trainNew.constantLr')})</option>
+						<option value="Step">Step ({$t('trainNew.stepDecay')})</option>
+						<option value="Exponential">Exponential ({$t('trainNew.expDecay')})</option>
+						<option value="CosineAnnealing">Cosine Annealing ({$t('trainNew.cosineAnnealing')})</option>
+						<option value="Linear">Linear ({$t('trainNew.linearDecay')})</option>
 					</select>
 				</div>
 
 				{#if lrSchedulerType === 'Step'}
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f30">步长 (Step Size)</label>
+							<label for="auto-f30">{$t('trainNew.stepSize')}</label>
 							<input id="auto-f30" type="number" bind:value={stepSize} min="1" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f31">衰减因子 (Gamma)</label>
+							<label for="auto-f31">{$t('trainNew.gamma')}</label>
 							<input id="auto-f31" type="number" bind:value={stepGamma} min="0" max="1" step="0.01" class="input" />
 						</div>
 					</div>
 				{:else if lrSchedulerType === 'Exponential'}
 					<div class="form-field">
-						<label for="auto-f32">衰减因子 (Gamma)</label>
+						<label for="auto-f32">{$t('trainNew.gamma')}</label>
 						<input id="auto-f32" type="number" bind:value={expGamma} min="0" max="1" step="0.001" class="input" />
 					</div>
 				{:else if lrSchedulerType === 'CosineAnnealing'}
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f33">最小学习率</label>
+							<label for="auto-f33">{$t('trainNew.minLr')}</label>
 							<input id="auto-f33" type="number" bind:value={cosineMinLr} min="0" step="0.00001" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f34">迭代次数</label>
+							<label for="auto-f34">{$t('trainNew.numIterations')}</label>
 							<input id="auto-f34" type="number" bind:value={cosineNumIters} min="1" class="input" />
 						</div>
 					</div>
 				{:else if lrSchedulerType === 'Linear'}
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f35">最终学习率</label>
+							<label for="auto-f35">{$t('trainNew.finalLr')}</label>
 							<input id="auto-f35" type="number" bind:value={linearFinalLr} min="0" step="0.00001" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f36">迭代次数</label>
+							<label for="auto-f36">{$t('trainNew.numIterations')}</label>
 							<input id="auto-f36" type="number" bind:value={linearNumIters} min="1" class="input" />
 						</div>
 					</div>
@@ -593,7 +593,7 @@
 
 		{:else if currentStep === 2}
 			<div class="form-section">
-				<h3>模型架构</h3>
+				<h3>{$t('trainNew.modelArchitecture')}</h3>
 				<div class="model-grid">
 					{#each modelOptions as opt}
 						<button class="model-card" class:selected={modelId === opt.value} on:click={() => modelId = opt.value}>
@@ -604,42 +604,42 @@
 				</div>
 
 				{#if modelId === 'cnn'}
-					<h3>CNN 输入配置</h3>
+					<h3>{$t('trainNew.cnnInputConfig')}</h3>
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f37">输入通道数</label>
+							<label for="auto-f37">{$t('trainNew.inputChannels')}</label>
 							<input id="auto-f37" type="number" bind:value={cnnInputChannels} min="1" max="4" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f38">图像高度</label>
+							<label for="auto-f38">{$t('trainNew.imageHeight')}</label>
 							<input id="auto-f38" type="number" bind:value={cnnInputHeight} min="1" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f39">图像宽度</label>
+							<label for="auto-f39">{$t('trainNew.imageWidth')}</label>
 							<input id="auto-f39" type="number" bind:value={cnnInputWidth} min="1" class="input" />
 						</div>
 					</div>
 				{/if}
 
-				<h3>训练超参数</h3>
+				<h3>{$t('trainNew.trainingHparams')}</h3>
 				<div class="form-row">
 					<div class="form-field">
-						<label for="auto-f40">训练轮数 (Epochs)</label>
+						<label for="auto-f40">{$t('trainNew.epochs')}</label>
 						<input id="auto-f40" type="number" bind:value={epochs} min="1" class="input" />
 					</div>
 					<div class="form-field">
-						<label for="auto-f41">批大小 (Batch Size)</label>
+						<label for="auto-f41">{$t('trainNew.batchSize')}</label>
 						<input id="auto-f41" type="number" bind:value={batchSize} min="1" class="input" />
 					</div>
 				</div>
 
 				<div class="form-row">
 					<div class="form-field">
-						<label for="auto-f42">学习率</label>
+						<label for="auto-f42">{$t('trainNew.learningRate')}</label>
 						<input id="auto-f42" type="number" bind:value={learningRate} min="0" step="0.0001" class="input" />
 					</div>
 					<div class="form-field">
-						<label for="auto-f43">优化器</label>
+						<label for="auto-f43">{$t('trainNew.optimizer')}</label>
 						<select id="auto-f43" bind:value={optimizerType} class="input">
 							<option value="Adam">Adam</option>
 							<option value="AdamW">AdamW</option>
@@ -650,7 +650,7 @@
 
 				<div class="form-row">
 					<div class="form-field">
-						<label for="auto-f44">损失函数</label>
+						<label for="auto-f44">{$t('trainNew.lossFunction')}</label>
 						<select id="auto-f44" bind:value={lossFunction} class="input">
 							<option value="cross_entropy">Cross Entropy</option>
 							<option value="mse">MSE</option>
@@ -658,10 +658,10 @@
 						</select>
 					</div>
 					<div class="form-field">
-						<label for="auto-f45">计算后端</label>
+						<label for="auto-f45">{$t('trainNew.computeBackend')}</label>
 						<select id="auto-f45" bind:value={computeBackend} class="input">
 							<option value="cpu">CPU</option>
-							<option value="wgpu">WGPU (GPU 通用)</option>
+							<option value="wgpu">WGPU ({$t('trainNew.gpuGeneral')})</option>
 							<option value="metal">Metal (Apple GPU)</option>
 							<option value="cuda">CUDA (NVIDIA GPU)</option>
 							<option value="rocm">ROCm (AMD GPU)</option>
@@ -670,42 +670,42 @@
 				</div>
 
 				<div class="form-field">
-					<label for="auto-f46">检查点间隔 (留空不保存)</label>
-					<input id="auto-f46" type="number" bind:value={checkpointInterval} min="1" class="input" placeholder="每 N 轮保存" />
+					<label for="auto-f46">{$t('trainNew.checkpointInterval')}</label>
+					<input id="auto-f46" type="number" bind:value={checkpointInterval} min="1" class="input" placeholder={$t('trainNew.checkpointIntervalPlaceholder')} />
 				</div>
 
 				<h3>Early Stopping</h3>
 				<div class="form-field">
 					<label class="checkbox-label">
 						<input type="checkbox" bind:checked={enableEarlyStopping} />
-						启用 Early Stopping
+						{$t('trainNew.enableEarlyStopping')}
 					</label>
 				</div>
 
 				{#if enableEarlyStopping}
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f47">监控指标</label>
+							<label for="auto-f47">{$t('trainNew.monitorMetric')}</label>
 							<select id="auto-f47" bind:value={earlyStoppingMetric} class="input">
 								<option value="loss">Loss</option>
 								<option value="accuracy">Accuracy</option>
 							</select>
 						</div>
 						<div class="form-field">
-							<label for="auto-f48">模式</label>
+							<label for="auto-f48">{$t('trainNew.mode')}</label>
 							<select id="auto-f48" bind:value={earlyStoppingMode} class="input">
-								<option value="min">Min (指标越小越好)</option>
-								<option value="max">Max (指标越大越好)</option>
+								<option value="min">Min ({$t('trainNew.lowerBetter')})</option>
+								<option value="max">Max ({$t('trainNew.higherBetter')})</option>
 							</select>
 						</div>
 					</div>
 					<div class="form-row">
 						<div class="form-field">
-							<label for="auto-f49">耐心值 (Patience)</label>
+							<label for="auto-f49">{$t('trainNew.patience')}</label>
 							<input id="auto-f49" type="number" bind:value={earlyStoppingPatience} min="1" class="input" />
 						</div>
 						<div class="form-field">
-							<label for="auto-f50">最小变化量 (Min Delta)</label>
+							<label for="auto-f50">{$t('trainNew.minDelta')}</label>
 							<input id="auto-f50" type="number" bind:value={earlyStoppingMinDelta} min="0" step="0.0001" class="input" />
 						</div>
 					</div>
@@ -714,62 +714,62 @@
 
 		{:else if currentStep === 3}
 			<div class="form-section">
-				<h3>配置确认</h3>
+				<h3>{$t('trainNew.configConfirm')}</h3>
 				<div class="summary-grid">
 					<div class="summary-item">
-						<span class="summary-label">实验名称</span>
+						<span class="summary-label">{$t('trainNew.experimentName')}</span>
 						<span class="summary-value">{name}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">任务类型</span>
+						<span class="summary-label">{$t('trainNew.taskType')}</span>
 						<span class="summary-value">{taskTypes.find(t => t.value === taskType)?.label || taskType}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">模型</span>
+						<span class="summary-label">{$t('trainNew.model')}</span>
 						<span class="summary-value">{modelOptions.find(m => m.value === modelId)?.label || modelId}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">数据路径</span>
-						<span class="summary-value">{dataPath || '(未指定)'}</span>
+						<span class="summary-label">{$t('trainNew.dataPath')}</span>
+						<span class="summary-value">{dataPath || $t('trainNew.notSpecified')}</span>
 					</div>
 					{#if targetColumn}
 						<div class="summary-item">
-							<span class="summary-label">目标列</span>
+							<span class="summary-label">{$t('trainNew.targetCol')}</span>
 							<span class="summary-value">{targetColumn}</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-label">特征列数</span>
+							<span class="summary-label">{$t('trainNew.featureColsCount')}</span>
 							<span class="summary-value">{featureColumns.length}</span>
 						</div>
 					{/if}
 					{#if modelId === 'cnn'}
 						<div class="summary-item">
-							<span class="summary-label">CNN 输入</span>
+							<span class="summary-label">{$t('trainNew.cnnInput')}</span>
 							<span class="summary-value">{cnnInputChannels}x{cnnInputHeight}x{cnnInputWidth}</span>
 						</div>
 					{/if}
 					<div class="summary-item">
-						<span class="summary-label">训练轮数</span>
+						<span class="summary-label">{$t('trainNew.epochs')}</span>
 						<span class="summary-value">{epochs}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">批大小</span>
+						<span class="summary-label">{$t('trainNew.batchSize')}</span>
 						<span class="summary-value">{batchSize}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">学习率</span>
+						<span class="summary-label">{$t('trainNew.learningRate')}</span>
 						<span class="summary-value">{learningRate}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">优化器</span>
+						<span class="summary-label">{$t('trainNew.optimizer')}</span>
 						<span class="summary-value">{optimizerType}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">损失函数</span>
+						<span class="summary-label">{$t('trainNew.lossFunction')}</span>
 						<span class="summary-value">{lossFunction}</span>
 					</div>
 					<div class="summary-item">
-						<span class="summary-label">计算后端</span>
+						<span class="summary-label">{$t('trainNew.computeBackend')}</span>
 						<span class="summary-value">{computeBackend.toUpperCase()}</span>
 					</div>
 					{#if enableEarlyStopping}
@@ -789,19 +789,19 @@
 
 	<div class="actions">
 		{#if currentStep > 0}
-			<button class="btn btn-secondary" on:click={prevStep}>上一步</button>
+			<button class="btn btn-secondary" on:click={prevStep}>{$t('trainNew.prevStep')}</button>
 		{:else}
-			<a href="/lab" class="btn btn-secondary">取消</a>
+			<a href="/lab" class="btn btn-secondary">{$t('trainNew.cancel')}</a>
 		{/if}
 		<div class="spacer"></div>
 		{#if getValidationMessage()}
 			<span class="validation-error">{getValidationMessage()}</span>
 		{/if}
 		{#if currentStep < steps.length - 1}
-			<button class="btn btn-primary" disabled={!canProceed()} on:click={nextStep}>下一步</button>
+			<button class="btn btn-primary" disabled={!canProceed()} on:click={nextStep}>{$t('trainNew.nextStep')}</button>
 		{:else}
 			<button class="btn btn-launch" disabled={submitting} on:click={submit}>
-				{submitting ? '启动中...' : '🚀 启动训练'}
+				{submitting ? $t('trainNew.launching') : `🚀 ${$t('trainNew.launchTraining')}`}
 			</button>
 		{/if}
 	</div>

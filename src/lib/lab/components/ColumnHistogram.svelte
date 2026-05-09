@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, afterUpdate, createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let columnName: string = '';
   export let values: number[] = [];
@@ -119,14 +120,14 @@
     ctx.fillStyle = colors.text;
     ctx.font = '11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(columnName || '数值分布', width / 2, height - 2);
+    ctx.fillText(columnName || $t('chart.numericDist'), width / 2, height - 2);
 
     if (localSelectedRange) {
       ctx.fillStyle = colors.barSelected;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(
-        `选中: ${localSelectedRange[0].toFixed(1)} – ${localSelectedRange[1].toFixed(1)}`,
+        $t('chart.rangeSelected', { from: localSelectedRange[0].toFixed(1), to: localSelectedRange[1].toFixed(1) }),
         width / 2,
         padding.top - 2
       );
@@ -156,7 +157,7 @@
       tooltip = {
         x: mx + 10,
         y: my - 10,
-        text: `${start.toFixed(2)} – ${end.toFixed(2)}: ${count}条`,
+        text: `${start.toFixed(2)} – ${end.toFixed(2)}: ${count}${$t('chart.items')}`,
       };
     } else {
       tooltip = null;
@@ -219,7 +220,7 @@
     on:click={handleClick}
     on:dblclick={handleDblClick}
     role="img"
-    aria-label="{columnName} 分布直方图"
+    aria-label="{columnName} {$t('chart.histogram')}"
   ></canvas>
   {#if tooltip}
     <div
@@ -230,7 +231,7 @@
     </div>
   {/if}
   {#if localSelectedRange}
-    <button class="clear-selection" on:click={handleDblClick} title="清除选区">✕</button>
+    <button class="clear-selection" on:click={handleDblClick} title={$t('chart.clearSelection')}>✕</button>
   {/if}
 </div>
 

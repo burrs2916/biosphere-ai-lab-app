@@ -1,8 +1,9 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { getLabClient } from './plugins';
 import { onLabEvent } from '../adapter/events';
 import { toastStore } from './toast';
 import { taskManagerStore } from './taskManager';
+import { i18n } from '$lib/i18n';
 import { translateError } from '../utils/errorMessages';
 import type { DatasetInfo, DataPreview, DataLoadConfig, DatasetRegistration, DatasetSummary, ColumnProfile, LabEvent } from '../adapter/types';
 
@@ -98,7 +99,7 @@ function createDatasetRegistryStore() {
     switch (event.type) {
       case 'DatasetRegistered': {
         const p = event.payload;
-        toastStore.success(`数据集 "${p.name}" 注册成功 (${p.rows}行 x ${p.columns}列, ${p.format})`);
+        toastStore.success(get(i18n.t)('dataset.registerSuccess', { name: p.name, rows: p.rows, columns: p.columns, format: p.format }));
         break;
       }
       case 'DatasetDeleted': {
@@ -108,7 +109,7 @@ function createDatasetRegistryStore() {
           datasets: s.datasets.filter((d) => d.id !== p.dataset_id),
           currentDataset: s.currentDataset?.id === p.dataset_id ? null : s.currentDataset,
         }));
-        toastStore.info('数据集已删除');
+        toastStore.info(get(i18n.t)('dataset.deleted'));
         break;
       }
       case 'DatasetArchived': {
@@ -119,7 +120,7 @@ function createDatasetRegistryStore() {
             d.id === p.dataset_id ? { ...d, status: 'archived' as const } : d
           ),
         }));
-        toastStore.info('数据集已归档');
+        toastStore.info(get(i18n.t)('dataset.archivedStore'));
         break;
       }
       case 'DatasetRestored': {
@@ -130,7 +131,7 @@ function createDatasetRegistryStore() {
             d.id === p.dataset_id ? { ...d, status: 'active' as const } : d
           ),
         }));
-        toastStore.success('数据集已恢复');
+        toastStore.success(get(i18n.t)('dataset.restored'));
         break;
       }
       case 'DownloadProgress': {
@@ -148,7 +149,7 @@ function createDatasetRegistryStore() {
       case 'DedupProgress': {
         const p = event.payload;
         const pct = Math.round(p.progress * 100);
-        const msg = `${p.message} (${p.processed}/${p.total}, 发现${p.duplicates_found}个重复)`;
+        const msg = get(i18n.t)('dataset.dedupProgress', { message: p.message, processed: p.processed, total: p.total, duplicates: p.duplicates_found });
         const existing = findNotificationByTask(p.task_id);
         if (existing) {
           updateNotification(existing, msg, pct);
@@ -171,12 +172,12 @@ function createDatasetRegistryStore() {
       }
       case 'OperationCompleted': {
         const p = event.payload;
-        toastStore.success(`${p.operation} 完成`);
+        toastStore.success(get(i18n.t)('dataset.operationComplete', { operation: p.operation }));
         break;
       }
       case 'OperationFailed': {
         const p = event.payload;
-        toastStore.error(`${p.operation} 失败: ${p.error}`);
+        toastStore.error(get(i18n.t)('dataset.operationFailed', { operation: p.operation, error: p.error }));
         break;
       }
     }

@@ -9,6 +9,7 @@
 	import MetricsChart from '$lib/lab/components/MetricsChart.svelte';
 	import TrainingProgress from '$lib/lab/components/TrainingProgress.svelte';
 	import type { ExperimentDetail, ExperimentStatus, InferenceResult, EvaluationResult, MetricsTimeline, CheckpointInfo } from '$lib/lab/adapter/types';
+	import { t } from '$lib/i18n';
 
 	let detail: ExperimentDetail | null = null;
 	let loading = true;
@@ -271,11 +272,11 @@
 	}
 
 	function duration(start: string, end: string | null): string {
-		if (!end) return '进行中...';
+		if (!end) return $t('experimentDetail.ongoing');
 		const ms = new Date(end).getTime() - new Date(start).getTime();
-		if (ms < 60000) return `${Math.floor(ms / 1000)} 秒`;
-		if (ms < 3600000) return `${Math.floor(ms / 60000)} 分钟`;
-		return `${(ms / 3600000).toFixed(1)} 小时`;
+		if (ms < 60000) return `${Math.floor(ms / 1000)} ${$t('experimentDetail.seconds')}`;
+		if (ms < 3600000) return `${Math.floor(ms / 60000)} ${$t('experimentDetail.minutes')}`;
+		return `${(ms / 3600000).toFixed(1)} ${$t('experimentDetail.hours')}`;
 	}
 
 	async function openRegisterModal() {
@@ -311,7 +312,7 @@
 	async function registerModel() {
 		if (!detail) return;
 		if (!registerName.trim() || !registerVersion.trim()) {
-			registerError = '请填写模型名称和版本';
+			registerError = $t('models.nameVersionRequired');
 			return;
 		}
 		registering = true;
@@ -321,7 +322,7 @@
 			showRegisterModal = false;
 			await experimentStore.refresh();
 		} catch (e: any) {
-			registerError = e?.message || '注册失败';
+			registerError = e?.message || $t('models.registerFailed');
 		} finally {
 			registering = false;
 		}
@@ -370,13 +371,13 @@
 				.map(Number)
 				.filter(v => !isNaN(v));
 			if (values.length === 0) {
-				inferenceError = '请输入有效的数值，用逗号或空格分隔';
+				inferenceError = $t('experimentDetail.invalidNumericInput');
 				return;
 			}
 			const client = getLabClient();
 			inferenceResult = await client.runInference(experimentId, [values]);
 		} catch (e: any) {
-			inferenceError = e?.message || '推理失败';
+			inferenceError = e?.message || $t('models.serveFailed');
 		} finally {
 			inferenceRunning = false;
 		}
@@ -397,7 +398,7 @@
 			}
 			loadEvalHistory();
 		} catch (e: any) {
-			evalError = e?.message || '评估失败';
+			evalError = e?.message || $t('experimentDetail.evalFailed');
 		} finally {
 			evalRunning = false;
 		}
@@ -446,7 +447,7 @@
 				}
 			}
 			if (inputs.length === 0) {
-				batchInferenceError = '请输入有效的数据，每行一组特征值';
+				batchInferenceError = $t('experimentDetail.invalidBatchData');
 				return;
 			}
 			const client = getLabClient();
@@ -461,7 +462,7 @@
 			}
 			batchInferenceResults = results;
 		} catch (e: any) {
-			batchInferenceError = e?.message || '批量推理失败';
+			batchInferenceError = e?.message || $t('experimentDetail.batchInferenceFailed');
 		} finally {
 			batchInferenceRunning = false;
 		}
@@ -569,30 +570,30 @@
 	function exportExperimentSummary() {
 		if (!detail) return;
 		const lines: string[] = [];
-		lines.push(`# 实验报告: ${detail.name}`);
+		lines.push(`# ${$t('experimentDetail.reportTitle')}: ${detail.name}`);
 		lines.push('');
 		lines.push(`- **ID**: ${detail.id}`);
-		lines.push(`- **状态**: ${detail.status}`);
-		lines.push(`- **任务类型**: ${detail.task_type}`);
-		lines.push(`- **创建时间**: ${formatTime(detail.created_at)}`);
-		lines.push(`- **完成时间**: ${formatTime(detail.completed_at) || '进行中'}`);
-		lines.push(`- **耗时**: ${duration(detail.created_at, detail.completed_at)}`);
+		lines.push(`- **${$t('experimentDetail.statusLabel')}**: ${detail.status}`);
+		lines.push(`- **${$t('experimentDetail.taskTypeLabel')}**: ${detail.task_type}`);
+		lines.push(`- **${$t('experimentDetail.createdLabel')}**: ${formatTime(detail.created_at)}`);
+		lines.push(`- **${$t('experimentDetail.completedLabel')}**: ${formatTime(detail.completed_at) || $t('experimentDetail.ongoing')}`);
+		lines.push(`- **${$t('experimentDetail.durationLabel')}**: ${duration(detail.created_at, detail.completed_at)}`);
 		if (detail.description) {
-			lines.push(`- **描述**: ${detail.description}`);
+			lines.push(`- **${$t('experimentDetail.descLabel')}**: ${detail.description}`);
 		}
 		lines.push('');
-		lines.push('## 训练配置');
+		lines.push(`## ${$t('experimentDetail.trainingConfig')}`);
 		lines.push('');
-		lines.push(`- **引擎**: ${detail.config.engine_id}`);
+		lines.push(`- **${$t('experimentDetail.engineLabel')}**: ${detail.config.engine_id}`);
 		lines.push(`- **Epochs**: ${detail.config.epochs}`);
-		lines.push(`- **学习率**: ${detail.config.learning_rate}`);
+		lines.push(`- **${$t('experimentDetail.learningRateLabel')}**: ${detail.config.learning_rate}`);
 		lines.push(`- **Batch Size**: ${detail.config.batch_size}`);
-		lines.push(`- **优化器**: ${optimizerName(detail.config.optimizer)}`);
+		lines.push(`- **${$t('experimentDetail.optimizerLabel')}**: ${optimizerName(detail.config.optimizer)}`);
 		if (detail.config.lr_scheduler) {
-			lines.push(`- **学习率调度器**: ${lrSchedulerName(detail.config.lr_scheduler)}`);
+			lines.push(`- **${$t('experimentDetail.lrSchedulerLabel')}**: ${lrSchedulerName(detail.config.lr_scheduler)}`);
 		}
 		lines.push('');
-		lines.push('## 超参数');
+		lines.push(`## ${$t('experimentDetail.hyperparams')}`);
 		lines.push('');
 		const skipKeys = ['_notes', 'engine_id', 'epochs', 'learning_rate', 'batch_size', 'optimizer', 'lr_scheduler'];
 		for (const [key, value] of Object.entries(detail.params)) {
@@ -601,18 +602,18 @@
 			}
 		}
 		lines.push('');
-		lines.push('## 指标');
+		lines.push(`## ${$t('experimentDetail.metrics')}`);
 		lines.push('');
 		for (const [name, series] of Object.entries(metricsTimeline.series)) {
 			if (series.values && series.values.length > 0) {
 				const last = series.values[series.values.length - 1].value;
 				const best = series.values.reduce((a: number, b) => name.includes('loss') ? Math.min(a, b.value) : Math.max(a, b.value), series.values[0].value);
-				lines.push(`- **${name}**: 最终=${last.toFixed(6)}, 最佳=${best.toFixed(6)} (${series.values.length} 步)`);
+				lines.push(`- **${name}**: ${$t('experimentDetail.final')}=${last.toFixed(6)}, ${$t('experimentDetail.best')}=${best.toFixed(6)} (${series.values.length} ${$t('experimentDetail.steps')})`);
 			}
 		}
 		if (notesText.trim()) {
 			lines.push('');
-			lines.push('## 笔记');
+			lines.push(`## ${$t('experimentDetail.notes')}`);
 			lines.push('');
 			lines.push(notesText);
 		}
@@ -672,7 +673,7 @@
 			const client = getLabClient();
 			exportResult = await client.exportModel(experimentId, exportFormat, null, null, []);
 		} catch (e: any) {
-			exportError = e?.toString() || '导出失败';
+			exportError = e?.toString() || $t('experimentDetail.exportFailed');
 		} finally {
 			exportRunning = false;
 		}
@@ -707,12 +708,12 @@
 	function buildArtifactTree(artifacts: any[]): ArtifactGroup[] {
 		const groups: Map<string, ArtifactGroup> = new Map();
 		const typeConfig: Record<string, { icon: string; label: string }> = {
-			model: { icon: '🧠', label: '模型文件' },
-			checkpoint: { icon: '💾', label: '检查点' },
-			log: { icon: '📄', label: '日志文件' },
-			metric: { icon: '📊', label: '指标数据' },
-			config: { icon: '⚙️', label: '配置文件' },
-			other: { icon: '📁', label: '其他文件' },
+			model: { icon: '🧠', label: $t('experimentDetail.artifactModel') },
+			checkpoint: { icon: '💾', label: $t('experimentDetail.artifactCheckpoint') },
+			log: { icon: '📄', label: $t('experimentDetail.artifactLog') },
+			metric: { icon: '📊', label: $t('experimentDetail.artifactMetric') },
+			config: { icon: '⚙️', label: $t('experimentDetail.artifactConfig') },
+			other: { icon: '📁', label: $t('experimentDetail.artifactOther') },
 		};
 
 		for (const a of artifacts) {
@@ -756,7 +757,7 @@
 			const decoder = new TextDecoder('utf-8');
 			artifactPreviewContent = decoder.decode(new Uint8Array(bytes));
 		} catch (e: any) {
-			artifactPreviewError = e.message || '无法加载文件内容';
+			artifactPreviewError = e.message || $t('experimentDetail.cannotLoadFile');
 		} finally {
 			artifactPreviewLoading = false;
 		}
@@ -804,11 +805,11 @@
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载实验详情...</p>
+			<p>{$t('experimentDetail.loadingDetail')}</p>
 		</div>
 	{:else if detail}
 		<div class="detail-header">
-			<a href="/lab" class="back-link">← 返回实验列表</a>
+			<a href="/lab" class="back-link">← {$t('experimentDetail.backToList')}</a>
 			<div class="header-content">
 				<div class="header-left">
 					<h1 class="exp-title">{detail.name}</h1>
@@ -820,34 +821,34 @@
 							<span class="heartbeat-indicator" class:heartbeat-stale={heartbeatElapsed > 30} class:heartbeat-dead={heartbeatElapsed > 60}>
 								<span class="heartbeat-dot"></span>
 								{#if lastHeartbeat}
-									{heartbeatElapsed <= 30 ? '活跃' : `${heartbeatElapsed}s 无响应`}
+									{heartbeatElapsed <= 30 ? $t('experimentDetail.active') : `${heartbeatElapsed}s ${$t('experimentDetail.noResponse')}`}
 								{:else}
-									等待心跳...
+									{$t('experimentDetail.waitingHeartbeat')}
 								{/if}
 							</span>
 						{/if}
 						<span class="meta-item">{detail.task_type}</span>
 						<span class="meta-item">{detail.id}</span>
-						<span class="meta-item">创建: {formatTime(detail.created_at)}</span>
-						<span class="meta-item">耗时: {duration(detail.created_at, detail.completed_at)}</span>
+						<span class="meta-item">{$t('experimentDetail.created')}: {formatTime(detail.created_at)}</span>
+						<span class="meta-item">{$t('experimentDetail.duration')}: {duration(detail.created_at, detail.completed_at)}</span>
 					</div>
 					{#if detail.description || showEditDescription}
 						<div class="description-section">
 							{#if showEditDescription}
-								<textarea bind:value={editDescription} class="desc-textarea" placeholder="输入实验描述..."></textarea>
+								<textarea bind:value={editDescription} class="desc-textarea" placeholder={$t('experimentDetail.enterDesc')}></textarea>
 								<div class="desc-actions">
 									<button class="btn-sm btn-save" on:click={saveDescription} disabled={descriptionSaving}>
-										{descriptionSaving ? '保存中...' : '保存'}
+										{descriptionSaving ? $t('experimentDetail.saving') : $t('experimentDetail.save')}
 									</button>
-									<button class="btn-sm btn-cancel" on:click={() => showEditDescription = false}>取消</button>
+									<button class="btn-sm btn-cancel" on:click={() => showEditDescription = false}>{$t('confirm.cancel')}</button>
 								</div>
 							{:else}
 								<p class="description-text">{detail.description}</p>
-								<button class="btn-sm btn-edit" on:click={() => { editDescription = detail?.description || ''; showEditDescription = true; }}>编辑描述</button>
+								<button class="btn-sm btn-edit" on:click={() => { editDescription = detail?.description || ''; showEditDescription = true; }}>{$t('experimentDetail.editDesc')}</button>
 							{/if}
 						</div>
 					{:else}
-						<button class="btn-sm btn-edit" on:click={() => { editDescription = ''; showEditDescription = true; }}>+ 添加描述</button>
+						<button class="btn-sm btn-edit" on:click={() => { editDescription = ''; showEditDescription = true; }}>+ {$t('experimentDetail.addDesc')}</button>
 					{/if}
 					{#if detail.tags.length > 0}
 						<div class="tags">
@@ -859,8 +860,8 @@
 
 					<hr class="section-divider" />
 
-					<h3 class="subsection-title">批量推理</h3>
-					<p class="inference-hint">每行输入一组特征值（用逗号或空格分隔），批量运行模型推理。</p>
+					<h3 class="subsection-title">{$t('experimentDetail.batchInference')}</h3>
+					<p class="inference-hint">{$t('experimentDetail.batchInferenceHint')}</p>
 
 					<div class="inference-form">
 						<textarea
@@ -874,7 +875,7 @@
 							on:click={runBatchInference}
 							disabled={batchInferenceRunning || !batchInferenceData.trim()}
 						>
-							{batchInferenceRunning ? '推理中...' : '📦 批量推理'}
+							{batchInferenceRunning ? $t('experimentDetail.inferring') : `📦 ${$t('experimentDetail.batchInference')}`}
 						</button>
 					</div>
 
@@ -887,13 +888,13 @@
 
 					{#if batchInferenceResults.length > 0}
 						<div class="inference-result">
-							<h4>批量推理结果 ({batchInferenceResults.length} 条)</h4>
+							<h4>{$t('experimentDetail.batchResults')} ({batchInferenceResults.length})</h4>
 							<div class="batch-results-table">
 								<div class="batch-table-header">
 									<span>#</span>
-									<span>输入</span>
-									<span>预测类别</span>
-									<span>预测值</span>
+									<span>{$t('experimentDetail.input')}</span>
+									<span>{$t('experimentDetail.predictedClass')}</span>
+									<span>{$t('experimentDetail.predictedValue')}</span>
 								</div>
 								{#each batchInferenceResults as item, i}
 									<div class="batch-table-row">
@@ -909,24 +910,24 @@
 				</div>
 				<div class="header-right">
 					{#if detail.status === 'running'}
-						<button class="pause-btn" on:click={async () => { await experimentStore.pauseTraining(experimentId); }}>⏸ 暂停</button>
-						<button class="stop-btn" on:click={async () => { await experimentStore.stopTraining(experimentId); }}>⏹ 停止训练</button>
+						<button class="pause-btn" on:click={async () => { await experimentStore.pauseTraining(experimentId); }}>⏸ {$t('experimentDetail.pause')}</button>
+						<button class="stop-btn" on:click={async () => { await experimentStore.stopTraining(experimentId); }}>⏹ {$t('experimentDetail.stopTraining')}</button>
 					{/if}
 					{#if detail.status === 'paused'}
-						<button class="resume-btn" on:click={async () => { await experimentStore.resumeTraining(experimentId); }}>▶ 恢复训练</button>
-						<button class="stop-btn" on:click={async () => { await experimentStore.stopTraining(experimentId); }}>⏹ 停止训练</button>
+						<button class="resume-btn" on:click={async () => { await experimentStore.resumeTraining(experimentId); }}>▶ {$t('experimentDetail.resumeTraining')}</button>
+						<button class="stop-btn" on:click={async () => { await experimentStore.stopTraining(experimentId); }}>⏹ {$t('experimentDetail.stopTraining')}</button>
 					{/if}
 					{#if detail.status === 'failed' || detail.status === 'cancelled'}
-						<button class="resume-btn" on:click={openCheckpointResumeModal}>🔄 从检查点恢复</button>
+						<button class="resume-btn" on:click={openCheckpointResumeModal}>🔄 {$t('experimentDetail.resumeFromCheckpoint')}</button>
 					{/if}
 					{#if detail.status === 'completed' && !detail.model_id}
-						<button class="register-btn" on:click={openRegisterModal}>📦 注册模型</button>
+						<button class="register-btn" on:click={openRegisterModal}>📦 {$t('experimentDetail.registerModel')}</button>
 					{/if}
 					{#if detail.status !== 'running' && detail.status !== 'paused' && detail.status !== 'archived'}
-						<button class="archive-btn" on:click={archiveExperiment}>📁 归档</button>
+						<button class="archive-btn" on:click={archiveExperiment}>📁 {$t('experimentDetail.archive')}</button>
 					{/if}
 					{#if detail.status === 'archived'}
-						<button class="restore-btn" on:click={restoreExperiment}>♻️ 恢复</button>
+						<button class="restore-btn" on:click={restoreExperiment}>♻️ {$t('experimentDetail.restore')}</button>
 					{/if}
 				</div>
 			</div>
@@ -941,7 +942,7 @@
 
 		{#if detail.status === 'running' || detail.status === 'paused'}
 			{#if detail.status === 'paused'}
-				<div class="paused-banner">⏸ 训练已暂停 — 点击上方「恢复训练」继续</div>
+				<div class="paused-banner">⏸ {$t('experimentDetail.pausedHint')}</div>
 			{/if}
 			<div class="progress-section">
 				<TrainingProgress sessionId={experimentId} />
@@ -949,15 +950,15 @@
 		{/if}
 
 		<div class="tab-bar">
-			<button class="tab-btn" class:active={activeTab === 'metrics'} on:click={() => activeTab = 'metrics'}>📈 指标</button>
-			<button class="tab-btn" class:active={activeTab === 'logs'} on:click={() => activeTab = 'logs'}>📋 日志</button>
-			<button class="tab-btn" class:active={activeTab === 'params'} on:click={() => activeTab = 'params'}>🔧 参数</button>
-			<button class="tab-btn" class:active={activeTab === 'config'} on:click={() => activeTab = 'config'}>⚙️ 配置</button>
-			<button class="tab-btn" class:active={activeTab === 'notes'} on:click={() => { activeTab = 'notes'; loadNotes(); }}>📝 笔记</button>
-			<button class="tab-btn" class:active={activeTab === 'artifacts'} on:click={() => activeTab = 'artifacts'}>📦 产物</button>
-			<button class="tab-btn" class:active={activeTab === 'environment'} on:click={() => activeTab = 'environment'}>🖥️ 环境</button>
+			<button class="tab-btn" class:active={activeTab === 'metrics'} on:click={() => activeTab = 'metrics'}>📈 {$t('experimentDetail.metrics')}</button>
+			<button class="tab-btn" class:active={activeTab === 'logs'} on:click={() => activeTab = 'logs'}>📋 {$t('experimentDetail.logs')}</button>
+			<button class="tab-btn" class:active={activeTab === 'params'} on:click={() => activeTab = 'params'}>🔧 {$t('experimentDetail.params')}</button>
+			<button class="tab-btn" class:active={activeTab === 'config'} on:click={() => activeTab = 'config'}>⚙️ {$t('experimentDetail.config')}</button>
+			<button class="tab-btn" class:active={activeTab === 'notes'} on:click={() => { activeTab = 'notes'; loadNotes(); }}>📝 {$t('experimentDetail.notes')}</button>
+			<button class="tab-btn" class:active={activeTab === 'artifacts'} on:click={() => activeTab = 'artifacts'}>📦 {$t('experimentDetail.artifacts')}</button>
+			<button class="tab-btn" class:active={activeTab === 'environment'} on:click={() => activeTab = 'environment'}>🖥️ {$t('experimentDetail.environment')}</button>
 			{#if detail.status === 'completed'}
-				<button class="tab-btn" class:active={activeTab === 'inference'} on:click={() => activeTab = 'inference'}>🔮 推理</button>
+				<button class="tab-btn" class:active={activeTab === 'inference'} on:click={() => activeTab = 'inference'}>🔮 {$t('experimentDetail.inference')}</button>
 			{/if}
 		</div>
 
@@ -966,39 +967,39 @@
 				<div class="metrics-section">
 					<div class="metrics-controls">
 						<label class="control-item">
-							<span>平滑系数 (EMA)</span>
+							<span>{$t('experimentDetail.smoothAlpha')}</span>
 							<input type="range" min="0" max="0.9" step="0.1" bind:value={metricsSmoothAlpha} />
 							<span class="control-value">{metricsSmoothAlpha.toFixed(1)}</span>
 						</label>
 						<label class="control-item">
-							<span>最大点数</span>
+							<span>{$t('experimentDetail.maxPoints')}</span>
 							<input type="range" min="100" max="2000" step="100" bind:value={metricsMaxPoints} />
 							<span class="control-value">{metricsMaxPoints}</span>
 						</label>
 						<button class="btn btn-sm" on:click={refreshMetrics} disabled={metricsLoading}>
-							{metricsLoading ? '加载中...' : '刷新'}
+							{metricsLoading ? $t('experimentDetail.loading') : $t('experimentDetail.refresh')}
 						</button>
 					</div>
 					{#if Object.keys(metricsTimeline.series).length > 0}
 						<MetricsChart
 							series={metricsTimeline.series}
 							height="400px"
-							title="训练指标"
+							title={$t('experimentDetail.trainingMetrics')}
 						/>
 					{:else if Object.keys(detail.metrics.series).length > 0}
 						<MetricsChart
 							series={detail.metrics.series}
 							height="400px"
-							title="训练指标"
+							title={$t('experimentDetail.trainingMetrics')}
 						/>
 					{:else}
 						<div class="empty-metrics">
-							<p>暂无指标数据</p>
+							<p>{$t('experimentDetail.noMetrics')}</p>
 						</div>
 					{/if}
 
 					<div class="metrics-summary">
-						<h3 class="subsection-title">指标概览</h3>
+						<h3 class="subsection-title">{$t('experimentDetail.metricsOverview')}</h3>
 						<div class="metrics-grid">
 							{#each Object.entries(detail.metrics.series) as [name, s]}
 								{@const values = s.values.map((v: any) => v.value)}
@@ -1014,13 +1015,13 @@
 										<span class="metric-value">{latest.toFixed(4)}</span>
 										<div class="metric-stats">
 											<span class="metric-stat best">
-												最佳: {bestVal !== null ? bestVal.toFixed(4) : '-'}
+												{$t('experimentDetail.best')}: {bestVal !== null ? bestVal.toFixed(4) : '-'}
 											</span>
 											<span class="metric-stat">
-												最小: {minVal !== null ? minVal.toFixed(4) : '-'}
+												{$t('experimentDetail.min')}: {minVal !== null ? minVal.toFixed(4) : '-'}
 											</span>
 											<span class="metric-stat">
-												最大: {maxVal !== null ? maxVal.toFixed(4) : '-'}
+												{$t('experimentDetail.max')}: {maxVal !== null ? maxVal.toFixed(4) : '-'}
 											</span>
 										</div>
 										<span class="metric-info">
@@ -1030,7 +1031,7 @@
 												</span>
 												·
 											{/if}
-											{values.length} 个数据点
+											{values.length} {$t('experimentDetail.dataPoints')}
 										</span>
 									{:else}
 										<span class="metric-value">-</span>
@@ -1044,23 +1045,23 @@
 				<div class="logs-section">
 					{#if $experimentLogs.get(experimentId)?.length}
 						<div class="logs-toolbar">
-							<span class="logs-count">共 {$experimentLogs.get(experimentId)?.length ?? 0} 条日志</span>
+							<span class="logs-count">{$t('experimentDetail.totalLogs', { count: $experimentLogs.get(experimentId)?.length ?? 0 })}</span>
 							<div class="logs-filters">
-								<button class="btn-small" class:active={logLevelFilter === 'all'} on:click={() => logLevelFilter = 'all'}>全部</button>
-								<button class="btn-small" class:active={logLevelFilter === 'error'} on:click={() => logLevelFilter = 'error'}>错误</button>
-								<button class="btn-small" class:active={logLevelFilter === 'warn'} on:click={() => logLevelFilter = 'warn'}>警告</button>
-								<button class="btn-small" class:active={logLevelFilter === 'info'} on:click={() => logLevelFilter = 'info'}>信息</button>
+								<button class="btn-small" class:active={logLevelFilter === 'all'} on:click={() => logLevelFilter = 'all'}>{$t('experimentDetail.all')}</button>
+								<button class="btn-small" class:active={logLevelFilter === 'error'} on:click={() => logLevelFilter = 'error'}>{$t('experimentDetail.error')}</button>
+								<button class="btn-small" class:active={logLevelFilter === 'warn'} on:click={() => logLevelFilter = 'warn'}>{$t('experimentDetail.warn')}</button>
+								<button class="btn-small" class:active={logLevelFilter === 'info'} on:click={() => logLevelFilter = 'info'}>{$t('experimentDetail.info')}</button>
 							</div>
 							<label class="auto-scroll-label">
 								<input type="checkbox" bind:checked={autoScrollLogs} />
-								自动滚动
+								{$t('experimentDetail.autoScroll')}
 							</label>
 							<button class="btn-small" on:click={() => {
 								const logs = ($experimentLogs.get(experimentId) || [])
 									.filter((l: { level: string; message: string; timestamp: number }) => logLevelFilter === 'all' || l.level === logLevelFilter);
 								const text = logs.map((l: { timestamp: number; level: string; message: string }) => `[${new Date(l.timestamp).toLocaleTimeString()}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
 								navigator.clipboard.writeText(text);
-							}}>复制</button>
+							}}>{$t('experimentDetail.copy')}</button>
 						</div>
 						<div class="logs-container" bind:this={logsContainer}>
 							{#each ($experimentLogs.get(experimentId) || []).filter((l: { level: string }) => logLevelFilter === 'all' || l.level === logLevelFilter) as logEntry}
@@ -1072,13 +1073,13 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="empty-hint">暂无训练日志</p>
+						<p class="empty-hint">{$t('experimentDetail.noLogs')}</p>
 					{/if}
 				</div>
 			{:else if activeTab === 'params'}
 				<div class="params-section">
 					<div class="params-subsection">
-						<h3 class="subsection-title">标签</h3>
+						<h3 class="subsection-title">{$t('experimentDetail.tags')}</h3>
 						<div class="tags-management">
 							{#if detail.tags.length > 0}
 								<div class="tags-list">
@@ -1087,55 +1088,55 @@
 									{/each}
 								</div>
 							{:else}
-								<p class="empty-hint">暂无标签</p>
+								<p class="empty-hint">{$t('experimentDetail.noTags')}</p>
 							{/if}
 							<div class="add-tag-form">
 								<input
 									type="text"
 									bind:value={newTag}
-									placeholder="输入标签名称"
+									placeholder={$t('experimentDetail.enterTagName')}
 									class="input-sm"
 									on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
 								/>
 								<button class="btn-sm" on:click={addTag} disabled={tagAdding || !newTag.trim()}>
-									{tagAdding ? '...' : '+ 添加'}
+									{tagAdding ? '...' : `+ ${$t('experimentDetail.add')}`}
 								</button>
 							</div>
 						</div>
 					</div>
 
 					<div class="params-subsection">
-						<h3 class="subsection-title">分组</h3>
+						<h3 class="subsection-title">{$t('experimentDetail.group')}</h3>
 						{#if showEditGroup}
 							<div class="add-tag-form">
 								<input
 									type="text"
 									bind:value={editGroup}
-									placeholder="输入分组名称"
+									placeholder={$t('experimentDetail.enterGroupName')}
 									class="input-sm"
 									on:keydown={(e) => { if (e.key === 'Enter') saveGroup(); }}
 								/>
 								<button class="btn-sm btn-save" on:click={saveGroup} disabled={groupSaving}>
-									{groupSaving ? '...' : '保存'}
+									{groupSaving ? '...' : $t('experimentDetail.save')}
 								</button>
-								<button class="btn-sm" on:click={() => showEditGroup = false}>取消</button>
+								<button class="btn-sm" on:click={() => showEditGroup = false}>{$t('confirm.cancel')}</button>
 							</div>
 						{:else}
 							<div class="add-tag-form">
 								{#if detail.group}
 									<span class="tag">{detail.group}</span>
 								{:else}
-									<span class="empty-hint">未分组</span>
+									<span class="empty-hint">{$t('experimentDetail.ungrouped')}</span>
 								{/if}
 								<button class="btn-sm btn-edit" on:click={() => { editGroup = detail?.group || ''; showEditGroup = true; }}>
-									{detail.group ? '修改' : '设置分组'}
+									{detail.group ? $t('experimentDetail.modify') : $t('experimentDetail.setGroup')}
 								</button>
 							</div>
 						{/if}
 					</div>
 
 					<div class="params-subsection">
-						<h3 class="subsection-title">参数</h3>
+						<h3 class="subsection-title">{$t('experimentDetail.params')}</h3>
 						{#if Object.keys(detail.params).length > 0}
 							<div class="params-table">
 								{#each Object.entries(detail.params) as [key, value]}
@@ -1146,59 +1147,59 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="empty-hint">暂无参数记录</p>
+							<p class="empty-hint">{$t('experimentDetail.noParams')}</p>
 						{/if}
 						<div class="add-param-form">
 							<input
 								type="text"
 								bind:value={newParamKey}
-								placeholder="参数名"
+								placeholder={$t('experimentDetail.paramName')}
 								class="input-sm"
 							/>
 							<input
 								type="text"
 								bind:value={newParamValue}
-								placeholder="参数值 (支持 JSON)"
+								placeholder={$t('experimentDetail.paramValueJson')}
 								class="input-sm"
 								on:keydown={(e) => { if (e.key === 'Enter') addParam(); }}
 							/>
 							<button class="btn-sm" on:click={addParam} disabled={paramAdding || !newParamKey.trim()}>
-								{paramAdding ? '...' : '+ 添加'}
+								{paramAdding ? '...' : `+ ${$t('experimentDetail.add')}`}
 							</button>
 						</div>
 					</div>
 				</div>
 			{:else if activeTab === 'config'}
 				<div class="config-section">
-					<h3 class="subsection-title">训练配置</h3>
+					<h3 class="subsection-title">{$t('experimentDetail.trainingConfig')}</h3>
 					<div class="config-grid">
 						<div class="config-group">
-							<h4 class="config-group-title">基本设置</h4>
+							<h4 class="config-group-title">{$t('experimentDetail.basicSettings')}</h4>
 							<div class="params-table">
 								<div class="param-row">
-									<span class="param-key">引擎</span>
+									<span class="param-key">{$t('experimentDetail.engineLabel')}</span>
 									<span class="param-value">{detail.config.engine_id}</span>
 								</div>
 								<div class="param-row">
-									<span class="param-key">任务类型</span>
+									<span class="param-key">{$t('experimentDetail.taskTypeLabel')}</span>
 									<span class="param-value">{detail.config.task_type}</span>
 								</div>
 								<div class="param-row">
-									<span class="param-key">模型</span>
+									<span class="param-key">{$t('experimentDetail.modelLabel')}</span>
 									<span class="param-value">{detail.config.model_id}</span>
 								</div>
 								<div class="param-row">
-									<span class="param-key">数据源</span>
+									<span class="param-key">{$t('experimentDetail.dataSourceLabel')}</span>
 									<span class="param-value">{detail.config.data_source_id}</span>
 								</div>
 								<div class="param-row">
-									<span class="param-key">数据路径</span>
+									<span class="param-key">{$t('experimentDetail.dataPathLabel')}</span>
 									<span class="param-value">{detail.config.data_path || '-'}</span>
 								</div>
 							</div>
 						</div>
 						<div class="config-group">
-							<h4 class="config-group-title">训练参数</h4>
+							<h4 class="config-group-title">{$t('experimentDetail.trainingParams')}</h4>
 							<div class="params-table">
 								<div class="param-row">
 									<span class="param-key">Epochs</span>
@@ -1231,19 +1232,19 @@
 							</div>
 						</div>
 						<div class="config-group">
-							<h4 class="config-group-title">优化器</h4>
+							<h4 class="config-group-title">{$t('experimentDetail.optimizer')}</h4>
 							<div class="params-table">
 								<div class="param-row">
-									<span class="param-key">类型</span>
+									<span class="param-key">{$t('experimentDetail.type')}</span>
 									<span class="param-value">{optimizerName((detail.config as any).optimizer)}</span>
 								</div>
 							</div>
 						</div>
 						<div class="config-group">
-							<h4 class="config-group-title">学习率调度器</h4>
+							<h4 class="config-group-title">{$t('experimentDetail.lrScheduler')}</h4>
 							<div class="params-table">
 								<div class="param-row">
-									<span class="param-key">策略</span>
+									<span class="param-key">{$t('experimentDetail.strategy')}</span>
 									<span class="param-value">{lrSchedulerName((detail.config as any).lr_scheduler)}</span>
 								</div>
 							</div>
@@ -1253,48 +1254,48 @@
 			{:else if activeTab === 'notes'}
 				<div class="notes-section">
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-						<h3 class="subsection-title" style="margin: 0;">实验笔记</h3>
+						<h3 class="subsection-title" style="margin: 0;">{$t('experimentDetail.experimentNotes')}</h3>
 						<div style="display: flex; gap: 8px;">
 							<button class="btn-sm" class:btn-active={notesPreviewMode} on:click={() => notesPreviewMode = !notesPreviewMode}>
-								{notesPreviewMode ? '✏️ 编辑' : '👁️ 预览'}
+								{notesPreviewMode ? `✏️ ${$t('experimentDetail.edit')}` : `👁️ ${$t('experimentDetail.preview')}`}
 							</button>
-							<button class="btn-sm" on:click={exportNotesAsFile} disabled={!notesText.trim()}>📄 导出笔记</button>
-							<button class="btn-sm" on:click={exportExperimentSummary}>📊 导出报告</button>
+							<button class="btn-sm" on:click={exportNotesAsFile} disabled={!notesText.trim()}>📄 {$t('experimentDetail.exportNotes')}</button>
+							<button class="btn-sm" on:click={exportExperimentSummary}>📊 {$t('experimentDetail.exportReport')}</button>
 						</div>
 					</div>
-					<p class="notes-hint">记录实验目的、观察结果、想法和后续计划。支持 Markdown 格式。</p>
+					<p class="notes-hint">{$t('experimentDetail.notesHint')}</p>
 					{#if notesPreviewMode}
 						<div class="notes-preview">
 							{#if notesText.trim()}
 								{@html markdownToHtml(notesText)}
 							{:else}
-								<p style="color: var(--text-secondary);">暂无笔记内容</p>
+								<p style="color: var(--text-secondary);">{$t('experimentDetail.noNotes')}</p>
 							{/if}
 						</div>
 					{:else}
 						<textarea
 							class="notes-editor"
 							bind:value={notesText}
-							placeholder="在此输入笔记内容...&#10;&#10;例如:&#10;- 实验目的: 测试不同学习率对模型收敛的影响&#10;- 观察结果: lr=0.01 时训练不稳定，lr=0.001 效果较好&#10;- 下一步: 尝试 lr=0.0005 配合 cosine annealing&#10;&#10;支持 **Markdown** 格式"
+							placeholder={$t('experimentDetail.notesPlaceholder')}
 							rows="12"
 						></textarea>
 					{/if}
 					<div class="notes-actions">
 						<button class="btn-save-notes" on:click={saveNotes} disabled={notesSaving}>
-							{notesSaving ? '保存中...' : '💾 保存笔记'}
+							{notesSaving ? $t('experimentDetail.saving') : `💾 ${$t('experimentDetail.saveNotes')}`}
 						</button>
-						<span class="notes-char-count">{notesText.length} 字符</span>
+						<span class="notes-char-count">{$t('experimentDetail.charCount', { count: notesText.length })}</span>
 					</div>
 				</div>
 			{:else if activeTab === 'artifacts'}
 				<div class="artifacts-section">
 					<div class="artifacts-toolbar">
 						<div class="artifacts-toolbar-left">
-							<span class="artifacts-count">{detail.artifacts.length} 个产物</span>
-							<span class="artifacts-total-size">总大小: {formatSize(detail.artifacts.reduce((s, a) => s + a.size_bytes, 0))}</span>
+							<span class="artifacts-count">{$t('experimentDetail.artifactCount', { count: detail.artifacts.length })}</span>
+							<span class="artifacts-total-size">{$t('experimentDetail.totalSize')}: {formatSize(detail.artifacts.reduce((s, a) => s + a.size_bytes, 0))}</span>
 						</div>
 						<button class="btn-scan" on:click={scanArtifactsAction} disabled={scanningArtifacts}>
-							{scanningArtifacts ? '扫描中...' : '🔍 扫描新产物'}
+							{scanningArtifacts ? $t('experimentDetail.scanning') : `🔍 ${$t('experimentDetail.scanNewArtifacts')}`}
 						</button>
 					</div>
 					{#if detail.artifacts.length > 0}
@@ -1309,8 +1310,8 @@
 									<div class="artifact-group-items">
 										{#each group.items as artifact}
 											<div class="artifact-card">
-												<div class="artifact-icon" role="button" tabindex="0" aria-label="预览文件" on:click={() => previewArtifact(artifact)} on:keydown={(e) => e.key === 'Enter' && previewArtifact(artifact)}>{fileIcon(artifact.path)}</div>
-												<div class="artifact-info" role="button" tabindex="0" aria-label="预览 {artifact.path.split('/').pop() || artifact.path}" on:click={() => previewArtifact(artifact)} on:keydown={(e) => e.key === 'Enter' && previewArtifact(artifact)}>
+												<div class="artifact-icon" role="button" tabindex="0" aria-label={$t('experimentDetail.previewFile')} on:click={() => previewArtifact(artifact)} on:keydown={(e) => e.key === 'Enter' && previewArtifact(artifact)}>{fileIcon(artifact.path)}</div>
+												<div class="artifact-info" role="button" tabindex="0" aria-label={`${$t('experimentDetail.preview')} ${artifact.path.split('/').pop() || artifact.path}`} on:click={() => previewArtifact(artifact)} on:keydown={(e) => e.key === 'Enter' && previewArtifact(artifact)}>
 													<span class="artifact-path">{artifact.path.split('/').pop() || artifact.path}</span>
 													<span class="artifact-dir">{artifact.path.includes('/') ? artifact.path.substring(0, artifact.path.lastIndexOf('/')) : ''}</span>
 												</div>
@@ -1319,7 +1320,7 @@
 													<span class="artifact-time">{formatTime(artifact.created_at)}</span>
 												</div>
 												<div class="artifact-actions">
-													<button class="btn-artifact-action" on:click|stopPropagation={() => downloadArtifact(artifact)} title="下载">⬇️</button>
+													<button class="btn-artifact-action" on:click|stopPropagation={() => downloadArtifact(artifact)} title={$t('experimentDetail.download')}>⬇️</button>
 												</div>
 											</div>
 										{/each}
@@ -1329,13 +1330,13 @@
 						</div>
 					{:else}
 						<div class="empty-metrics">
-							<p>暂无训练产物</p>
-							<p class="empty-hint">训练完成后，模型检查点和日志文件将显示在此处</p>
+							<p>{$t('experimentDetail.noArtifacts')}</p>
+							<p class="empty-hint">{$t('experimentDetail.noArtifactsHint')}</p>
 						</div>
 					{/if}
 
 					<div class="export-section" style="margin-top: 24px; padding: 16px; border: 1px solid var(--border); border-radius: 8px;">
-						<h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">模型导出</h3>
+						<h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">{$t('experimentDetail.modelExport')}</h3>
 						<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
 							<select bind:value={exportFormat} class="form-input" style="width: auto; min-width: 160px;">
 								{#each availableExportFormats as fmt}
@@ -1346,7 +1347,7 @@
 								{/if}
 							</select>
 							<button class="btn-primary" on:click={handleExportModel} disabled={exportRunning || detail.status === 'running'}>
-								{exportRunning ? '导出中...' : '导出模型'}
+								{exportRunning ? $t('experimentDetail.exporting') : $t('experimentDetail.exportModel')}
 							</button>
 						</div>
 						{#if exportError}
@@ -1355,12 +1356,12 @@
 						{#if exportResult}
 							<div style="margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
 								<div style="font-weight: 600; margin-bottom: 8px;">
-									{exportResult.success ? '✅ 导出成功' : '❌ 导出失败'}
+									{exportResult.success ? `✅ ${$t('experimentDetail.exportSuccess')}` : `❌ ${$t('experimentDetail.exportFailed')}`}
 								</div>
 								<div style="font-size: 13px;">
-									<div>格式: {exportResult.format}</div>
-									<div>路径: {exportResult.output_path}</div>
-									<div>大小: {(exportResult.file_size_bytes / 1024).toFixed(1)} KB</div>
+									<div>{$t('experimentDetail.format')}: {exportResult.format}</div>
+									<div>{$t('experimentDetail.path')}: {exportResult.output_path}</div>
+									<div>{$t('experimentDetail.size')}: {(exportResult.file_size_bytes / 1024).toFixed(1)} KB</div>
 									{#if exportResult.message}
 										<div style="margin-top: 4px; color: var(--text-secondary);">{exportResult.message}</div>
 									{/if}
@@ -1376,7 +1377,7 @@
 						<div class="env-grid">
 							{#if env.git}
 								<div class="env-card">
-									<h4 class="env-card-title">🔀 Git 信息</h4>
+									<h4 class="env-card-title">🔀 {$t('experimentDetail.gitInfo')}</h4>
 									<div class="env-card-body">
 										{#if env.git.commit_hash}
 											<div class="env-row">
@@ -1386,27 +1387,27 @@
 										{/if}
 										{#if env.git.branch}
 											<div class="env-row">
-												<span class="env-label">分支</span>
+												<span class="env-label">{$t('experimentDetail.branch')}</span>
 												<span class="env-value">{env.git.branch}</span>
 											</div>
 										{/if}
 										{#if env.git.commit_message}
 											<div class="env-row">
-												<span class="env-label">提交信息</span>
+												<span class="env-label">{$t('experimentDetail.commitMsg')}</span>
 												<span class="env-value">{env.git.commit_message}</span>
 											</div>
 										{/if}
 										{#if env.git.is_dirty !== null}
 											<div class="env-row">
-												<span class="env-label">工作区状态</span>
+												<span class="env-label">{$t('experimentDetail.workspaceStatus')}</span>
 												<span class="env-value" style="color: {env.git.is_dirty ? '#f59e0b' : '#10b981'}">
-													{env.git.is_dirty ? '有未提交更改' : '干净'}
+													{env.git.is_dirty ? $t('experimentDetail.uncommittedChanges') : $t('experimentDetail.clean')}
 												</span>
 											</div>
 										{/if}
 										{#if env.git.remote_url}
 											<div class="env-row">
-												<span class="env-label">远程仓库</span>
+												<span class="env-label">{$t('experimentDetail.remoteRepo')}</span>
 												<span class="env-value env-mono env-small">{env.git.remote_url}</span>
 											</div>
 										{/if}
@@ -1415,23 +1416,23 @@
 							{/if}
 							{#if env.dependencies}
 								<div class="env-card">
-									<h4 class="env-card-title">📚 依赖信息</h4>
+									<h4 class="env-card-title">📚 {$t('experimentDetail.dependencyInfo')}</h4>
 									<div class="env-card-body">
 										{#if env.dependencies.rust_version}
 											<div class="env-row">
-												<span class="env-label">Rust 版本</span>
+												<span class="env-label">{$t('experimentDetail.rustVersion')}</span>
 												<span class="env-value env-mono">{env.dependencies.rust_version}</span>
 											</div>
 										{/if}
 										{#if env.dependencies.burn_version}
 											<div class="env-row">
-												<span class="env-label">Burn 版本</span>
+												<span class="env-label">{$t('experimentDetail.burnVersion')}</span>
 												<span class="env-value env-mono">{env.dependencies.burn_version}</span>
 											</div>
 										{/if}
 										{#if Object.keys(env.dependencies.crates).length > 0}
 											<div class="env-row env-row-stack">
-												<span class="env-label">关键依赖</span>
+												<span class="env-label">{$t('experimentDetail.keyDependencies')}</span>
 												<div class="env-deps">
 													{#each Object.entries(env.dependencies.crates) as [name, version]}
 														<span class="dep-chip">{name}@{version}</span>
@@ -1444,29 +1445,29 @@
 							{/if}
 							{#if env.system}
 								<div class="env-card">
-									<h4 class="env-card-title">💻 系统信息</h4>
+									<h4 class="env-card-title">💻 {$t('experimentDetail.systemInfo')}</h4>
 									<div class="env-card-body">
 										<div class="env-row">
-											<span class="env-label">操作系统</span>
+											<span class="env-label">{$t('experimentDetail.os')}</span>
 											<span class="env-value">{env.system.os}</span>
 										</div>
 										{#if env.system.os_version}
 											<div class="env-row">
-												<span class="env-label">系统版本</span>
+												<span class="env-label">{$t('experimentDetail.osVersion')}</span>
 												<span class="env-value">{env.system.os_version}</span>
 											</div>
 										{/if}
 										<div class="env-row">
-											<span class="env-label">CPU 核心数</span>
+											<span class="env-label">{$t('experimentDetail.cpuCores')}</span>
 											<span class="env-value">{env.system.cpu_cores}</span>
 										</div>
 										<div class="env-row">
-											<span class="env-label">总内存</span>
+											<span class="env-label">{$t('experimentDetail.totalMemory')}</span>
 											<span class="env-value">{(env.system.total_memory_mb / 1024).toFixed(1)} GB</span>
 										</div>
 										{#if env.system.hostname}
 											<div class="env-row">
-												<span class="env-label">主机名</span>
+												<span class="env-label">{$t('experimentDetail.hostname')}</span>
 												<span class="env-value">{env.system.hostname}</span>
 											</div>
 										{/if}
@@ -1475,24 +1476,24 @@
 							{/if}
 						</div>
 						<div class="env-captured-at">
-							环境信息捕获时间: {formatTime(env.captured_at)}
+							{$t('experimentDetail.envCapturedAt')}: {formatTime(env.captured_at)}
 						</div>
 					{:else}
 						<div class="empty-metrics">
-							<p>暂无环境信息</p>
-							<p class="empty-hint">训练启动后将自动捕获 Git、依赖和系统信息</p>
+							<p>{$t('experimentDetail.noEnvInfo')}</p>
+							<p class="empty-hint">{$t('experimentDetail.noEnvInfoHint')}</p>
 						</div>
 					{/if}
 				</div>
 			{:else if activeTab === 'inference'}
 				<div class="inference-section">
-					<h3 class="subsection-title">模型推理</h3>
-					<p class="inference-hint">输入特征值（用逗号或空格分隔），运行模型推理查看预测结果。</p>
+					<h3 class="subsection-title">{$t('experimentDetail.modelInference')}</h3>
+					<p class="inference-hint">{$t('experimentDetail.inferenceHint')}</p>
 
 					<div class="inference-form">
 						<textarea
 							bind:value={inferenceInput}
-							placeholder="例如: 5.1, 3.5, 1.4, 0.2"
+							placeholder={$t('experimentDetail.inferencePlaceholder')}
 							class="inference-textarea"
 							rows="3"
 						></textarea>
@@ -1501,7 +1502,7 @@
 							on:click={runInference}
 							disabled={inferenceRunning || !inferenceInput.trim()}
 						>
-							{inferenceRunning ? '推理中...' : '🔮 运行推理'}
+							{inferenceRunning ? $t('experimentDetail.inferring') : `🔮 ${$t('experimentDetail.runInference')}`}
 						</button>
 					</div>
 
@@ -1514,26 +1515,26 @@
 
 					{#if inferenceResult}
 						<div class="inference-result">
-							<h4>推理结果</h4>
+							<h4>{$t('experimentDetail.inferenceResult')}</h4>
 							{#if inferenceResult.predicted_classes.length > 0}
 								<div class="result-card">
-									<span class="result-label">预测类别</span>
+									<span class="result-label">{$t('experimentDetail.predictedClass')}</span>
 									<span class="result-value highlight">{inferenceResult.predicted_classes[0]}</span>
 								</div>
 							{/if}
 							{#if inferenceResult.predictions.length > 0}
 								<div class="result-card">
-									<span class="result-label">预测值</span>
+									<span class="result-label">{$t('experimentDetail.predictedValue')}</span>
 									<span class="result-value">{inferenceResult.predictions.map(v => v.toFixed(4)).join(', ')}</span>
 								</div>
 							{/if}
 							{#if inferenceResult.probabilities.length > 0 && inferenceResult.probabilities[0].length > 0}
 								<div class="result-card">
-									<span class="result-label">各类别概率</span>
+									<span class="result-label">{$t('experimentDetail.classProbabilities')}</span>
 									<div class="prob-bar-container">
 										{#each inferenceResult.probabilities[0] as prob, i}
 											<div class="prob-bar-item">
-												<span class="prob-class">类别 {i}</span>
+												<span class="prob-class">{$t('experimentDetail.classLabel')} {i}</span>
 												<div class="prob-bar-track">
 													<div class="prob-bar-fill" style="width: {prob * 100}%"></div>
 												</div>
@@ -1548,17 +1549,17 @@
 
 					{#if evalHistory.length > 0}
 						<div class="eval-history">
-							<h5>评估历史</h5>
+							<h5>{$t('experimentDetail.evalHistory')}</h5>
 							<div class="eval-history-list">
 								{#each evalHistory as ev, idx}
 									<div class="eval-history-item">
 										<div class="eval-history-header">
-											<span class="eval-history-time">{ev.created_at ? new Date(ev.created_at).toLocaleString() : `评估 #${idx + 1}`}</span>
+											<span class="eval-history-time">{ev.created_at ? new Date(ev.created_at).toLocaleString() : `${$t('experimentDetail.eval')} #${idx + 1}`}</span>
 											<span class="eval-history-desc">{ev.description || ''}</span>
 										</div>
 										{#if ev.result}
 											{#if ev.result.task_type === 'classification'}
-												<span class="eval-history-badge">准确率: {(ev.result.accuracy * 100).toFixed(2)}%</span>
+												<span class="eval-history-badge">{$t('experimentDetail.accuracy')}: {(ev.result.accuracy * 100).toFixed(2)}%</span>
 											{:else}
 												<span class="eval-history-badge">RMSE: {ev.result.rmse?.toFixed(4) || 'N/A'}</span>
 											{/if}
@@ -1571,26 +1572,26 @@
 
 					<hr class="section-divider" />
 
-					<h3 class="subsection-title">模型评估</h3>
-					<p class="inference-hint">选择测试数据文件，评估模型在测试集上的表现。</p>
+					<h3 class="subsection-title">{$t('experimentDetail.modelEval')}</h3>
+					<p class="inference-hint">{$t('experimentDetail.evalHint')}</p>
 
 					<div class="eval-form">
 						<div class="file-select-row">
 							<input
 								type="text"
 								bind:value={evalTestDataPath}
-								placeholder="选择测试数据文件路径..."
+								placeholder={$t('experimentDetail.selectTestDataPath')}
 								class="file-input"
 								readonly
 							/>
-							<button class="btn-browse" on:click={selectTestDataFile}>浏览</button>
+							<button class="btn-browse" on:click={selectTestDataFile}>{$t('experimentDetail.browse')}</button>
 						</div>
 						<button
 							class="btn-inference"
 							on:click={runEvaluation}
 							disabled={evalRunning || !evalTestDataPath.trim()}
 						>
-							{evalRunning ? '评估中...' : '📊 运行评估'}
+							{evalRunning ? $t('experimentDetail.evaluating') : `📊 ${$t('experimentDetail.runEval')}`}
 						</button>
 					</div>
 
@@ -1603,32 +1604,32 @@
 
 					{#if evalResult}
 						<div class="eval-result">
-							<h4>评估结果</h4>
+							<h4>{$t('experimentDetail.evalResult')}</h4>
 							{#if evalResult.task_type === 'classification'}
 								<div class="eval-summary-grid">
 									<div class="eval-metric-card">
-										<span class="eval-metric-label">总样本数</span>
+										<span class="eval-metric-label">{$t('experimentDetail.totalSamples')}</span>
 										<span class="eval-metric-value">{evalResult.total_samples}</span>
 									</div>
 									<div class="eval-metric-card highlight">
-										<span class="eval-metric-label">准确率</span>
+										<span class="eval-metric-label">{$t('experimentDetail.accuracy')}</span>
 										<span class="eval-metric-value">{(evalResult.accuracy * 100).toFixed(2)}%</span>
 									</div>
 									{#if evalResult.macro_f1 !== undefined}
 										<div class="eval-metric-card">
-											<span class="eval-metric-label">宏平均 F1</span>
+											<span class="eval-metric-label">{$t('experimentDetail.macroF1')}</span>
 											<span class="eval-metric-value">{(evalResult.macro_f1 * 100).toFixed(2)}%</span>
 										</div>
 									{/if}
 									{#if evalResult.macro_precision !== undefined}
 										<div class="eval-metric-card">
-											<span class="eval-metric-label">宏平均精确率</span>
+											<span class="eval-metric-label">{$t('experimentDetail.macroPrecision')}</span>
 											<span class="eval-metric-value">{(evalResult.macro_precision * 100).toFixed(2)}%</span>
 										</div>
 									{/if}
 									{#if evalResult.macro_recall !== undefined}
 										<div class="eval-metric-card">
-											<span class="eval-metric-label">宏平均召回率</span>
+											<span class="eval-metric-label">{$t('experimentDetail.macroRecall')}</span>
 											<span class="eval-metric-value">{(evalResult.macro_recall * 100).toFixed(2)}%</span>
 										</div>
 									{/if}
@@ -1637,17 +1638,17 @@
 								{#if evalResult.confusion_matrix.length > 0}
 									{@const cmMax = Math.max(...evalResult.confusion_matrix.flat())}
 									<div class="confusion-matrix-section">
-										<h5>混淆矩阵</h5>
+										<h5>{$t('experimentDetail.confusionMatrix')}</h5>
 										<div class="confusion-matrix">
 											<div class="cm-header">
 												<div class="cm-cell cm-corner"></div>
 												{#each evalResult.confusion_matrix[0] as _, j}
-													<div class="cm-cell cm-col-header">预测 {j}</div>
+													<div class="cm-cell cm-col-header">{$t('experimentDetail.predicted')} {j}</div>
 												{/each}
 											</div>
 											{#each evalResult.confusion_matrix as row, i}
 												<div class="cm-row">
-													<div class="cm-cell cm-row-header">实际 {i}</div>
+													<div class="cm-cell cm-row-header">{$t('experimentDetail.actual')} {i}</div>
 													{#each row as val, j}
 														{@const intensity = cmMax > 0 ? val / cmMax : 0}
 														<div
@@ -1666,14 +1667,14 @@
 
 								{#if evalResult.class_metrics.length > 0}
 									<div class="class-metrics-section">
-										<h5>分类报告</h5>
+										<h5>{$t('experimentDetail.classificationReport')}</h5>
 										<div class="class-metrics-table">
 											<div class="cm-table-header">
-												<span>类别</span>
-												<span>精确率</span>
-												<span>召回率</span>
+												<span>{$t('experimentDetail.classLabel')}</span>
+												<span>{$t('experimentDetail.precision')}</span>
+												<span>{$t('experimentDetail.recall')}</span>
 												<span>F1</span>
-												<span>样本数</span>
+												<span>{$t('experimentDetail.sampleCount')}</span>
 											</div>
 											{#each evalResult.class_metrics as cm}
 												<div class="cm-table-row">
@@ -1690,7 +1691,7 @@
 							{:else if evalResult.task_type === 'regression'}
 								<div class="eval-summary-grid">
 									<div class="eval-metric-card">
-										<span class="eval-metric-label">总样本数</span>
+										<span class="eval-metric-label">{$t('experimentDetail.totalSamples')}</span>
 										<span class="eval-metric-value">{evalResult.total_samples}</span>
 									</div>
 									<div class="eval-metric-card">
@@ -1720,8 +1721,8 @@
 		</div>
 	{:else}
 		<div class="not-found">
-			<p>实验未找到</p>
-			<a href="/lab" class="back-link">← 返回实验列表</a>
+			<p>{$t('experimentDetail.experimentNotFound')}</p>
+			<a href="/lab" class="back-link">← {$t('experimentDetail.backToExperiments')}</a>
 		</div>
 	{/if}
 </div>
@@ -1729,22 +1730,22 @@
 {#if showRegisterModal}
 	<div class="modal-overlay" role="presentation" on:click|self={() => showRegisterModal = false} on:keydown={(e) => { if (e.key === 'Escape') showRegisterModal = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1">
-			<h3>注册模型</h3>
+			<h3>{$t('experimentDetail.registerModel')}</h3>
 			<div class="form-group">
-				<label for="reg-model-name">模型名称</label>
-				<input id="reg-model-name" type="text" bind:value={registerName} placeholder="例如: MNIST Classifier" class="form-input" />
+				<label for="reg-model-name">{$t('experimentDetail.modelName')}</label>
+				<input id="reg-model-name" type="text" bind:value={registerName} placeholder={$t('experimentDetail.modelNamePlaceholder')} class="form-input" />
 			</div>
 			<div class="form-group">
-				<label for="reg-model-ver">版本</label>
-				<input id="reg-model-ver" type="text" bind:value={registerVersion} placeholder="例如: 1.0.0" class="form-input" />
+				<label for="reg-model-ver">{$t('experimentDetail.version')}</label>
+				<input id="reg-model-ver" type="text" bind:value={registerVersion} placeholder={$t('experimentDetail.versionPlaceholder')} class="form-input" />
 			</div>
 			{#if registerError}
 				<div class="form-error">{registerError}</div>
 			{/if}
 			<div class="modal-actions">
-				<button class="btn-cancel" on:click={() => showRegisterModal = false}>取消</button>
+				<button class="btn-cancel" on:click={() => showRegisterModal = false}>{$t('experimentDetail.cancel')}</button>
 				<button class="btn-submit" on:click={registerModel} disabled={registering}>
-					{registering ? '注册中...' : '注册'}
+					{registering ? $t('experimentDetail.registering') : $t('experimentDetail.register')}
 				</button>
 			</div>
 		</div>
@@ -1754,11 +1755,11 @@
 {#if showCheckpointResumeModal}
 	<div class="modal-overlay" role="presentation" on:click|self={() => showCheckpointResumeModal = false} on:keydown={(e) => { if (e.key === 'Escape') showCheckpointResumeModal = false; }}>
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1">
-			<p class="modal-hint">选择一个检查点作为起点，继续训练模型。</p>
+			<p class="modal-hint">{$t('experimentDetail.checkpointResumeHint')}</p>
 			{#if checkpointLoading}
-				<p class="empty-hint">加载检查点列表...</p>
+				<p class="empty-hint">{$t('experimentDetail.loadingCheckpoints')}</p>
 			{:else if checkpointList.length === 0}
-				<p class="empty-hint">未找到可用的检查点</p>
+				<p class="empty-hint">{$t('experimentDetail.noCheckpoints')}</p>
 			{:else}
 				<div class="checkpoint-list">
 					{#each checkpointList as cp}
@@ -1779,9 +1780,9 @@
 				</div>
 			{/if}
 			<div class="modal-actions">
-				<button class="btn-cancel" on:click={() => showCheckpointResumeModal = false}>取消</button>
+				<button class="btn-cancel" on:click={() => showCheckpointResumeModal = false}>{$t('experimentDetail.cancel')}</button>
 				<button class="btn-submit" on:click={resumeFromCheckpoint} disabled={checkpointResuming || selectedCheckpointEpoch === null}>
-					{checkpointResuming ? '恢复中...' : '从 Epoch ' + (selectedCheckpointEpoch ?? '-') + ' 恢复'}
+					{checkpointResuming ? $t('experimentDetail.resuming') : `${$t('experimentDetail.resumeFromEpoch')} ${selectedCheckpointEpoch ?? '-'}`}
 				</button>
 			</div>
 		</div>
@@ -1799,7 +1800,7 @@
 				{#if artifactPreviewLoading}
 					<div class="loading-state">
 						<div class="spinner"></div>
-						<p>加载文件内容...</p>
+						<p>{$t('experimentDetail.loadingFileContent')}</p>
 					</div>
 				{:else if artifactPreviewError}
 					<div class="form-error">{artifactPreviewError}</div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let versions: any[] = [];
   export let currentVersion: string = '';
@@ -31,9 +32,9 @@
     const d = new Date(dateStr);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    if (diff < 60000) return $t('time.justNow');
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} ${$t('time.minutesAgo')}`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ${$t('time.hoursAgo')}`;
     return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
@@ -66,13 +67,13 @@
 
 <div class="version-panel">
   <div class="version-header">
-    <h4>版本历史</h4>
-    <span class="version-count">{versions.length} 个版本</span>
+    <h4>{$t('versionDiff.versionHistory')}</h4>
+    <span class="version-count">{$t('versionDiff.versionCount', { count: versions.length })}</span>
   </div>
 
   {#if versions.length === 0}
     <div class="empty-state">
-      <span>暂无版本记录</span>
+      <span>{$t('versionDiff.noVersions')}</span>
     </div>
   {:else}
     <div class="version-timeline">
@@ -86,14 +87,14 @@
             <div class="version-main">
               <span class="version-tag">{ver.version}</span>
               {#if ver.version === currentVersion}
-                <span class="current-badge">当前</span>
+                <span class="current-badge">{$t('versionDiff.current')}</span>
               {/if}
               <span class="version-time">{formatTime(ver.created_at)}</span>
             </div>
             <div class="version-meta">
-              <span>{ver.rows?.toLocaleString() || '?'} 行</span>
+              <span>{ver.rows?.toLocaleString() || '?'} {$t('versionDiff.rows')}</span>
               <span>·</span>
-              <span>{ver.columns || '?'} 列</span>
+              <span>{ver.columns || '?'} {$t('versionDiff.columns')}</span>
               <span>·</span>
               <span>{ver.memory_size_mb?.toFixed(1) || '?'} MB</span>
             </div>
@@ -102,7 +103,7 @@
             {/if}
             {#if ver.version !== currentVersion}
               <button class="btn-rollback" on:click={() => rollback(ver.version)}>
-                ↩ 回滚到此版本
+                ↩ {$t('versionDiff.rollback')}
               </button>
             {/if}
           </div>
@@ -111,23 +112,23 @@
     </div>
 
     <div class="diff-section">
-      <h5>版本对比</h5>
+      <h5>{$t('versionDiff.versionCompare')}</h5>
       <div class="diff-controls">
         <select bind:value={selectedFrom} class="diff-select">
-          <option value="">选择旧版本</option>
+          <option value="">{$t('versionDiff.selectOldVersion')}</option>
           {#each sortedVersions as ver}
             <option value={ver.version}>{ver.version}</option>
           {/each}
         </select>
         <span class="diff-arrow">→</span>
         <select bind:value={selectedTo} class="diff-select">
-          <option value="">选择新版本</option>
+          <option value="">{$t('versionDiff.selectNewVersion')}</option>
           {#each sortedVersions as ver}
             <option value={ver.version}>{ver.version}</option>
           {/each}
         </select>
         <button class="btn-diff" on:click={requestDiff} disabled={!selectedFrom || !selectedTo || loading}>
-          {loading ? '对比中...' : '对比'}
+          {loading ? $t('versionDiff.comparing') : $t('versionDiff.compare')}
         </button>
       </div>
 
@@ -146,7 +147,7 @@
 
           {#if diffData.column_changes?.length > 0}
             <div class="column-changes">
-              <h6>列变更</h6>
+              <h6>{$t('versionDiff.columnChanges')}</h6>
               {#each diffData.column_changes as change}
                 {@const ct = changeType(change)}
                 <div class="column-change" style="border-left: 3px solid {changeColor(ct)}">
@@ -163,16 +164,16 @@
 
           {#if diffData.row_changes}
             <div class="row-changes">
-              <h6>行变更</h6>
+              <h6>{$t('versionDiff.rowChanges')}</h6>
               <div class="row-stats">
                 {#if diffData.row_changes.added > 0}
-                  <span class="stat-added">+{diffData.row_changes.added} 行新增</span>
+                  <span class="stat-added">{$t('versionDiff.rowsAdded', { count: diffData.row_changes.added })}</span>
                 {/if}
                 {#if diffData.row_changes.removed > 0}
-                  <span class="stat-removed">-{diffData.row_changes.removed} 行删除</span>
+                  <span class="stat-removed">{$t('versionDiff.rowsRemoved', { count: diffData.row_changes.removed })}</span>
                 {/if}
                 {#if diffData.row_changes.modified > 0}
-                  <span class="stat-modified">~{diffData.row_changes.modified} 行修改</span>
+                  <span class="stat-modified">{$t('versionDiff.rowsModified', { count: diffData.row_changes.modified })}</span>
                 {/if}
               </div>
             </div>
@@ -180,13 +181,13 @@
 
           {#if diffData.sample_rows?.length > 0}
             <div class="sample-diff">
-              <h6>变更示例</h6>
+              <h6>{$t('versionDiff.changeSample')}</h6>
               <div class="diff-table-wrapper">
                 <table class="diff-table">
                   <thead>
                     <tr>
-                      <th>类型</th>
-                      {#each diffData.sample_columns || ['列1', '列2'] as col}
+                      <th>{$t('versionDiff.type')}</th>
+                      {#each diffData.sample_columns || ['Col1', 'Col2'] as col}
                         <th>{col}</th>
                       {/each}
                     </tr>
@@ -209,7 +210,7 @@
       {:else if showDiff && loading}
         <div class="diff-loading">
           <span class="spinner"></span>
-          <span>正在对比版本差异...</span>
+          <span>{$t('versionDiff.comparingDiff')}</span>
         </div>
       {/if}
     </div>

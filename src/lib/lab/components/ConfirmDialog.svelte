@@ -1,11 +1,18 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
+
   export let show: boolean = false;
-  export let title: string = '确认操作';
-  export let message: string = '确定要执行此操作吗？';
-  export let confirmLabel: string = '确定';
-  export let cancelLabel: string = '取消';
+  export let title: string = '';
+  export let message: string = '';
+  export let confirmLabel: string = '';
+  export let cancelLabel: string = '';
   export let danger: boolean = false;
   export let loading: boolean = false;
+
+  $: resolvedTitle = title || $t('confirm.title');
+  $: resolvedMessage = message || $t('confirm.message');
+  $: resolvedConfirmLabel = confirmLabel || $t('confirm.ok');
+  $: resolvedCancelLabel = cancelLabel || $t('confirm.cancel');
 
   export let onConfirm: () => void = () => {};
   export let onCancel: () => void = () => {};
@@ -31,15 +38,15 @@
       <div class="confirm-icon" class:danger>
         {danger ? '⚠️' : 'ℹ️'}
       </div>
-      <h3 class="confirm-title">{title}</h3>
-      <p class="confirm-message">{message}</p>
+      <h3 class="confirm-title">{resolvedTitle}</h3>
+      <p class="confirm-message">{resolvedMessage}</p>
       <div class="confirm-actions">
         <button
           class="confirm-btn cancel-btn"
           on:click={handleCancel}
           disabled={loading}
         >
-          {cancelLabel}
+          {resolvedCancelLabel}
         </button>
         <button
           class="confirm-btn confirm-btn-main"
@@ -50,7 +57,7 @@
           {#if loading}
             <span class="spinner"></span>
           {/if}
-          {confirmLabel}
+          {resolvedConfirmLabel}
         </button>
       </div>
     </div>

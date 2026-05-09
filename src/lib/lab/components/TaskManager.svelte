@@ -1,6 +1,7 @@
 <script lang="ts">
   import { taskManagerStore, activeTaskCount } from '$lib/lab/stores/taskManager';
   import type { BackgroundTask } from '$lib/lab/stores/taskManager';
+  import { t } from '$lib/i18n';
 
   let expanded = false;
 
@@ -19,19 +20,19 @@
   }
 
   function formatTimeRemaining(seconds: number | null): string {
-    if (seconds === null || seconds <= 0) return '计算中...';
-    if (seconds < 60) return `${Math.round(seconds)}秒`;
-    if (seconds < 3600) return `${Math.round(seconds / 60)}分钟`;
-    return `${(seconds / 3600).toFixed(1)}小时`;
+    if (seconds === null || seconds <= 0) return $t('task.calculating');
+    if (seconds < 60) return `${Math.round(seconds)}${$t('task.seconds')}`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}${$t('task.minutes')}`;
+    return `${(seconds / 3600).toFixed(1)}${$t('task.hours')}`;
   }
 
   function formatElapsed(ms: number): string {
     const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) return `${seconds}秒`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+    if (seconds < 60) return `${seconds}${$t('task.sec')}`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}${$t('task.min')}${seconds % 60}${$t('task.sec')}`;
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    return `${hours}时${mins}分`;
+    return `${hours}${$t('task.h')}${mins}${$t('task.min')}`;
   }
 
   function handleCancel(task: BackgroundTask) {
@@ -53,9 +54,9 @@
       <span class="task-toggle-icon">📋</span>
       <span class="task-toggle-text">
         {#if $activeTaskCount > 0}
-          后台任务 ({$activeTaskCount})
+          {$t('task.backgroundTasks')} ({$activeTaskCount})
         {:else}
-          任务历史
+          {$t('task.taskHistory')}
         {/if}
       </span>
       <span class="task-toggle-arrow">{expanded ? '▼' : '▲'}</span>
@@ -64,7 +65,7 @@
     {#if expanded}
       <div class="task-list">
         {#if $taskManagerStore.length === 0}
-          <div class="task-empty">暂无任务</div>
+          <div class="task-empty">{$t('task.noTasks')}</div>
         {:else}
           {#each $taskManagerStore as task (task.id)}
             <div class="task-item {statusClass(task.status)}">
@@ -87,30 +88,30 @@
                 </div>
                 {#if task.estimatedTimeRemaining !== null}
                   <div class="task-eta">
-                    预计剩余: {formatTimeRemaining(task.estimatedTimeRemaining)}
+                    {$t('task.estimatedRemaining')}: {formatTimeRemaining(task.estimatedTimeRemaining)}
                   </div>
                 {/if}
                 {#if task.cancellable}
                   <button class="task-cancel-btn" on:click={() => handleCancel(task)}>
-                    取消
+                    {$t('task.cancel')}
                   </button>
                 {/if}
               {:else if task.status === 'failed'}
-                <div class="task-error">{task.error || '未知错误'}</div>
+                <div class="task-error">{task.error || $t('task.unknownError')}</div>
                 <button class="task-dismiss-btn" on:click={() => handleDismiss(task)}>
-                  关闭
+                  {$t('task.close')}
                 </button>
               {:else if task.status === 'completed'}
-                <div class="task-result">{task.result || '操作完成'}</div>
+                <div class="task-result">{task.result || $t('task.operationComplete')}</div>
               {:else if task.status === 'cancelled'}
-                <div class="task-cancelled">任务已取消</div>
+                <div class="task-cancelled">{$t('task.taskCancelled')}</div>
               {/if}
             </div>
           {/each}
 
           {#if $taskManagerStore.some(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled')}
             <button class="task-clear-btn" on:click={() => taskManagerStore.clearCompleted()}>
-              清除已完成任务
+              {$t('task.clearCompletedTasks')}
             </button>
           {/if}
         {/if}

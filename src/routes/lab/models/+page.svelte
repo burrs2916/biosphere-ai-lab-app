@@ -3,6 +3,7 @@
 	import { modelStore } from '$lib/lab/stores/model';
 	import { getLabClient } from '$lib/lab/stores/plugins';
 	import type { ModelRegistration, ModelRegistrationStatus } from '$lib/lab/adapter/types';
+	import { t } from '$lib/i18n';
 
 	let loading = true;
 	let statusFilter: ModelRegistrationStatus | 'all' = 'all';
@@ -71,10 +72,10 @@
 
 	function statusLabel(status: ModelRegistrationStatus): string {
 		switch (status) {
-			case 'none': return '未发布';
-			case 'staging': return '预发布';
-			case 'production': return '生产';
-			case 'archived': return '已归档';
+			case 'none': return $t('models.statusUnpublished');
+			case 'staging': return $t('models.statusStaging');
+			case 'production': return $t('models.statusProduction');
+			case 'archived': return $t('models.statusArchived');
 			default: return status;
 		}
 	}
@@ -103,10 +104,10 @@
 		const d = new Date(iso);
 		const now = new Date();
 		const diff = now.getTime() - d.getTime();
-		if (diff < 60000) return '刚刚';
-		if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-		if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-		return `${Math.floor(diff / 86400000)} 天前`;
+		if (diff < 60000) return $t('time.justNow');
+		if (diff < 3600000) return `${Math.floor(diff / 60000)} ${$t('time.minutesAgo')}`;
+		if (diff < 86400000) return `${Math.floor(diff / 3600000)} ${$t('time.hoursAgo')}`;
+		return `${Math.floor(diff / 86400000)} ${$t('time.daysAgo')}`;
 	}
 
 	function formatSize(bytes: number): string {
@@ -147,7 +148,7 @@
 
 	async function handleRegister() {
 		if (!regName.trim() || !regVersion.trim()) {
-			regError = '请填写模型名称和版本';
+			regError = $t('models.nameVersionRequired');
 			return;
 		}
 		registering = true;
@@ -163,7 +164,7 @@
 			regFramework = 'burn';
 			regPath = '';
 		} catch (e: any) {
-			regError = e?.message || '注册失败';
+			regError = e?.message || $t('models.registerFailed');
 		} finally {
 			registering = false;
 		}
@@ -232,7 +233,7 @@
 			confirmDeleteId = null;
 		} catch (e: any) {
 			console.error('Failed to delete model:', e);
-			alert(e?.message || '删除模型失败');
+			alert(e?.message || $t('models.deleteFailed'));
 		}
 	}
 
@@ -253,9 +254,9 @@
 
 	function nextAction(status: ModelRegistrationStatus): { label: string; action: 'staging' | 'production' | 'archive' | 'demote' } | null {
 		switch (status) {
-			case 'none': return { label: '发布到预发布', action: 'staging' };
-			case 'staging': return { label: '发布到生产', action: 'production' };
-			case 'production': return { label: '降级到预发布', action: 'demote' };
+			case 'none': return { label: $t('models.promoteToStaging'), action: 'staging' };
+			case 'staging': return { label: $t('models.promoteToProduction'), action: 'production' };
+			case 'production': return { label: $t('models.demoteToStaging'), action: 'demote' };
 			case 'archived': return null;
 			default: return null;
 		}
@@ -361,12 +362,12 @@
 				.filter(line => line.trim())
 				.map(line => line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v)));
 			if (inputs.length === 0 || inputs[0].length === 0) {
-				serveError = '请输入有效的数据（每行一组，逗号分隔）';
+				serveError = $t('models.invalidServeData');
 				return;
 			}
 			serveResult = await client.modelPredict(selectedModel.id, inputs);
 		} catch (e: any) {
-			serveError = e?.toString() || '推理失败';
+			serveError = e?.toString() || $t('models.serveFailed');
 		} finally {
 			serveRunning = false;
 		}
@@ -374,36 +375,36 @@
 </script>
 
 <div class="models-page">
-	<h2>模型管理</h2>
-	<p class="desc">查看、测试和导出已训练的模型</p>
+	<h2>{$t('models.title')}</h2>
+	<p class="desc">{$t('models.desc')}</p>
 
 	<div class="toolbar">
 		<input
 			type="text"
 			class="search-input"
-			placeholder="搜索模型..."
+			placeholder={$t('models.searchPlaceholder')}
 			bind:value={searchQuery}
 		/>
 		<div class="filter-group">
-			<button class="filter-btn" class:active={statusFilter === 'all'} on:click={() => statusFilter = 'all'}>全部</button>
-			<button class="filter-btn" class:active={statusFilter === 'none'} on:click={() => statusFilter = 'none'}>未发布</button>
-			<button class="filter-btn" class:active={statusFilter === 'staging'} on:click={() => statusFilter = 'staging'}>预发布</button>
-			<button class="filter-btn" class:active={statusFilter === 'production'} on:click={() => statusFilter = 'production'}>生产</button>
-			<button class="filter-btn" class:active={statusFilter === 'archived'} on:click={() => statusFilter = 'archived'}>已归档</button>
+			<button class="filter-btn" class:active={statusFilter === 'all'} on:click={() => statusFilter = 'all'}>{$t('experiments.all')}</button>
+			<button class="filter-btn" class:active={statusFilter === 'none'} on:click={() => statusFilter = 'none'}>{$t('models.statusUnpublished')}</button>
+			<button class="filter-btn" class:active={statusFilter === 'staging'} on:click={() => statusFilter = 'staging'}>{$t('models.statusStaging')}</button>
+			<button class="filter-btn" class:active={statusFilter === 'production'} on:click={() => statusFilter = 'production'}>{$t('models.statusProduction')}</button>
+			<button class="filter-btn" class:active={statusFilter === 'archived'} on:click={() => statusFilter = 'archived'}>{$t('models.statusArchived')}</button>
 		</div>
-		<button class="register-btn" on:click={() => showRegisterModal = true}>+ 注册模型</button>
+		<button class="register-btn" on:click={() => showRegisterModal = true}>+ {$t('models.registerModel')}</button>
 	</div>
 
 	{#if loading}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载模型列表...</p>
+			<p>{$t('models.loadingModels')}</p>
 		</div>
 	{:else if filteredModels.length === 0}
 		<div class="empty-state">
 			<span class="empty-icon">📦</span>
-			<p class="empty-text">暂无模型</p>
-			<p class="empty-hint">点击「注册模型」添加新模型</p>
+			<p class="empty-text">{$t('models.noModels')}</p>
+			<p class="empty-hint">{$t('models.noModelsHint')}</p>
 		</div>
 	{:else}
 		<div class="model-grid">
@@ -428,7 +429,7 @@
 					<div class="card-body">
 						{#if model.path}
 							<div class="path-row">
-								<span class="path-label">路径</span>
+								<span class="path-label">{$t('models.path')}</span>
 								<span class="path-value" title={model.path}>{model.path}</span>
 							</div>
 						{/if}
@@ -442,15 +443,15 @@
 						{/if}
 
 						<div class="time-row">
-							<span>创建: {formatTime(model.created_at)}</span>
-							<span>更新: {formatTime(model.updated_at)}</span>
+							<span>{$t('models.created')}: {formatTime(model.created_at)}</span>
+							<span>{$t('models.updated')}: {formatTime(model.updated_at)}</span>
 						</div>
 					</div>
 
 					<div class="card-actions">
-						<button class="action-btn detail" on:click={() => openDetail(model)}>详情</button>
+						<button class="action-btn detail" on:click={() => openDetail(model)}>{$t('models.detail')}</button>
 						{#if !model.path}
-							<button class="action-btn path" on:click={() => handleSetPath(model)}>设置路径</button>
+							<button class="action-btn path" on:click={() => handleSetPath(model)}>{$t('models.setPath')}</button>
 						{/if}
 						{#if nextAction(model.status)}
 							{@const na = nextAction(model.status)}
@@ -469,17 +470,17 @@
 							{/if}
 						{/if}
 						{#if model.status === 'production' || model.status === 'staging'}
-							<button class="action-btn archive-btn" on:click={() => handleArchive(model.id)}>归档</button>
+							<button class="action-btn archive-btn" on:click={() => handleArchive(model.id)}>{$t('models.archive')}</button>
 						{/if}
-						<button class="action-btn delete" on:click={() => confirmDeleteId = model.id}>删除</button>
+						<button class="action-btn delete" on:click={() => confirmDeleteId = model.id}>{$t('models.delete')}</button>
 					</div>
 
 					{#if confirmDeleteId === model.id}
 						<div class="confirm-overlay">
-							<p>确认删除此模型？</p>
+							<p>{$t('models.confirmDeleteMsg')}</p>
 							<div class="confirm-btns">
-								<button class="confirm-yes" on:click={() => handleDelete(model.id)}>确认</button>
-								<button class="confirm-no" on:click={() => confirmDeleteId = null}>取消</button>
+								<button class="confirm-yes" on:click={() => handleDelete(model.id)}>{$t('confirm.ok')}</button>
+								<button class="confirm-no" on:click={() => confirmDeleteId = null}>{$t('confirm.cancel')}</button>
 							</div>
 						</div>
 					{/if}
@@ -494,31 +495,31 @@
 		<div class="modal" role="dialog" aria-modal="true" tabindex="-1">
 
 			<div class="form-group">
-				<label for="auto-f84">模型名称 *</label>
-				<input id="auto-f84" type="text" bind:value={regName} placeholder="例如: MLP Classifier" class="form-input" />
+				<label for="auto-f84">{$t('models.modelName')} *</label>
+				<input id="auto-f84" type="text" bind:value={regName} placeholder={$t('models.modelNamePlaceholder')} class="form-input" />
 			</div>
 
 			<div class="form-group">
-				<label for="auto-f85">版本 *</label>
-				<input id="auto-f85" type="text" bind:value={regVersion} placeholder="例如: 1.0.0" class="form-input" />
+				<label for="auto-f85">{$t('models.version')} *</label>
+				<input id="auto-f85" type="text" bind:value={regVersion} placeholder={$t('models.versionPlaceholder')} class="form-input" />
 			</div>
 
 			<div class="form-group">
-				<label for="auto-f86">框架</label>
+				<label for="auto-f86">{$t('models.framework')}</label>
 				<select id="auto-f86" bind:value={regFramework} class="form-input">
 					<option value="burn">Burn</option>
 					<option value="pytorch">PyTorch</option>
 					<option value="tensorflow">TensorFlow</option>
 					<option value="onnx">ONNX</option>
-					<option value="other">其他</option>
+					<option value="other">{$t('models.other')}</option>
 				</select>
 			</div>
 
 			<div class="form-group">
-				<label for="reg-model-path">模型路径</label>
+				<label for="reg-model-path">{$t('models.modelPath')}</label>
 				<div class="input-with-button">
-					<input id="reg-model-path" type="text" bind:value={regPath} placeholder="选择模型文件目录" class="form-input" readonly />
-					<button class="btn-browse" on:click={selectModelPath}>选择目录</button>
+					<input id="reg-model-path" type="text" bind:value={regPath} placeholder={$t('models.selectModelDir')} class="form-input" readonly />
+					<button class="btn-browse" on:click={selectModelPath}>{$t('models.selectDir')}</button>
 				</div>
 			</div>
 
@@ -527,9 +528,9 @@
 			{/if}
 
 			<div class="modal-actions">
-				<button class="btn-cancel" on:click={() => showRegisterModal = false}>取消</button>
+				<button class="btn-cancel" on:click={() => showRegisterModal = false}>{$t('confirm.cancel')}</button>
 				<button class="btn-submit" on:click={handleRegister} disabled={registering}>
-					{registering ? '注册中...' : '注册'}
+					{registering ? $t('models.registering') : $t('models.registerBtn')}
 				</button>
 			</div>
 		</div>
@@ -552,51 +553,51 @@
 			{#if selectedModel.description || showEditDesc}
 				<div class="description-section">
 					{#if showEditDesc}
-						<textarea bind:value={newDescription} class="desc-textarea" placeholder="输入模型描述..."></textarea>
+						<textarea bind:value={newDescription} class="desc-textarea" placeholder={$t('models.enterDesc')}></textarea>
 						<div class="desc-actions">
-							<button class="btn-sm btn-save" on:click={handleSaveDescription}>保存</button>
-							<button class="btn-sm btn-cancel-sm" on:click={() => showEditDesc = false}>取消</button>
+							<button class="btn-sm btn-save" on:click={handleSaveDescription}>{$t('models.save')}</button>
+							<button class="btn-sm btn-cancel-sm" on:click={() => showEditDesc = false}>{$t('confirm.cancel')}</button>
 						</div>
 					{:else}
 						<p class="description-text">{selectedModel.description}</p>
-						<button class="btn-sm btn-edit" on:click={() => { newDescription = selectedModel?.description || ''; showEditDesc = true; }}>编辑</button>
+						<button class="btn-sm btn-edit" on:click={() => { newDescription = selectedModel?.description || ''; showEditDesc = true; }}>{$t('models.edit')}</button>
 					{/if}
 				</div>
 			{:else}
-				<button class="btn-sm btn-edit" on:click={() => { newDescription = ''; showEditDesc = true; }}>+ 添加描述</button>
+				<button class="btn-sm btn-edit" on:click={() => { newDescription = ''; showEditDesc = true; }}>+ {$t('models.addDesc')}</button>
 			{/if}
 
 			<div class="model-card-summary">
 				<div class="card-stat">
-					<span class="card-stat-label">版本</span>
+					<span class="card-stat-label">{$t('models.version')}</span>
 					<span class="card-stat-value">v{selectedModel.version}</span>
 				</div>
 				<div class="card-stat">
-					<span class="card-stat-label">框架</span>
+					<span class="card-stat-label">{$t('models.framework')}</span>
 					<span class="card-stat-value">{selectedModel.framework}</span>
 				</div>
 				<div class="card-stat">
-					<span class="card-stat-label">状态</span>
+					<span class="card-stat-label">{$t('models.status')}</span>
 					<span class="card-stat-value" style="color: {statusColor(selectedModel.status)}">{statusLabel(selectedModel.status)}</span>
 				</div>
 				{#if selectedModel.lineage?.experiment_name}
 					<div class="card-stat">
-						<span class="card-stat-label">来源实验</span>
+						<span class="card-stat-label">{$t('models.sourceExperiment')}</span>
 						<a href="/lab/experiments/{selectedModel.lineage.experiment_id}" class="card-stat-link">{selectedModel.lineage.experiment_name}</a>
 					</div>
 				{/if}
 				{#if selectedModel.structured_signature}
 					<div class="card-stat">
-						<span class="card-stat-label">输入维度</span>
+						<span class="card-stat-label">{$t('models.inputDim')}</span>
 						<span class="card-stat-value">{selectedModel.structured_signature.inputs.map(i => `[${i.shape.join('×')}]`).join(', ')}</span>
 					</div>
 					<div class="card-stat">
-						<span class="card-stat-label">输出维度</span>
+						<span class="card-stat-label">{$t('models.outputDim')}</span>
 						<span class="card-stat-value">{selectedModel.structured_signature.outputs.map(o => `[${o.shape.join('×')}]`).join(', ')}</span>
 					</div>
 				{/if}
 				<div class="card-stat">
-					<span class="card-stat-label">创建</span>
+					<span class="card-stat-label">{$t('models.created')}</span>
 					<span class="card-stat-value">{new Date(selectedModel.created_at).toLocaleDateString('zh-CN')}</span>
 				</div>
 			</div>
@@ -611,16 +612,16 @@
 					{/each}
 					{#if showAddTag}
 						<div class="tag-add-form">
-							<input type="text" bind:value={newTag} class="tag-input" placeholder="标签名" />
-							<button class="btn-sm btn-save" on:click={handleAddTag}>添加</button>
-							<button class="btn-sm btn-cancel-sm" on:click={() => showAddTag = false}>取消</button>
+							<input type="text" bind:value={newTag} class="tag-input" placeholder={$t('models.tagName')} />
+							<button class="btn-sm btn-save" on:click={handleAddTag}>{$t('models.add')}</button>
+							<button class="btn-sm btn-cancel-sm" on:click={() => showAddTag = false}>{$t('confirm.cancel')}</button>
 						</div>
 					{:else}
-						<button class="btn-sm btn-edit" on:click={() => showAddTag = true}>+ 标签</button>
+						<button class="btn-sm btn-edit" on:click={() => showAddTag = true}>+ {$t('models.tag')}</button>
 					{/if}
 				</div>
 
-				<h4 class="section-title">别名</h4>
+				<h4 class="section-title">{$t('models.aliases')}</h4>
 				<div class="tags-section">
 					{#each selectedModel.aliases as alias}
 						<span class="tag-chip alias-chip">
@@ -630,27 +631,27 @@
 					{/each}
 					{#if showAddAlias}
 						<div class="tag-add-form">
-							<input type="text" bind:value={newAlias} class="tag-input" placeholder="别名（如 champion）" />
-							<button class="btn-sm btn-save" on:click={handleAddAlias}>添加</button>
-							<button class="btn-sm btn-cancel-sm" on:click={() => showAddAlias = false}>取消</button>
+							<input type="text" bind:value={newAlias} class="tag-input" placeholder={$t('models.aliasPlaceholder')} />
+							<button class="btn-sm btn-save" on:click={handleAddAlias}>{$t('models.add')}</button>
+							<button class="btn-sm btn-cancel-sm" on:click={() => showAddAlias = false}>{$t('confirm.cancel')}</button>
 						</div>
 					{:else}
-						<button class="btn-sm btn-edit" on:click={() => showAddAlias = true}>+ 别名</button>
+						<button class="btn-sm btn-edit" on:click={() => showAddAlias = true}>+ {$t('models.alias')}</button>
 					{/if}
 				</div>
 			{:else}
-				<button class="btn-sm btn-edit" on:click={() => showAddTag = true}>+ 添加标签</button>
+				<button class="btn-sm btn-edit" on:click={() => showAddTag = true}>+ {$t('models.addTag')}</button>
 			{/if}
 
 			{#if getPerformanceMetrics(selectedModel).length > 0}
-				<h4 class="section-title">性能指标</h4>
+				<h4 class="section-title">{$t('models.performanceMetrics')}</h4>
 				<div class="metrics-grid">
 					{#each getPerformanceMetrics(selectedModel) as metric}
 						<div class="metric-card" class:best={metric.isBest}>
 							<span class="metric-name">{metric.name}</span>
 							<span class="metric-value">{metric.value.toFixed(4)}</span>
 							{#if metric.isBest}
-								<span class="metric-badge">最佳</span>
+								<span class="metric-badge">{$t('models.best')}</span>
 							{/if}
 						</div>
 					{/each}
@@ -659,36 +660,36 @@
 
 			<div class="detail-grid">
 				<div class="detail-item">
-					<span class="detail-label">模型 ID</span>
+					<span class="detail-label">{$t('models.modelId')}</span>
 					<span class="detail-value mono">{selectedModel.id}</span>
 				</div>
 				<div class="detail-item">
-					<span class="detail-label">版本</span>
+					<span class="detail-label">{$t('models.version')}</span>
 					<span class="detail-value">{selectedModel.version}</span>
 				</div>
 				<div class="detail-item">
-					<span class="detail-label">框架</span>
+					<span class="detail-label">{$t('models.framework')}</span>
 					<span class="detail-value">{selectedModel.framework}</span>
 				</div>
 				<div class="detail-item">
-					<span class="detail-label">路径</span>
+					<span class="detail-label">{$t('models.path')}</span>
 					<span class="detail-value mono">{selectedModel.path || '-'}</span>
 				</div>
 				<div class="detail-item">
-					<span class="detail-label">创建时间</span>
+					<span class="detail-label">{$t('models.createdAt')}</span>
 					<span class="detail-value">{new Date(selectedModel.created_at).toLocaleString('zh-CN')}</span>
 				</div>
 				<div class="detail-item">
-					<span class="detail-label">更新时间</span>
+					<span class="detail-label">{$t('models.updatedAt')}</span>
 					<span class="detail-value">{new Date(selectedModel.updated_at).toLocaleString('zh-CN')}</span>
 				</div>
 			</div>
 
 			{#if selectedModel.structured_signature}
-				<h4 class="section-title">模型签名</h4>
+				<h4 class="section-title">{$t('models.modelSignature')}</h4>
 				<div class="signature-grid">
 					<div class="signature-section">
-						<h5 class="sig-subtitle">输入</h5>
+						<h5 class="sig-subtitle">{$t('models.input')}</h5>
 						{#each selectedModel.structured_signature.inputs as input}
 							<div class="tensor-spec">
 								<span class="tensor-name">{input.name}</span>
@@ -698,7 +699,7 @@
 						{/each}
 					</div>
 					<div class="signature-section">
-						<h5 class="sig-subtitle">输出</h5>
+						<h5 class="sig-subtitle">{$t('models.output')}</h5>
 						{#each selectedModel.structured_signature.outputs as output}
 							<div class="tensor-spec">
 								<span class="tensor-name">{output.name}</span>
@@ -709,34 +710,34 @@
 					</div>
 				</div>
 			{:else if selectedModel.signature}
-				<h4 class="section-title">模型签名</h4>
+				<h4 class="section-title">{$t('models.modelSignature')}</h4>
 				<pre class="signature-block">{JSON.stringify(selectedModel.signature, null, 2)}</pre>
 			{/if}
 
 			{#if selectedModel.lineage}
-				<h4 class="section-title">模型溯源</h4>
+				<h4 class="section-title">{$t('models.modelLineage')}</h4>
 				<div class="lineage-grid">
 					{#if selectedModel.lineage.experiment_name}
 						<div class="detail-item">
-							<span class="detail-label">来源实验</span>
+							<span class="detail-label">{$t('models.sourceExperiment')}</span>
 							<a href="/lab/experiments/{selectedModel.lineage.experiment_id}" class="detail-value lineage-link">{selectedModel.lineage.experiment_name}</a>
 						</div>
 					{/if}
 					{#if selectedModel.lineage.parent_model_id}
 						<div class="detail-item">
-							<span class="detail-label">父模型</span>
+							<span class="detail-label">{$t('models.parentModel')}</span>
 							<span class="detail-value mono">{selectedModel.lineage.parent_model_id}</span>
 						</div>
 					{/if}
 					{#if selectedModel.lineage.dataset}
 						<div class="detail-item">
-							<span class="detail-label">数据集</span>
+							<span class="detail-label">{$t('models.dataset')}</span>
 							<span class="detail-value">{selectedModel.lineage.dataset}</span>
 						</div>
 					{/if}
 					{#if selectedModel.lineage.training_config}
 						<div class="detail-item full-width">
-							<span class="detail-label">训练配置</span>
+							<span class="detail-label">{$t('models.trainingConfig')}</span>
 							<pre class="config-block">{JSON.stringify(selectedModel.lineage.training_config, null, 2)}</pre>
 						</div>
 					{/if}
@@ -744,7 +745,7 @@
 			{/if}
 
 			{#if Object.keys(selectedModel.metadata).length > 0}
-				<h4 class="section-title">全部元数据</h4>
+				<h4 class="section-title">{$t('models.allMetadata')}</h4>
 				<div class="metadata-table">
 					{#each Object.entries(selectedModel.metadata) as [key, val]}
 						<div class="meta-row">
@@ -755,9 +756,9 @@
 				</div>
 			{/if}
 
-			<h4 class="section-title">版本历史</h4>
+			<h4 class="section-title">{$t('models.versionHistory')}</h4>
 			{#if versionsLoading}
-				<p class="loading-hint">加载版本列表...</p>
+				<p class="loading-hint">{$t('models.loadingVersions')}</p>
 			{:else if modelVersions.length > 0}
 				<div class="version-list">
 					{#each modelVersions as ver}
@@ -791,7 +792,7 @@
 				</div>
 				{#if compareVersionA && compareVersionB && compareVersionA !== compareVersionB}
 					<div class="version-compare">
-						<h5>版本对比: v{compareVersionA} vs v{compareVersionB}</h5>
+						<h5>{$t('models.versionCompare')}: v{compareVersionA} vs v{compareVersionB}</h5>
 						<div class="compare-table">
 							{#each modelVersions.filter(v => v.version === compareVersionA || v.version === compareVersionB) as ver}
 								<div class="compare-row">
@@ -805,29 +806,29 @@
 					</div>
 				{/if}
 			{:else}
-				<p class="loading-hint">暂无版本记录</p>
+				<p class="loading-hint">{$t('models.noVersionHistory')}</p>
 			{/if}
 
 			<div class="modal-actions">
 				{#if !selectedModel.path}
-					<button class="btn-browse" on:click={() => handleSetPath(selectedModel!)}>设置路径</button>
+					<button class="btn-browse" on:click={() => handleSetPath(selectedModel!)}>{$t('models.setPath')}</button>
 				{/if}
 				{#if deployedModelIds.has(selectedModel.id)}
 					<button class="btn-undeploy" on:click={() => handleUndeploy(selectedModel!.id)} disabled={deployLoading}>
-						{deployLoading ? '处理中...' : '取消部署'}
+						{deployLoading ? $t('models.processing') : $t('models.undeploy')}
 					</button>
 				{:else if selectedModel.status === 'production' || selectedModel.status === 'staging'}
 					<button class="btn-deploy" on:click={() => handleDeploy(selectedModel!.id)} disabled={deployLoading}>
-						{deployLoading ? '部署中...' : '部署服务'}
+						{deployLoading ? $t('models.deploying') : $t('models.deployService')}
 					</button>
 				{/if}
-				<button class="btn-cancel" on:click={() => showDetailModal = false}>关闭</button>
+				<button class="btn-cancel" on:click={() => showDetailModal = false}>{$t('models.close')}</button>
 			</div>
 
 			{#if deployedModelIds.has(selectedModel.id)}
 				<div class="serve-section" style="margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 8px;">
-					<h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">在线推理</h4>
-					<p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0;">每行一组数据，特征值用逗号分隔</p>
+					<h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">{$t('models.onlineInference')}</h4>
+					<p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0;">{$t('models.inferenceHint')}</p>
 					<textarea
 						bind:value={serveInput}
 						placeholder="0.1, 0.2, 0.3, ..."
@@ -835,22 +836,22 @@
 						style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;"
 					></textarea>
 					<button class="btn-deploy" on:click={handleServePredict} disabled={serveRunning} style="margin-top: 8px;">
-						{serveRunning ? '推理中...' : '执行推理'}
+						{serveRunning ? $t('models.inferring') : $t('models.runInference')}
 					</button>
 					{#if serveError}
 						<div class="error-banner" style="margin-top: 8px;">{serveError}</div>
 					{/if}
 					{#if serveResult}
 						<div style="margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
-							<div style="font-weight: 600; margin-bottom: 8px;">推理结果 (延迟: {serveResult.latency_ms.toFixed(1)}ms)</div>
+							<div style="font-weight: 600; margin-bottom: 8px;">{$t('models.inferenceResult')} ({$t('models.latency')}: {serveResult.latency_ms.toFixed(1)}ms)</div>
 							{#if serveResult.predicted_classes}
 								<div style="font-size: 13px;">
-									预测类别: {serveResult.predicted_classes.join(', ')}
+									{$t('models.predictedClass')}: {serveResult.predicted_classes.join(', ')}
 								</div>
 							{/if}
 							{#if serveResult.predictions}
 								<div style="font-size: 13px; margin-top: 4px;">
-									预测值: {serveResult.predictions.map((v: number) => v.toFixed(4)).join(', ')}
+									{$t('models.predictedValue')}: {serveResult.predictions.map((v: number) => v.toFixed(4)).join(', ')}
 								</div>
 							{/if}
 						</div>

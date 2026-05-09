@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from '$lib/i18n';
 
   export let healthCheckRunning = false;
   export let healthCheckResults: Record<string, any> = {};
@@ -27,7 +28,7 @@
   const checkItems: CheckItem[] = [
     {
       key: 'integrity',
-      label: '数据完整性',
+      label: $t('healthCheck.integrity'),
       icon: '🔒',
       getStatus: (r) => {
         if (!r.integrity) return 'pending';
@@ -35,20 +36,20 @@
       },
       getSummary: (r) => {
         if (!r.integrity) return '';
-        return r.integrity.integrity_ok ? '数据完整性验证通过' : '数据完整性存在问题';
+        return r.integrity.integrity_ok ? $t('healthCheck.integrityPass') : $t('healthCheck.integrityFail');
       },
       getDetails: (r) => {
         if (!r.integrity) return [];
         const d: DetailLine[] = [];
-        d.push({ label: '校验和', value: r.integrity.checksum_match ? '匹配' : '不匹配', status: r.integrity.checksum_match ? 'good' : 'bad' });
-        d.push({ label: '行数一致', value: r.integrity.row_count_consistent ? '一致' : '不一致', status: r.integrity.row_count_consistent ? 'good' : 'bad' });
-        d.push({ label: '结构一致', value: r.integrity.schema_consistent ? '一致' : '不一致', status: r.integrity.schema_consistent ? 'good' : 'bad' });
+        d.push({ label: $t('healthCheck.checksum'), value: r.integrity.checksum_match ? $t('healthCheck.match') : $t('healthCheck.mismatch'), status: r.integrity.checksum_match ? 'good' : 'bad' });
+        d.push({ label: $t('healthCheck.rowCountConsistent'), value: r.integrity.row_count_consistent ? $t('healthCheck.match') : $t('healthCheck.mismatch'), status: r.integrity.row_count_consistent ? 'good' : 'bad' });
+        d.push({ label: $t('healthCheck.schemaConsistent'), value: r.integrity.schema_consistent ? $t('healthCheck.match') : $t('healthCheck.mismatch'), status: r.integrity.schema_consistent ? 'good' : 'bad' });
         return d;
       },
     },
     {
       key: 'validation',
-      label: '数据格式验证',
+      label: $t('healthCheck.validation'),
       icon: '✅',
       getStatus: (r) => {
         if (!r.validation) return 'pending';
@@ -58,26 +59,26 @@
       },
       getSummary: (r) => {
         if (!r.validation) return '';
-        if (!r.validation.is_valid) return `验证失败，${r.validation.errors?.length || 0} 个错误`;
-        if (r.validation.warnings?.length > 0) return `验证通过，${r.validation.warnings.length} 个警告`;
-        return '数据格式验证通过';
+        if (!r.validation.is_valid) return $t('healthCheck.validationFailed', { count: r.validation.errors?.length || 0 });
+        if (r.validation.warnings?.length > 0) return $t('healthCheck.validationWarn', { count: r.validation.warnings.length });
+        return $t('healthCheck.validationPass');
       },
       getDetails: (r) => {
         if (!r.validation) return [];
         const d: DetailLine[] = [];
-        d.push({ label: '格式验证', value: r.validation.is_valid ? '通过' : '失败', status: r.validation.is_valid ? 'good' : 'bad' });
+        d.push({ label: $t('healthCheck.formatValidation'), value: r.validation.is_valid ? $t('healthCheck.pass') : $t('healthCheck.fail'), status: r.validation.is_valid ? 'good' : 'bad' });
         if (r.validation.warnings?.length > 0) {
-          d.push({ label: '警告', value: `${r.validation.warnings.length} 项`, status: 'warn' });
+          d.push({ label: $t('healthCheck.warnings'), value: `${r.validation.warnings.length}`, status: 'warn' });
         }
         if (r.validation.errors?.length > 0) {
-          d.push({ label: '错误', value: `${r.validation.errors.length} 项`, status: 'bad' });
+          d.push({ label: $t('healthCheck.errors'), value: `${r.validation.errors.length}`, status: 'bad' });
         }
         return d;
       },
     },
     {
       key: 'leakage',
-      label: '数据泄露检测',
+      label: $t('healthCheck.leakage'),
       icon: '💧',
       getStatus: (r) => {
         if (!r.leakage) return 'pending';
@@ -87,17 +88,17 @@
       },
       getSummary: (r) => {
         if (!r.leakage) return '';
-        if (r.leakage.leakage_detected) return '检测到数据泄露风险';
-        return `风险等级: ${r.leakage.risk_level === 'low' ? '低' : r.leakage.risk_level === 'medium' ? '中' : '高'}`;
+        if (r.leakage.leakage_detected) return $t('healthCheck.leakageRiskDetected');
+        return $t('healthCheck.riskLevel', { level: r.leakage.risk_level === 'low' ? $t('healthCheck.low') : r.leakage.risk_level === 'medium' ? $t('healthCheck.medium') : $t('healthCheck.high') });
       },
       getDetails: (r) => {
         if (!r.leakage) return [];
-        return [{ label: '泄露检测', value: r.leakage.leakage_detected ? '存在泄露' : '未检测到泄露', status: r.leakage.leakage_detected ? 'bad' : 'good' }];
+        return [{ label: $t('healthCheck.leakageDetection'), value: r.leakage.leakage_detected ? $t('healthCheck.leakageFound') : $t('healthCheck.noLeakageFound'), status: r.leakage.leakage_detected ? 'bad' : 'good' }];
       },
     },
     {
       key: 'sufficiency',
-      label: '数据充分性',
+      label: $t('healthCheck.sufficiency'),
       icon: '📏',
       getStatus: (r) => {
         if (!r.sufficiency) return 'pending';
@@ -106,21 +107,21 @@
       getSummary: (r) => {
         if (!r.sufficiency) return '';
         return r.sufficiency.is_sufficient
-          ? `数据充足 (${r.sufficiency.current_rows?.toLocaleString()} 行)`
-          : `数据不足 (需 ${r.sufficiency.estimated_required?.toLocaleString()} 行)`;
+          ? $t('healthCheck.dataSufficient', { rows: r.sufficiency.current_rows?.toLocaleString() })
+          : $t('healthCheck.dataInsufficient', { rows: r.sufficiency.estimated_required?.toLocaleString() });
       },
       getDetails: (r) => {
         if (!r.sufficiency) return [];
         const d: DetailLine[] = [];
-        d.push({ label: '当前行数', value: r.sufficiency.current_rows?.toLocaleString() || '-', status: 'neutral' });
-        d.push({ label: '所需行数', value: r.sufficiency.estimated_required?.toLocaleString() || '-', status: 'neutral' });
-        d.push({ label: '裕度', value: r.sufficiency.margin ? `${(r.sufficiency.margin * 100).toFixed(0)}%` : '-', status: r.sufficiency.margin >= 0.2 ? 'good' : 'warn' });
+        d.push({ label: $t('healthCheck.currentRows'), value: r.sufficiency.current_rows?.toLocaleString() || '-', status: 'neutral' });
+        d.push({ label: $t('healthCheck.requiredRows'), value: r.sufficiency.estimated_required?.toLocaleString() || '-', status: 'neutral' });
+        d.push({ label: $t('healthCheck.margin'), value: r.sufficiency.margin ? `${(r.sufficiency.margin * 100).toFixed(0)}%` : '-', status: r.sufficiency.margin >= 0.2 ? 'good' : 'warn' });
         return d;
       },
     },
     {
       key: 'readiness',
-      label: '训练就绪评分',
+      label: $t('healthCheck.readiness'),
       icon: '🎯',
       getStatus: (r) => {
         if (!r.readiness) return 'pending';
@@ -131,7 +132,7 @@
       },
       getSummary: (r) => {
         if (!r.readiness) return '';
-        return `就绪评分 ${r.readiness.overall_score} 分 — ${r.readiness.readiness_level === 'ready' ? '就绪' : r.readiness.readiness_level === 'almost_ready' ? '基本就绪' : '未就绪'}`;
+        return $t('healthCheck.readinessScore', { score: r.readiness.overall_score, level: r.readiness.readiness_level === 'ready' ? $t('healthCheck.ready') : r.readiness.readiness_level === 'almost_ready' ? $t('healthCheck.almostReady') : $t('healthCheck.notReady') });
       },
       getDetails: (r) => {
         if (!r.readiness) return [];
@@ -139,7 +140,7 @@
         if (r.readiness.dimensions) {
           for (const [key, val] of Object.entries(r.readiness.dimensions)) {
             const v = val as any;
-            d.push({ label: v.message || key, value: `${v.score}分`, status: v.status === 'pass' ? 'good' : v.status === 'warn' ? 'warn' : 'bad' });
+            d.push({ label: v.message || key, value: `${v.score}`, status: v.status === 'pass' ? 'good' : v.status === 'warn' ? 'warn' : 'bad' });
           }
         }
         return d;
@@ -147,7 +148,7 @@
     },
     {
       key: 'splits',
-      label: '数据划分',
+      label: $t('healthCheck.splits'),
       icon: '📐',
       getStatus: (r) => {
         if (!r.splits) return 'pending';
@@ -155,7 +156,7 @@
       },
       getSummary: (r) => {
         if (!r.splits) return '';
-        return r.splits.length > 0 ? `${r.splits.length} 个数据划分` : '尚未创建数据划分';
+        return r.splits.length > 0 ? $t('healthCheck.splitsCount', { count: r.splits.length }) : $t('healthCheck.noSplits');
       },
       getDetails: (r) => {
         if (!r.splits || r.splits.length === 0) return [];
@@ -211,7 +212,7 @@
   {#if healthCheckRunning}
     <div class="check-progress-bar">
       <div class="check-progress-fill" style="width: {overallProgress}%"></div>
-      <span class="check-progress-text">{completedCount}/{totalCount} 项检查完成</span>
+      <span class="check-progress-text">{$t('healthCheck.checkProgress', { completed: completedCount, total: totalCount })}</span>
     </div>
   {/if}
 
@@ -254,7 +255,7 @@
         {/if}
 
         {#if status === 'running'}
-          <div class="check-running-hint">正在检查...</div>
+          <div class="check-running-hint">{$t('healthCheck.checking')}</div>
         {/if}
       </div>
     {/each}
@@ -262,7 +263,7 @@
 
   {#if !healthCheckRunning && Object.keys(healthCheckResults).length === 0}
     <div class="check-empty">
-      <p>点击"全面检查"评估数据集是否准备好用于训练</p>
+      <p>{$t('healthCheck.clickToCheck')}</p>
     </div>
   {/if}
 </div>

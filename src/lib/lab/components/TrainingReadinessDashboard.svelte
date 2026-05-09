@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
   export let datasetId: string = '';
   export let qualityScore: any = null;
   export let healthCheckResults: Record<string, any> = {};
@@ -34,7 +35,7 @@
     dimensions = [
       {
         key: 'quality',
-        label: '数据质量',
+        label: $t('readiness.quality'),
         icon: '📊',
         score: qualityScore?.overall_score ?? null,
         status: getQualityStatus(qualityScore?.overall_score),
@@ -42,7 +43,7 @@
       },
       {
         key: 'completeness',
-        label: '完整性',
+        label: $t('readiness.completeness'),
         icon: '🔒',
         score: healthCheckResults.integrity ? (healthCheckResults.integrity.integrity_ok ? 95 : 30) : null,
         status: getIntegrityStatus(),
@@ -50,7 +51,7 @@
       },
       {
         key: 'validation',
-        label: '格式验证',
+        label: $t('readiness.formatValidation'),
         icon: '✅',
         score: healthCheckResults.validation?.valid ? 90 : null,
         status: getValidationStatus(),
@@ -58,7 +59,7 @@
       },
       {
         key: 'leakage',
-        label: '数据泄漏检查',
+        label: $t('readiness.leakageCheck'),
         icon: '🛡️',
         score: healthCheckResults.leakage?.leakage_detected === false ? 100 : (healthCheckResults.leakage?.leakage_detected === true ? 20 : null),
         status: getLeakageStatus(),
@@ -66,7 +67,7 @@
       },
       {
         key: 'sufficiency',
-        label: '数据量充足性',
+        label: $t('readiness.sufficiency'),
         icon: '📈',
         score: healthCheckResults.sufficiency?.sufficient ? 85 : null,
         status: getSufficiencyStatus(),
@@ -74,11 +75,11 @@
       },
       {
         key: 'balance',
-        label: '类别均衡性',
+        label: $t('readiness.balance'),
         icon: '⚖️',
         score: readinessScore?.dimensions?.balance?.score ?? null,
         status: getBalanceStatus(readinessScore?.dimensions?.balance?.score),
-        message: readinessScore?.dimensions?.balance?.message || '待评估',
+        message: readinessScore?.dimensions?.balance?.message || $t('readiness.pending'),
       },
     ];
 
@@ -91,10 +92,10 @@
     issues = [];
 
     if (healthCheckResults.leakage?.leakage_detected) {
-      issues.push({ severity: 'error', text: '检测到数据泄漏风险', dimension: 'leakage' });
+      issues.push({ severity: 'error', text: $t('readiness.leakageRisk'), dimension: 'leakage' });
     }
     if (!healthCheckResults.integrity?.integrity_ok && healthCheckResults.integrity) {
-      issues.push({ severity: 'error', text: '数据完整性校验未通过', dimension: 'integrity' });
+      issues.push({ severity: 'error', text: $t('readiness.integrityFailed'), dimension: 'integrity' });
     }
     if (readinessScore?.issues?.length > 0) {
       for (const issue of readinessScore.issues) {
@@ -102,14 +103,14 @@
       }
     }
     if (overallScore < 50) {
-      issues.push({ severity: 'error', text: '综合就绪度过低，不建议用于训练', dimension: 'overall' });
+      issues.push({ severity: 'error', text: $t('readiness.overallTooLow'), dimension: 'overall' });
     } else if (overallScore < 70) {
-      issues.push({ severity: 'warning', text: '综合就绪度一般，建议优化后使用', dimension: 'overall' });
+      issues.push({ severity: 'warning', text: $t('readiness.overallNeedsOpt'), dimension: 'overall' });
     }
 
     recommendations = readinessScore?.recommendations || [];
-    if (overallScore >= 70 && overallScore < 85 && !recommendations.includes('建议运行质量评估')) {
-      recommendations.push('建议运行质量评估获取详细改进方向');
+    if (overallScore >= 70 && overallScore < 85 && !recommendations.includes($t('readiness.runQualityAssess'))) {
+      recommendations.push($t('readiness.runQualityAssessDetail'));
     }
 
     const hasError = issues.some(i => i.severity === 'error');
@@ -132,10 +133,10 @@
   }
 
   function getQualityMessage(score: number | undefined): string {
-    if (score == null) return '待评估';
-    if (score >= 80) return `质量良好 (${score.toFixed(0)}分)`;
-    if (score >= 60) return `质量一般 (${score.toFixed(0)}分)，需要优化`;
-    return `质量较差 (${score.toFixed(0)}分)，强烈建议修复`;
+    if (score == null) return $t('readiness.pending');
+    if (score >= 80) return $t('readiness.qualityGood', { score: score.toFixed(0) });
+    if (score >= 60) return $t('readiness.qualityFair', { score: score.toFixed(0) });
+    return $t('readiness.qualityPoor', { score: score.toFixed(0) });
   }
 
   function getIntegrityStatus(): ReadinessDimension['status'] {
@@ -144,8 +145,8 @@
   }
 
   function getIntegrityMessage(): string {
-    if (!healthCheckResults.integrity) return '待检查';
-    return healthCheckResults.integrity.integrity_ok ? '数据完整' : '存在完整性问题';
+    if (!healthCheckResults.integrity) return $t('readiness.pendingCheck');
+    return healthCheckResults.integrity.integrity_ok ? $t('readiness.dataIntact') : $t('readiness.integrityIssue');
   }
 
   function getValidationStatus(): ReadinessDimension['status'] {
@@ -154,8 +155,8 @@
   }
 
   function getValidationMessage(): string {
-    if (!healthCheckResults.validation) return '待验证';
-    return healthCheckResults.validation.valid ? '格式正确' : '格式存在问题';
+    if (!healthCheckResults.validation) return $t('readiness.pendingValidation');
+    return healthCheckResults.validation.valid ? $t('readiness.formatCorrect') : $t('readiness.formatIssue');
   }
 
   function getLeakageStatus(): ReadinessDimension['status'] {
@@ -165,10 +166,10 @@
   }
 
   function getLeakageMessage(): string {
-    if (!healthCheckResults.leakage) return '待检查';
-    if (healthCheckResults.leakage.leakage_detected === false) return '无泄漏风险';
-    if (healthCheckResults.leakage.leakage_detected === true) return '检测到数据泄漏！';
-    return '未知';
+    if (!healthCheckResults.leakage) return $t('readiness.pendingCheck');
+    if (healthCheckResults.leakage.leakage_detected === false) return $t('readiness.noLeakage');
+    if (healthCheckResults.leakage.leakage_detected === true) return $t('readiness.leakageDetected');
+    return $t('readiness.unknown');
   }
 
   function getSufficiencyStatus(): ReadinessDimension['status'] {
@@ -177,9 +178,9 @@
   }
 
   function getSufficiencyMessage(): string {
-    if (!healthCheckResults.sufficiency) return '待评估';
-    if (healthCheckResults.sufficiency.sufficient) return '数据量充足';
-    return `数据量可能不足 (当前${healthCheckResults.sufficiency.current_rows?.toLocaleString()}行)`;
+    if (!healthCheckResults.sufficiency) return $t('readiness.pending');
+    if (healthCheckResults.sufficiency.sufficient) return $t('readiness.dataSufficient');
+    return $t('readiness.dataInsufficient', { rows: healthCheckResults.sufficiency.current_rows?.toLocaleString() });
   }
 
   function getBalanceStatus(score: number | undefined): ReadinessDimension['status'] {
@@ -200,19 +201,19 @@
 
   function statusLabel(status: string): string {
     switch (status) {
-      case 'pass': return '通过';
-      case 'warn': return '警告';
-      case 'fail': return '不通过';
-      default: return '待定';
+      case 'pass': return $t('readiness.pass');
+      case 'warn': return $t('readiness.warn');
+      case 'fail': return $t('readiness.fail');
+      default: return $t('readiness.pendingLabel');
     }
   }
 
   function overallLabel(status: string): string {
     switch (status) {
-      case 'ready': return '✅ 数据已准备好训练';
-      case 'warning': return '⚠️ 数据基本可用，有轻微问题';
-      case 'not_ready': return '❌ 数据尚未准备好训练';
-      default: return '⏳ 正在评估...';
+      case 'ready': return $t('readiness.ready');
+      case 'warning': return $t('readiness.warning');
+      case 'not_ready': return $t('readiness.notReady');
+      default: return $t('readiness.evaluating');
     }
   }
 
@@ -239,13 +240,13 @@
 
 <div class="readiness-dashboard">
   <div class="dashboard-header">
-    <h4>🎯 训练就绪度评估</h4>
+    <h4>{$t('readiness.title')}</h4>
     {#if overallStatus !== 'loading'}
       <div class="overall-status" style="color: {overallColor(overallStatus)}">
         {overallLabel(overallStatus)}
       </div>
     {:else}
-      <div class="overall-status">⏳ 正在评估...</div>
+      <div class="overall-status">{$t('readiness.evaluating')}</div>
     {/if}
   </div>
 
@@ -272,15 +273,15 @@
       </svg>
 
       <div class="score-labels">
-        <span class="label-item"><span style="color:#10b981">●</span> ≥85 就绪</span>
-        <span class="label-item"><span style="color:#3b82f6">●</span> ≥70 可用</span>
-        <span class="label-item"><span style="color:#f59e0b">●</span> ≥55 需优化</span>
-        <span class="label-item"><span style="color:#ef4444">●</span> &lt;55 不推荐</span>
+        <span class="label-item"><span style="color:#10b981">●</span> ≥85 {$t('readiness.readyShort')}</span>
+        <span class="label-item"><span style="color:#3b82f6">●</span> ≥70 {$t('readiness.usable')}</span>
+        <span class="label-item"><span style="color:#f59e0b">●</span> ≥55 {$t('readiness.needsOpt')}</span>
+        <span class="label-item"><span style="color:#ef4444">●</span> &lt;55 {$t('readiness.notRecommended')}</span>
       </div>
     </div>
 
     <div class="dimensions-section">
-      <h5>维度详情</h5>
+      <h5>{$t('readiness.dimensionDetails')}</h5>
       <div class="dim-list">
         {#each dimensions as dim}
           <div class="dim-row">
@@ -314,7 +315,7 @@
 
   {#if issues.length > 0}
     <div class="issues-section">
-      <h5>发现的问题 ({issues.length})</h5>
+      <h5>{$t('readiness.issuesFound', { count: issues.length })}</h5>
       {#each issues as issue}
         <div class="issue-item" class:error={issue.severity === 'error'} class:warning={issue.severity === 'warning'}>
           <span class="issue-sev">{issue.severity === 'error' ? '🔴' : '⚠️'}</span>
@@ -327,7 +328,7 @@
 
   {#if recommendations.length > 0}
     <div class="recs-section">
-      <h5>💡 改进建议</h5>
+      <h5>💡 {$t('readiness.recommendations')}</h5>
       {#each recommendations as rec}
         <div class="rec-item">{rec}</div>
       {/each}

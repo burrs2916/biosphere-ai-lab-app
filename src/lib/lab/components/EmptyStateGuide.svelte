@@ -1,16 +1,17 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { goto } from '$app/navigation';
+  import { t } from '$lib/i18n';
 
   export let isFiltered = false;
 
   const dispatch = createEventDispatcher();
 
   const quickStartSteps = [
-    { icon: '📁', title: '注册数据集', desc: '导入本地 CSV/JSON/Parquet 数据', action: 'register' },
-    { icon: '🔍', title: '发现数据', desc: '自动扫描可用数据源', action: 'discover' },
-    { icon: '📊', title: '质量评估', desc: '分析数据完整性与分布', action: 'quality' },
-    { icon: '🧪', title: '开始训练', desc: '用数据集启动实验', action: 'train' },
+    { icon: '📁', title: $t('emptyGuide.stepRegister'), desc: $t('emptyGuide.stepRegisterDesc'), action: 'register' },
+    { icon: '🔍', title: $t('emptyGuide.stepDiscover'), desc: $t('emptyGuide.stepDiscoverDesc'), action: 'discover' },
+    { icon: '📊', title: $t('emptyGuide.stepQuality'), desc: $t('emptyGuide.stepQualityDesc'), action: 'quality' },
+    { icon: '🧪', title: $t('emptyGuide.stepTrain'), desc: $t('emptyGuide.stepTrainDesc'), action: 'train' },
   ];
 
   function handleAction(action: string) {
@@ -34,15 +35,15 @@
 {#if isFiltered}
   <div class="empty-state">
     <div class="empty-icon">🔍</div>
-    <h3>未找到匹配的数据集</h3>
-    <p>尝试调整搜索条件或筛选器</p>
+    <h3>{$t('emptyGuide.noMatch')}</h3>
+    <p>{$t('emptyGuide.adjustFilter')}</p>
   </div>
 {:else}
   <div class="onboarding-state">
     <div class="onboarding-hero">
       <div class="hero-icon">🚀</div>
-      <h2>开始你的数据之旅</h2>
-      <p class="hero-desc">注册第一个数据集，解锁完整的 AI 训练工作流</p>
+      <h2>{$t('emptyGuide.startJourney')}</h2>
+      <p class="hero-desc">{$t('emptyGuide.startDesc')}</p>
     </div>
 
     <div class="quick-start-grid">
@@ -59,20 +60,20 @@
     <div class="onboarding-tips">
       <div class="tip-item">
         <span class="tip-icon">💡</span>
-        <span>支持 CSV、JSON、Parquet、文本和图像格式</span>
+        <span>{$t('emptyGuide.tip1')}</span>
       </div>
       <div class="tip-item">
         <span class="tip-icon">💡</span>
-        <span>注册后可自动进行质量评分和健康检查</span>
+        <span>{$t('emptyGuide.tip2')}</span>
       </div>
       <div class="tip-item">
         <span class="tip-icon">💡</span>
-        <span>使用数据配方功能混合多个数据集</span>
+        <span>{$t('emptyGuide.tip3')}</span>
       </div>
     </div>
 
     <button class="btn-primary" on:click={() => dispatch('register')}>
-      📁 注册第一个数据集
+      📁 {$t('emptyGuide.registerFirst')}
     </button>
   </div>
 {/if}

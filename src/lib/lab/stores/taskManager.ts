@@ -1,4 +1,5 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
+import { i18n } from '$lib/i18n';
 
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -38,7 +39,7 @@ function createTaskManagerStore() {
       description,
       status: 'running',
       progress: 0,
-      progressMessage: '准备中...',
+      progressMessage: get(i18n.t)('taskManager.preparing'),
       startedAt: Date.now(),
       completedAt: null,
       estimatedTimeRemaining: null,
@@ -140,7 +141,7 @@ function createTaskManagerStore() {
               ...t,
               status: 'completed' as const,
               progress: 100,
-              progressMessage: '完成',
+              progressMessage: get(i18n.t)('taskManager.completed'),
               completedAt: Date.now(),
               estimatedTimeRemaining: null,
               result: result || null,
@@ -160,7 +161,7 @@ function createTaskManagerStore() {
               ...t,
               status: 'failed' as const,
               progress: t.progress,
-              progressMessage: '失败',
+              progressMessage: get(i18n.t)('taskManager.failed'),
               completedAt: Date.now(),
               estimatedTimeRemaining: null,
               error,
@@ -179,7 +180,7 @@ function createTaskManagerStore() {
               ...t,
               status: 'cancelled' as const,
               progress: t.progress,
-              progressMessage: '已取消',
+              progressMessage: get(i18n.t)('taskManager.cancelled'),
               completedAt: Date.now(),
               estimatedTimeRemaining: null,
             }
@@ -239,24 +240,26 @@ export const hasActiveTasks = derived(activeTaskCount, ($count) => $count > 0);
 
 export function formatETA(ms: number | null): string {
   if (ms === null) return '';
-  if (ms < 1000) return '即将完成';
+  const t = get(i18n.t);
+  if (ms < 1000) return t('taskManager.almostDone');
   const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `约 ${seconds} 秒`;
+  if (seconds < 60) return t('taskManager.aboutSeconds', { seconds });
   const minutes = Math.floor(seconds / 60);
   const remainSeconds = seconds % 60;
-  if (minutes < 60) return `约 ${minutes}分${remainSeconds}秒`;
+  if (minutes < 60) return t('taskManager.aboutMinSec', { minutes, seconds: remainSeconds });
   const hours = Math.floor(minutes / 60);
   const remainMinutes = minutes % 60;
-  return `约 ${hours}时${remainMinutes}分`;
+  return t('taskManager.aboutHourMin', { hours, minutes: remainMinutes });
 }
 
 export function formatElapsed(startedAt: number, completedAt: number | null): string {
   const end = completedAt || Date.now();
   const elapsed = end - startedAt;
   if (elapsed < 1000) return `${elapsed}ms`;
+  const t = get(i18n.t);
   const seconds = Math.round(elapsed / 1000);
-  if (seconds < 60) return `${seconds}秒`;
+  if (seconds < 60) return t('taskManager.secondsOnly', { seconds });
   const minutes = Math.floor(seconds / 60);
   const remainSeconds = seconds % 60;
-  return `${minutes}分${remainSeconds}秒`;
+  return t('taskManager.minSec', { minutes, seconds: remainSeconds });
 }

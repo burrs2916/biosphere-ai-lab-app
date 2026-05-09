@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { uxStore } from '$lib/lab/stores/uxStore';
+  import { t } from '$lib/i18n';
 
   export let onRefresh: (() => void) | null = null;
   export let onSearch: (() => void) | null = null;
@@ -20,7 +21,7 @@
         case 'r':
           e.preventDefault();
           onRefresh?.();
-          uxStore.info('刷新', '数据已刷新');
+          uxStore.info($t('shortcuts.refresh'), $t('shortcuts.dataRefreshed'));
           break;
         case 'k':
           e.preventDefault();
@@ -56,33 +57,33 @@
 </script>
 
 {#if showHelp}
-  <div class="shortcut-overlay" role="dialog" aria-modal="true" aria-label="快捷键帮助" tabindex="-1" on:click={() => (showHelp = false)} on:keydown={(e) => { if (e.key === 'Escape') showHelp = false; }}>
+  <div class="shortcut-overlay" role="dialog" aria-modal="true" aria-label={$t('shortcuts.help')} tabindex="-1" on:click={() => (showHelp = false)} on:keydown={(e) => { if (e.key === 'Escape') showHelp = false; }}>
     <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div class="shortcut-panel" role="document" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="shortcut-header">
-        <h3>⌨️ 快捷键</h3>
+        <h3>⌨️ {$t('shortcuts.title')}</h3>
         <button class="close-btn" on:click={() => (showHelp = false)}>✕</button>
       </div>
       <div class="shortcut-list">
         <div class="shortcut-item">
           <kbd>Ctrl</kbd> + <kbd>R</kbd>
-          <span class="shortcut-desc">刷新数据</span>
+          <span class="shortcut-desc">{$t('shortcuts.refreshData')}</span>
         </div>
         <div class="shortcut-item">
-          <kbd>Ctrl</kbd> + <kbd>K</kbd>
-          <span class="shortcut-desc">搜索</span>
+          <kbd>K</kbd>
+          <span class="shortcut-desc">{$t('shortcuts.search')}</span>
         </div>
         <div class="shortcut-item">
           <kbd>?</kbd>
-          <span class="shortcut-desc">显示快捷键帮助</span>
+          <span class="shortcut-desc">{$t('shortcuts.showHelp')}</span>
         </div>
         <div class="shortcut-item">
           <kbd>Esc</kbd>
-          <span class="shortcut-desc">关闭弹窗/帮助</span>
+          <span class="shortcut-desc">{$t('shortcuts.closeDialog')}</span>
         </div>
         <div class="shortcut-item">
-          <kbd>Backspace</kbd>
-          <span class="shortcut-desc">返回上一页</span>
+          <kbd>Alt + ←</kbd>
+          <span class="shortcut-desc">{$t('shortcuts.goBack')}</span>
         </div>
       </div>
     </div>

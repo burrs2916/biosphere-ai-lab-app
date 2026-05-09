@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLabClient } from '$lib/lab/stores/plugins';
   import { taskManagerStore } from '$lib/lab/stores/taskManager';
+  import { t } from '$lib/i18n';
 
   export let datasetId: string = '';
 
@@ -17,14 +18,14 @@
     loading = true;
     error = null;
     qualityResult = null;
-    const taskId = taskManagerStore.createTask('标签质量分析', `正在分析 "${labelColumn}" 列...`, false);
+    const taskId = taskManagerStore.createTask($t('labelQuality.qualityAnalysis'), $t('labelQuality.analyzingColumn', { column: labelColumn }), false);
     try {
       const client = getLabClient();
       qualityResult = await client.datasetLabelQuality(datasetId, labelColumn);
-      taskManagerStore.completeTask(taskId, `分析完成，误标率 ${(qualityResult.mislabel_rate * 100).toFixed(2)}%`);
+      taskManagerStore.completeTask(taskId, $t('labelQuality.analysisComplete', { rate: (qualityResult.mislabel_rate * 100).toFixed(2) }));
     } catch (e: any) {
-      error = e?.toString() || '分析失败';
-      taskManagerStore.failTask(taskId, error || '未知错误');
+      error = e?.toString() || $t('labelQuality.analysisFailed');
+      taskManagerStore.failTask(taskId, error || $t('task.unknownError'));
     } finally {
       loading = false;
     }
@@ -35,14 +36,14 @@
     loading = true;
     error = null;
     summaryResult = null;
-    const taskId = taskManagerStore.createTask('标签质量汇总', '正在汇总所有标签列...', false);
+    const taskId = taskManagerStore.createTask($t('labelQuality.summaryTask'), $t('labelQuality.summarizingAll'), false);
     try {
       const client = getLabClient();
       summaryResult = await client.datasetLabelQualitySummary(datasetId);
-      taskManagerStore.completeTask(taskId, '汇总完成');
+      taskManagerStore.completeTask(taskId, $t('labelQuality.summaryComplete'));
     } catch (e: any) {
-      error = e?.toString() || '汇总失败';
-      taskManagerStore.failTask(taskId, error || '未知错误');
+      error = e?.toString() || $t('labelQuality.summaryFailed');
+      taskManagerStore.failTask(taskId, error || $t('task.unknownError'));
     } finally {
       loading = false;
     }
@@ -53,14 +54,14 @@
     loading = true;
     error = null;
     confidentResult = null;
-    const taskId = taskManagerStore.createTask('Confident Learning', `正在运行 CL 分析...`, false);
+    const taskId = taskManagerStore.createTask('Confident Learning', $t('labelQuality.runningCl'), false);
     try {
       const client = getLabClient();
       confidentResult = await client.datasetConfidentLearning(datasetId, labelColumn);
-      taskManagerStore.completeTask(taskId, `发现 ${confidentResult.identified_label_issues} 个标签问题`);
+      taskManagerStore.completeTask(taskId, $t('labelQuality.foundIssues', { count: confidentResult.identified_label_issues }));
     } catch (e: any) {
-      error = e?.toString() || '分析失败';
-      taskManagerStore.failTask(taskId, error || '未知错误');
+      error = e?.toString() || $t('labelQuality.analysisFailed');
+      taskManagerStore.failTask(taskId, error || $t('task.unknownError'));
     } finally {
       loading = false;
     }
@@ -74,22 +75,22 @@
 </script>
 
 <div class="label-quality">
-  <h3>🏷️ 标签质量评估</h3>
+  <h3>🏷️ {$t('labelQuality.title')}</h3>
 
   <div class="form-row">
     <div class="form-group flex-1">
-      <label for="label-column">标签列名</label>
+      <label for="label-column">{$t('labelQuality.labelColumn')}</label>
       <input id="label-column" class="input" type="text" bind:value={labelColumn} placeholder="label / category / sentiment" />
     </div>
     <div class="btn-group">
       <button class="btn-primary-sm" on:click={runLabelQuality} disabled={loading || !labelColumn}>
-        🔍 质量分析
+        🔍 {$t('labelQuality.qualityAnalysis')}
       </button>
-      <button class="btn-secondary-sm" on:click={runConfidentLearning} disabled={loading || !labelColumn}>
-        🧠 CL 分析
+      <button class="btn-sm" on:click={runConfidentLearning} disabled={loading || !labelColumn.trim()}>
+        🧠 {$t('labelQuality.clAnalysis')}
       </button>
-      <button class="btn-secondary-sm" on:click={runSummary} disabled={loading}>
-        📊 汇总
+      <button class="btn-sm" on:click={runSummary} disabled={loading}>
+        📊 {$t('labelQuality.summary')}
       </button>
     </div>
   </div>
@@ -101,7 +102,7 @@
   {#if qualityResult}
     <div class="result-card">
       <div class="result-header">
-        <span>📋 标签质量报告 — {qualityResult.label_column}</span>
+        <span>📋 {$t('labelQuality.qualityReport', { column: qualityResult.label_column })}</span>
         <span class="quality-badge" style="background: {qualityColor(qualityResult.label_consistency)}20; color: {qualityColor(qualityResult.label_consistency)}">
           {(qualityResult.label_consistency * 100).toFixed(1)}%
         </span>
@@ -109,25 +110,25 @@
       <div class="metrics-row">
         <div class="metric">
           <div class="metric-value">{qualityResult.total_labels.toLocaleString()}</div>
-          <div class="metric-label">总标签数</div>
+          <div class="metric-label">{$t('labelQuality.totalLabels')}</div>
         </div>
         <div class="metric">
           <div class="metric-value">{qualityResult.unique_labels}</div>
-          <div class="metric-label">唯一类别</div>
+          <div class="metric-label">{$t('labelQuality.uniqueClasses')}</div>
         </div>
         <div class="metric">
           <div class="metric-value" style="color: {qualityColor(qualityResult.label_consistency)}">{(qualityResult.mislabel_rate * 100).toFixed(2)}%</div>
-          <div class="metric-label">误标率</div>
+          <div class="metric-label">{$t('labelQuality.mislabelRate')}</div>
         </div>
         <div class="metric">
           <div class="metric-value" style="color: {qualityColor(qualityResult.label_consistency)}">{qualityResult.suspected_mislabels}</div>
-          <div class="metric-label">疑似误标</div>
+          <div class="metric-label">{$t('labelQuality.suspectedMislabels')}</div>
         </div>
       </div>
 
       {#if qualityResult.per_class_quality}
         <div class="per-class-section">
-          <h4>各类别质量</h4>
+          <h4>{$t('labelQuality.perClassQuality')}</h4>
           <div class="class-bars">
             {#each Object.entries(qualityResult.per_class_quality) as [cls, infoRaw]}
               {@const info = infoRaw as { count: number; suspected_mislabels: number; consistency: number }}
@@ -137,7 +138,7 @@
                   <div class="bar-fill" style="width: {info.consistency * 100}%; background: {qualityColor(info.consistency)}"></div>
                 </div>
                 <span class="bar-label" style="color: {qualityColor(info.consistency)}">{(info.consistency * 100).toFixed(1)}%</span>
-                <span class="bar-detail">{info.count} · {info.suspected_mislabels} 疑似</span>
+                <span class="bar-detail">{info.count} · {info.suspected_mislabels} {$t('labelQuality.suspected')}</span>
               </div>
             {/each}
           </div>
@@ -149,7 +150,7 @@
   {#if summaryResult}
     <div class="result-card">
       <div class="result-header">
-        <span>📊 标签质量汇总</span>
+        <span>📊 {$t('labelQuality.qualitySummary')}</span>
         <span class="quality-badge" style="background: {summaryResult.overall_quality === 'good' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'}; color: {summaryResult.overall_quality === 'good' ? '#10b981' : '#f59e0b'}">
           {summaryResult.overall_quality}
         </span>
@@ -162,7 +163,7 @@
               <div class="bar-fill" style="width: {s.quality * 100}%; background: {qualityColor(s.quality)}"></div>
             </div>
             <span class="bar-label" style="color: {qualityColor(s.quality)}">{(s.quality * 100).toFixed(1)}%</span>
-            <span class="bar-detail">误标率 {(s.mislabel_rate * 100).toFixed(2)}%</span>
+            <span class="bar-detail">{$t('labelQuality.mislabelRateShort')} {(s.mislabel_rate * 100).toFixed(2)}%</span>
           </div>
         {/each}
       </div>
@@ -172,20 +173,20 @@
   {#if confidentResult}
     <div class="result-card">
       <div class="result-header">
-        <span>🧠 Confident Learning 分析</span>
+        <span>🧠 {$t('labelQuality.clResult')}</span>
         <span class="quality-badge" style="background: rgba(139,92,246,0.15); color: #a78bfa">
-          {confidentResult.identified_label_issues} 个问题
+          {$t('labelQuality.labelIssues', { count: confidentResult.identified_label_issues })}
         </span>
       </div>
       <div class="metrics-row">
         <div class="metric">
           <div class="metric-value">{confidentResult.identified_label_issues}</div>
-          <div class="metric-label">识别的标签问题</div>
+          <div class="metric-label">{$t('labelQuality.identifiedIssues')}</div>
         </div>
       </div>
       {#if confidentResult.suggested_corrections?.length > 0}
         <div class="corrections-section">
-          <h4>建议修正</h4>
+          <h4>{$t('labelQuality.suggestedCorrections')}</h4>
           <div class="corrections-list">
             {#each confidentResult.suggested_corrections.slice(0, 10) as corr}
               <div class="correction-item">

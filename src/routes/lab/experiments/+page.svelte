@@ -3,6 +3,7 @@
 	import { experimentStore } from '$lib/lab/stores/experiment';
 	import { getLabClient } from '$lib/lab/stores/plugins';
 	import type { ExperimentSummary, ExperimentStatus } from '$lib/lab/adapter/types';
+	import { t } from '$lib/i18n';
 
 	let loading = true;
 	let error: string | null = null;
@@ -37,7 +38,7 @@
 			const client = getLabClient();
 			availableGroups = await client.listExperimentGroups();
 		} catch (e: any) {
-			error = e?.message || '加载实验列表失败';
+			error = e?.message || $t('experiments.loadFailed');
 		} finally {
 			loading = false;
 		}
@@ -178,13 +179,13 @@
 
 	function statusLabel(status: ExperimentStatus): string {
 		switch (status) {
-			case 'running': return '运行中';
-			case 'completed': return '已完成';
-			case 'failed': return '失败';
-			case 'paused': return '已暂停';
-			case 'cancelled': return '已取消';
-			case 'created': return '已创建';
-			case 'archived': return '已归档';
+			case 'running': return $t('experiments.statusRunning');
+		case 'completed': return $t('experiments.statusCompleted');
+		case 'failed': return $t('experiments.statusFailed');
+		case 'paused': return $t('experiments.statusPaused');
+		case 'cancelled': return $t('experiments.statusCancelled');
+		case 'created': return $t('experiments.statusCreated');
+		case 'archived': return $t('experiments.statusArchived');
 			default: return status;
 		}
 	}
@@ -204,25 +205,25 @@
 
 	function taskTypeLabel(taskType: string): string {
 		const labels: Record<string, string> = {
-			Classification: '分类',
-			Regression: '回归',
-			Clustering: '聚类',
-			Detection: '检测',
-			Segmentation: '分割',
-			Generation: '生成',
-			Nlp: 'NLP',
-			Custom: '自定义',
-			classification: '分类',
-			regression: '回归',
-			clustering: '聚类',
-			detection: '检测',
-			segmentation: '分割',
-			generation: '生成',
-			nlp: 'NLP',
-			custom: '自定义',
-			image_classification: '图像分类',
-			text_classification: '文本分类',
-			object_detection: '目标检测',
+			Classification: $t('experiments.taskClassification'),
+			Regression: $t('experiments.taskRegression'),
+			Clustering: $t('experiments.taskClustering'),
+			Detection: $t('experiments.taskDetection'),
+			Segmentation: $t('experiments.taskSegmentation'),
+			Generation: $t('experiments.taskGeneration'),
+			Reward: $t('experiments.taskReward'),
+			Custom: $t('experiments.taskCustom'),
+			classification: $t('experiments.taskClassification'),
+			regression: $t('experiments.taskRegression'),
+			clustering: $t('experiments.taskClustering'),
+			detection: $t('experiments.taskDetection'),
+			segmentation: $t('experiments.taskSegmentation'),
+			generation: $t('experiments.taskGeneration'),
+			reward: $t('experiments.taskReward'),
+			custom: $t('experiments.taskCustom'),
+			image_classification: $t('experiments.taskImageClassification'),
+			text_classification: $t('experiments.taskTextClassification'),
+			object_detection: $t('experiments.taskObjectDetection'),
 		};
 		return labels[taskType] || taskType;
 	}
@@ -231,10 +232,10 @@
 		const d = new Date(iso);
 		const now = new Date();
 		const diff = now.getTime() - d.getTime();
-		if (diff < 60000) return '刚刚';
-		if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-		if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-		if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
+		if (diff < 60000) return $t('time.justNow');
+		if (diff < 3600000) return `${Math.floor(diff / 60000)} ${$t('time.minutesAgo')}`;
+		if (diff < 86400000) return `${Math.floor(diff / 3600000)} ${$t('time.hoursAgo')}`;
+		if (diff < 604800000) return `${Math.floor(diff / 86400000)} ${$t('time.daysAgo')}`;
 		return d.toLocaleDateString('zh-CN');
 	}
 
@@ -246,7 +247,7 @@
 			await experimentStore.refresh();
 			confirmDeleteId = null;
 		} catch (e: any) {
-			error = e?.message || '删除实验失败';
+			error = e?.message || $t('experiments.deleteFailed');
 		} finally {
 			deleting = false;
 		}
@@ -262,7 +263,7 @@
 			cloneTargetId = null;
 			cloneName = '';
 		} catch (e: any) {
-			error = e?.message || '克隆实验失败';
+			error = e?.message || $t('experiments.cloneFailed');
 		} finally {
 			cloning = false;
 		}
@@ -270,7 +271,7 @@
 
 	function startClone(id: string, name: string) {
 		cloneTargetId = id;
-		cloneName = `${name} (副本)`;
+		cloneName = `${name} (${$t('experiments.copy')})`;
 	}
 
 	function toggleSort(field: typeof sortBy) {
@@ -310,7 +311,7 @@
 		try {
 			await experimentStore.refresh();
 		} catch (e: any) {
-			error = e?.message || '刷新失败';
+			error = e?.message || $t('experiments.refreshFailed');
 		} finally {
 			loading = false;
 		}
@@ -351,7 +352,7 @@
 			confirmBatchDelete = false;
 			await experimentStore.refresh();
 		} catch (e: any) {
-			error = e?.message || '批量删除失败';
+			error = e?.message || $t('experiments.batchDeleteFailed');
 		} finally {
 			batchDeleting = false;
 		}
@@ -379,16 +380,16 @@
 <div class="experiments-page">
 	<div class="page-header">
 		<div>
-			<h2>实验列表</h2>
-			<p class="subtitle">查看和管理所有训练实验</p>
+			<h2>{$t('experiments.title')}</h2>
+			<p class="subtitle">{$t('experiments.subtitle')}</p>
 		</div>
 		<div class="header-actions">
 			{#if selectedIds.size >= 2}
 				<button class="btn-compare" on:click={compareSelected}>
-					📊 对比选中 ({selectedIds.size})
+					📊 {$t('experiments.compareSelected')} ({selectedIds.size})
 				</button>
 			{:else if selectedIds.size > 0}
-				<span class="select-hint">已选 {selectedIds.size}，再选 1 个即可对比</span>
+				<span class="select-hint">{$t('experiments.selectedCount', { count: selectedIds.size })}，{$t('experiments.selectMore')}</span>
 			{/if}
 			{#if selectedIds.size > 0}
 				<button
@@ -398,19 +399,19 @@
 					disabled={batchDeleting}
 				>
 					{#if batchDeleting}
-						删除中...
+						{$t('experiments.deleting')}...
 					{:else if confirmBatchDelete}
-						⚠️ 确认删除 {selectedIds.size} 个实验？
+						⚠️ {$t('experiments.confirmBatchDelete', { count: selectedIds.size })}？
 					{:else}
-						🗑 删除选中 ({selectedIds.size})
+						🗑 {$t('experiments.deleteSelected')} ({selectedIds.size})
 					{/if}
 				</button>
-				<button class="btn-clear-sel" on:click={clearSelection}>清除选择</button>
+				<button class="btn-clear-sel" on:click={clearSelection}>{$t('experiments.clearSelection')}</button>
 			{/if}
 			<button class="btn-refresh" on:click={refreshList} disabled={loading}>
-				{loading ? '加载中...' : '刷新'}
+				{loading ? $t('experiments.loading') : $t('experiments.refresh')}
 			</button>
-			<a href="/lab/train/new" class="btn-new">+ 新建实验</a>
+			<a href="/lab/train/new" class="btn-new">+ {$t('experiments.newExperiment')}</a>
 		</div>
 	</div>
 
@@ -423,23 +424,23 @@
 			<input
 				type="text"
 				class="search-input"
-				placeholder="搜索实验... 支持 tag:xxx status:Running type:classification 语法"
+				placeholder={$t('experiments.searchPlaceholder')}
 				bind:value={searchQuery}
 			/>
 			<button class="btn-advanced" class:active={showAdvancedSearch} on:click={() => showAdvancedSearch = !showAdvancedSearch}>
-				高级筛选
+				{$t('experiments.advancedFilter')}
 			</button>
 			{#if hasActiveFilters}
-				<button class="btn-clear-filters" on:click={clearFilters}>清除筛选</button>
+				<button class="btn-clear-filters" on:click={clearFilters}>{$t('experiments.clearFilters')}</button>
 			{/if}
 		</div>
 		{#if showAdvancedSearch}
 			<div class="advanced-search">
 				{#if availableGroups.length > 0}
 					<div class="advanced-row">
-						<span class="advanced-label">分组</span>
+						<span class="advanced-label">{$t('experiments.group')}</span>
 						<div class="advanced-options">
-							<button class="filter-btn" class:active={groupFilter === ''} on:click={() => groupFilter = ''}>全部</button>
+							<button class="filter-btn" class:active={groupFilter === ''} on:click={() => groupFilter = ''}>{$t('experiments.all')}</button>
 							{#each availableGroups as g}
 								<button class="filter-btn" class:active={groupFilter === g} on:click={() => groupFilter = g}>
 									{g}
@@ -449,9 +450,9 @@
 					</div>
 				{/if}
 				<div class="advanced-row">
-				<span class="advanced-label">任务类型</span>
+				<span class="advanced-label">{$t('experiments.taskType')}</span>
 					<div class="advanced-options">
-						<button class="filter-btn" class:active={taskTypeFilter === ''} on:click={() => taskTypeFilter = ''}>全部</button>
+						<button class="filter-btn" class:active={taskTypeFilter === ''} on:click={() => taskTypeFilter = ''}>{$t('experiments.all')}</button>
 						{#each allTaskTypes as t}
 							<button class="filter-btn" class:active={taskTypeFilter === t} on:click={() => taskTypeFilter = t}>
 								{taskTypeLabel(t)}
@@ -461,7 +462,7 @@
 				</div>
 				{#if allTags.length > 0}
 					<div class="advanced-row">
-						<span class="advanced-label">标签</span>
+						<span class="advanced-label">{$t('experiments.tags')}</span>
 						<div class="advanced-options">
 							{#each allTags as tag}
 								<button class="filter-btn tag-btn" class:active={selectedTags.has(tag)} on:click={() => toggleTag(tag)}>
@@ -472,13 +473,13 @@
 					</div>
 				{/if}
 				<div class="advanced-hint">
-					💡 搜索语法: <code>tag:xxx</code> 按标签过滤, <code>status:Running</code> 按状态过滤, <code>type:classification</code> 按任务类型过滤
+					💡 {$t('experiments.searchSyntax')}: <code>tag:xxx</code> {$t('experiments.filterByTag')}, <code>status:Running</code> {$t('experiments.filterByStatus')}, <code>type:classification</code> {$t('experiments.filterByType')}
 				</div>
 			</div>
 		{/if}
 		<div class="filter-group">
 			<button class="filter-btn" class:active={statusFilter === 'all'} on:click={() => statusFilter = 'all'}>
-				全部 {statusCounts.all || 0}
+				{$t('experiments.all')} {statusCounts.all || 0}
 			</button>
 			{#each (['running', 'completed', 'failed', 'paused', 'created', 'cancelled', 'archived'] as ExperimentStatus[]) as s}
 				{#if statusCounts[s]}
@@ -494,17 +495,17 @@
 	{#if loading && experiments.length === 0}
 		<div class="loading-state">
 			<div class="spinner"></div>
-			<p>加载实验列表...</p>
+			<p>{$t('experiments.loadingList')}</p>
 		</div>
 	{:else if filteredExperiments.length === 0}
 		<div class="empty-state">
 			<span class="empty-icon">🔬</span>
-			<p class="empty-text">{searchQuery || statusFilter !== 'all' ? '没有匹配的实验' : '暂无实验'}</p>
+			<p class="empty-text">{searchQuery || statusFilter !== 'all' ? $t('experiments.noMatching') : $t('experiments.noExperiments')}</p>
 			<p class="empty-hint">
 				{#if searchQuery || statusFilter !== 'all'}
-					尝试调整筛选条件
+					{$t('experiments.tryAdjustFilters')}
 				{:else}
-					<a href="/lab/train/new">创建第一个训练实验</a>
+					<a href="/lab/train/new">{$t('experiments.createFirstExperiment')}</a>
 				{/if}
 			</p>
 		</div>
@@ -517,21 +518,21 @@
 							<input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredExperiments.length} on:change={() => { if (selectedIds.size > 0) clearSelection(); else selectAll(); }} />
 						</th>
 						<th class="sortable" on:click={() => toggleSort('name')}>
-							名称{sortIndicator('name')}
+							{$t('experiments.name')}{sortIndicator('name')}
 						</th>
 						<th class="sortable" on:click={() => toggleSort('status')}>
-							状态{sortIndicator('status')}
+							{$t('experiments.status')}{sortIndicator('status')}
 						</th>
-						<th>任务类型</th>
-						<th>标签</th>
-						<th>最佳指标</th>
+						<th>{$t('experiments.taskType')}</th>
+						<th>{$t('experiments.tags')}</th>
+						<th>{$t('experiments.bestMetric')}</th>
 						<th class="sortable" on:click={() => toggleSort('created_at')}>
-							创建时间{sortIndicator('created_at')}
+							{$t('experiments.createdAt')}{sortIndicator('created_at')}
 						</th>
 						<th class="sortable" on:click={() => toggleSort('updated_at')}>
-							更新时间{sortIndicator('updated_at')}
+							{$t('experiments.updatedAt')}{sortIndicator('updated_at')}
 						</th>
-						<th>操作</th>
+						<th>{$t('experiments.actions')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -585,9 +586,9 @@
 							<td class="time-cell">{formatTime(exp.created_at)}</td>
 							<td class="time-cell">{formatTime(exp.updated_at)}</td>
 							<td>
-								<a href="/lab/experiments/{exp.id}" class="action-link">查看</a>
-								<button class="action-clone" on:click={() => startClone(exp.id, exp.name)}>克隆</button>
-								<button class="action-delete" on:click={() => confirmDeleteId = exp.id}>删除</button>
+								<a href="/lab/experiments/{exp.id}" class="action-link">{$t('experiments.view')}</a>
+								<button class="action-clone" on:click={() => startClone(exp.id, exp.name)}>{$t('experiments.clone')}</button>
+								<button class="action-delete" on:click={() => confirmDeleteId = exp.id}>{$t('experiments.delete')}</button>
 							</td>
 						</tr>
 					{/each}
@@ -596,7 +597,7 @@
 		</div>
 
 		<div class="table-footer">
-			<span class="result-count">共 {filteredExperiments.length} 个实验</span>
+			<span class="result-count">{$t('experiments.totalCount', { count: filteredExperiments.length })}</span>
 		</div>
 	{/if}
 
@@ -604,12 +605,12 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<div class="modal-overlay" role="presentation" on:click={() => confirmDeleteId = null} on:keydown={(e) => { if (e.key === 'Escape') confirmDeleteId = null; }}>
 			<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-				<h3>确认删除</h3>
-				<p>确定要删除这个实验吗？此操作不可撤销，所有相关的指标数据和配置将被永久删除。</p>
+				<h3>{$t('experiments.confirmDelete')}</h3>
+				<p>{$t('experiments.confirmDeleteMsg')}</p>
 				<div class="modal-actions">
-					<button class="btn-cancel" on:click={() => confirmDeleteId = null}>取消</button>
+					<button class="btn-cancel" on:click={() => confirmDeleteId = null}>{$t('confirm.cancel')}</button>
 					<button class="btn-confirm-delete" on:click={() => deleteExperiment(confirmDeleteId!)} disabled={deleting}>
-						{deleting ? '删除中...' : '确认删除'}
+						{deleting ? $t('experiments.deleting') : $t('experiments.confirmDeleteBtn')}
 					</button>
 				</div>
 			</div>
@@ -620,16 +621,16 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<div class="modal-overlay" role="presentation" on:click={() => { cloneTargetId = null; cloneName = ''; }} on:keydown={(e) => { if (e.key === 'Escape') { cloneTargetId = null; cloneName = ''; } }}>
 			<div class="modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
-				<h3 style="color: #10b981;">克隆实验</h3>
-				<p>基于现有实验的配置创建一个新实验，新实验将继承原实验的所有参数和配置。</p>
-				<div class="clone-input-group">
-					<label for="clone-name">新实验名称</label>
-					<input id="clone-name" type="text" bind:value={cloneName} placeholder="输入新实验名称" />
+				<h3 style="color: #10b981;">{$t('experiments.cloneExperiment')}</h3>
+				<p>{$t('experiments.cloneDesc')}</p>
+				<div class="modal-actions">
+					<label for="clone-name">{$t('experiments.newExperimentName')}</label>
+					<input id="clone-name" type="text" bind:value={cloneName} placeholder={$t('experiments.newExperimentNamePlaceholder')} />
 				</div>
 				<div class="modal-actions">
-					<button class="btn-cancel" on:click={() => { cloneTargetId = null; cloneName = ''; }}>取消</button>
+					<button class="btn-cancel" on:click={() => { cloneTargetId = null; cloneName = ''; }}>{$t('confirm.cancel')}</button>
 					<button class="btn-confirm-clone" on:click={cloneExperiment} disabled={cloning || !cloneName.trim()}>
-						{cloning ? '克隆中...' : '确认克隆'}
+						{cloning ? $t('experiments.cloning') : $t('experiments.confirmClone')}
 					</button>
 				</div>
 			</div>
@@ -640,18 +641,18 @@
 		<div class="modal-overlay" role="presentation" on:click|self={() => showCompareModal = false} on:keydown={(e) => { if (e.key === 'Escape') showCompareModal = false; }}>
 			<div class="compare-modal" role="dialog" aria-modal="true" tabindex="-1">
 				<div class="compare-header">
-					<h3>实验对比</h3>
+					<h3>{$t('experiments.compareExperiments')}</h3>
 					<button class="btn-close" on:click={() => showCompareModal = false}>✕</button>
 				</div>
 				{#if compareLoading}
-					<p class="empty-hint">加载对比数据...</p>
+					<p class="empty-hint">{$t('experiments.loadingCompare')}</p>
 				{:else}
 					{@const exps = Array.from(compareData.values())}
 					<div class="compare-table-wrap">
 						<table class="compare-table">
 							<thead>
 								<tr>
-									<th class="prop-col">属性</th>
+									<th class="prop-col">{$t('experiments.property')}</th>
 									{#each exps as exp}
 										<th><a href="/lab/experiments/{exp.id}" class="compare-exp-link">{exp.name}</a></th>
 									{/each}
@@ -659,19 +660,19 @@
 							</thead>
 							<tbody>
 								<tr>
-									<td class="prop-col">状态</td>
+									<td class="prop-col">{$t('experiments.status')}</td>
 									{#each exps as exp}
 										<td><span class="status-badge" style="color: {statusColor(exp.status)}; border-color: {statusColor(exp.status)}30; background: {statusColor(exp.status)}10">{statusLabel(exp.status)}</span></td>
 									{/each}
 								</tr>
 								<tr>
-									<td class="prop-col">任务类型</td>
+									<td class="prop-col">{$t('experiments.taskType')}</td>
 									{#each exps as exp}
 										<td>{taskTypeLabel(exp.task_type)}</td>
 									{/each}
 								</tr>
 								<tr>
-									<td class="prop-col">学习率</td>
+									<td class="prop-col">{$t('experiments.learningRate')}</td>
 									{#each exps as exp}
 										<td>{exp.config?.learning_rate ?? '-'}</td>
 									{/each}
@@ -689,13 +690,13 @@
 									{/each}
 								</tr>
 								<tr>
-									<td class="prop-col">优化器</td>
+									<td class="prop-col">{$t('experiments.optimizer')}</td>
 									{#each exps as exp}
 										<td>{exp.config?.optimizer ? JSON.stringify(exp.config.optimizer) : '-'}</td>
 									{/each}
 								</tr>
 								<tr class="metrics-row">
-									<td class="prop-col">最佳指标</td>
+									<td class="prop-col">{$t('experiments.bestMetric')}</td>
 									{#each exps as exp}
 										<td>
 											{#if Object.keys(exp.best_metrics || {}).length > 0}
@@ -712,7 +713,7 @@
 									{/each}
 								</tr>
 								<tr>
-									<td class="prop-col">标签</td>
+									<td class="prop-col">{$t('experiments.tags')}</td>
 									{#each exps as exp}
 										<td>
 											{#if (exp.tags || []).length > 0}
@@ -726,7 +727,7 @@
 									{/each}
 								</tr>
 								<tr>
-									<td class="prop-col">创建时间</td>
+									<td class="prop-col">{$t('experiments.createdAt')}</td>
 									{#each exps as exp}
 										<td>{new Date(exp.created_at).toLocaleString('zh-CN')}</td>
 									{/each}
