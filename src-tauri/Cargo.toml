@@ -20,5 +20,9 @@ tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
-biosphere-ai-lab = { path = "../crates/biosphere-ai-lab", features = ["tch-engine"] }
+biosphere-ai-lab = { path = "../crates/biosphere-ai-lab" }
 tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
+
+[features]
+default = []
+tch-engine = ["biosphere-ai-lab/tch-engine"]
