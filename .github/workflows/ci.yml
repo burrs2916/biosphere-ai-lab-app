@@ -120,12 +120,18 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
 
+      - name: List build output
+        run: |
+          echo "=== Listing bundle directories ==="
+          find src-tauri/target -name "bundle" -type d 2>/dev/null || echo "No bundle dirs found"
+          echo "=== Listing bundle contents ==="
+          find src-tauri/target -path "*/release/bundle/*" -type f 2>/dev/null | head -50 || echo "No bundle files found"
+
       - uses: actions/upload-artifact@v4
         with:
           name: BiosphereAI-Lab-${{ matrix.platform }}
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/*
-            src-tauri/target/release/bundle/*
+            src-tauri/target/**/release/bundle/**
           if-no-files-found: warn
           retention-days: 7
 
