@@ -120,12 +120,23 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
 
-      - name: List build output
+      - name: List build output (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           echo "=== Listing bundle directories ==="
           find src-tauri/target -name "bundle" -type d 2>/dev/null || echo "No bundle dirs found"
           echo "=== Listing bundle contents ==="
           find src-tauri/target -path "*/release/bundle/*" -type f 2>/dev/null | head -50 || echo "No bundle files found"
+
+      - name: List build output (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo "=== Listing bundle directories ==="
+          Get-ChildItem -Path src-tauri/target -Filter "bundle" -Directory -Recurse -ErrorAction SilentlyContinue
+          echo "=== Listing bundle contents ==="
+          Get-ChildItem -Path src-tauri/target -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*release\bundle*" } | Select-Object -First 50
 
       - uses: actions/upload-artifact@v4
         with:
