@@ -120,29 +120,40 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
 
-      - name: List build output (Unix)
+      - name: Debug - List all target files (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          echo "=== Listing bundle directories ==="
-          find src-tauri/target -name "bundle" -type d 2>/dev/null || echo "No bundle dirs found"
-          echo "=== Listing bundle contents ==="
-          find src-tauri/target -path "*/release/bundle/*" -type f 2>/dev/null | head -50 || echo "No bundle files found"
+          echo "=== Working directory ==="
+          pwd
+          echo "=== Top-level target dirs ==="
+          ls -la src-tauri/target/ 2>/dev/null || echo "No target dir"
+          echo "=== All bundle dirs ==="
+          find src-tauri/target -type d -name "bundle" 2>/dev/null || echo "No bundle dirs"
+          echo "=== All files in release/bundle ==="
+          find src-tauri/target -path "*/release/bundle" -exec find {} -type f \; 2>/dev/null | head -100 || echo "No bundle files"
+          echo "=== All .dmg .msi .deb .AppImage files ==="
+          find src-tauri/target -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.app.tar.gz*" \) 2>/dev/null || echo "No installer files"
 
-      - name: List build output (Windows)
+      - name: Debug - List all target files (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          echo "=== Listing bundle directories ==="
-          Get-ChildItem -Path src-tauri/target -Filter "bundle" -Directory -Recurse -ErrorAction SilentlyContinue
-          echo "=== Listing bundle contents ==="
-          Get-ChildItem -Path src-tauri/target -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*release\bundle*" } | Select-Object -First 50
+          echo "=== Working directory ==="
+          pwd
+          echo "=== Top-level target dirs ==="
+          if (Test-Path src-tauri/target) { Get-ChildItem src-tauri/target } else { echo "No target dir" }
+          echo "=== All .dmg .msi .deb .AppImage files ==="
+          Get-ChildItem -Path src-tauri/target -Recurse -Include *.dmg,*.msi,*.exe,*.deb,*.AppImage -ErrorAction SilentlyContinue
 
       - uses: actions/upload-artifact@v4
         with:
           name: BiosphereAI-Lab-${{ matrix.platform }}
           path: |
-            src-tauri/target/**/release/bundle/**
+            src-tauri/target/release/bundle/
+            src-tauri/target/aarch64-apple-darwin/release/bundle/
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
           if-no-files-found: warn
           retention-days: 7
 
