@@ -51,7 +51,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          key: no-tray-v4
+          key: no-tray-v5
 
       - name: Install system dependencies
         run: |
@@ -64,7 +64,6 @@ jobs:
   build:
     name: Build ${{ matrix.platform }}
     needs: [frontend-check, rust-check]
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -103,7 +102,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          key: no-tray-v4
+          key: no-tray-v5
 
       - name: Install system dependencies (Linux)
         if: matrix.platform == 'Linux'
@@ -120,33 +119,32 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
 
-      - name: Debug - List all target files (Unix)
+      - name: List build output (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           echo "=== Working directory ==="
           pwd
-          echo "=== Top-level target dirs ==="
-          ls -la src-tauri/target/ 2>/dev/null || echo "No target dir"
-          echo "=== All bundle dirs ==="
+          echo "=== Target directory ==="
+          ls src-tauri/target/ 2>/dev/null || echo "No target dir"
+          echo "=== Bundle directories ==="
           find src-tauri/target -type d -name "bundle" 2>/dev/null || echo "No bundle dirs"
-          echo "=== All files in release/bundle ==="
-          find src-tauri/target -path "*/release/bundle" -exec find {} -type f \; 2>/dev/null | head -100 || echo "No bundle files"
-          echo "=== All .dmg .msi .deb .AppImage files ==="
+          echo "=== Installer files ==="
           find src-tauri/target -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.app.tar.gz*" \) 2>/dev/null || echo "No installer files"
 
-      - name: Debug - List all target files (Windows)
+      - name: List build output (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           echo "=== Working directory ==="
           pwd
-          echo "=== Top-level target dirs ==="
+          echo "=== Target directory ==="
           if (Test-Path src-tauri/target) { Get-ChildItem src-tauri/target } else { echo "No target dir" }
-          echo "=== All .dmg .msi .deb .AppImage files ==="
+          echo "=== Installer files ==="
           Get-ChildItem -Path src-tauri/target -Recurse -Include *.dmg,*.msi,*.exe,*.deb,*.AppImage -ErrorAction SilentlyContinue
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: BiosphereAI-Lab-${{ matrix.platform }}
           path: |
