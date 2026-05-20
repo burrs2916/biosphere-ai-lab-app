@@ -305,6 +305,8 @@ impl ModelRepository for SqliteModelRepository {
 
     async fn delete(&self, id: &ModelId) -> Result<()> {
         let conn = self.conn.lock().map_err(|e| LabError::Custom(format!("Lock error: {}", e)))?;
+        conn.execute("DELETE FROM serving_endpoints WHERE model_id = ?1", [id.as_str()])
+            .map_err(|e| LabError::Custom(format!("Delete serving endpoint error: {}", e)))?;
         conn.execute("DELETE FROM models WHERE id = ?1", [id.as_str()])
             .map_err(|e| LabError::Custom(format!("Delete model error: {}", e)))?;
         Ok(())

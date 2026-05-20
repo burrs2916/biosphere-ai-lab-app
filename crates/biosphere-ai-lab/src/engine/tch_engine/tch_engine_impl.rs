@@ -81,6 +81,7 @@ impl Engine for TchEngine {
         let session_id = SessionId::new();
         let handle = SessionHandle {
             session_id: session_id.clone(),
+            experiment_id: None,
         };
 
         let train_control = Arc::new(TrainControl::new());
@@ -123,10 +124,12 @@ impl Engine for TchEngine {
         let sessions = self.sessions.clone();
         let event_bus = self.event_bus.clone();
         let session_id = handle.session_id.clone();
+        let experiment_id = handle.experiment_id.clone();
 
         tokio::spawn(async move {
             let result = Self::run_training_task(
                 &session_id,
+                &experiment_id,
                 &config,
                 &sessions,
                 event_bus.clone(),
@@ -349,6 +352,7 @@ impl Engine for TchEngine {
 impl TchEngine {
     async fn run_training_task(
         session_id: &SessionId,
+        experiment_id: &Option<String>,
         config: &TrainingConfig,
         sessions: &Arc<RwLock<HashMap<String, SessionState>>>,
         event_bus: Option<Arc<EventBus>>,
@@ -366,7 +370,9 @@ impl TchEngine {
             }
         }
 
-        let artifact_dir = crate::core::config::get_artifact_dir(&session_id.to_string());
+        let artifact_dir = crate::core::config::get_artifact_dir(
+            experiment_id.as_deref().unwrap_or(&session_id.to_string())
+        );
 
         let eb = event_bus.clone();
         let sid = session_id.clone();

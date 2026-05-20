@@ -52,8 +52,10 @@ impl HardwareDetector {
         let cpu_model = sys.cpus().first()
             .map(|c| c.brand().to_string())
             .unwrap_or_default();
-        let total_memory_mb = sys.total_memory() / 1024;
-        let available_memory_mb = sys.available_memory() / 1024;
+        let total_memory_bytes = sys.total_memory();
+        let available_memory_bytes = sys.available_memory();
+        let total_memory_mb = total_memory_bytes / (1024 * 1024);
+        let available_memory_mb = available_memory_bytes / (1024 * 1024);
         let cpu_usage_percent = sys.global_cpu_usage();
 
         let os_name = System::name().unwrap_or_default();
@@ -63,8 +65,8 @@ impl HardwareDetector {
 
         crate::infrastructure::log(
             "HARDWARE",
-            &format!("检测到硬件: CPU {}核 {} | 内存 {}MB可用/{}MB总计 | GPU {}个",
-                cpu_cores, cpu_model, available_memory_mb, total_memory_mb, gpu_devices.len()),
+            &format!("检测到硬件: CPU {}核 {} | 内存 {}MB可用/{}MB总计 ({}bytes/{}bytes) | GPU {}个",
+                cpu_cores, cpu_model, available_memory_mb, total_memory_mb, available_memory_bytes, total_memory_bytes, gpu_devices.len()),
             None,
         );
 

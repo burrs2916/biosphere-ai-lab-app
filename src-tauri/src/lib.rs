@@ -286,6 +286,9 @@ pub fn run() {
             biosphere_ai_lab::gateway::tauri_adapter::lab_training_plan_list,
             biosphere_ai_lab::gateway::tauri_adapter::lab_training_plan_load,
             biosphere_ai_lab::gateway::tauri_adapter::lab_training_plan_delete,
+            biosphere_ai_lab::gateway::tauri_adapter::lab_write_log,
+            biosphere_ai_lab::gateway::tauri_adapter::lab_read_log_file,
+            biosphere_ai_lab::gateway::tauri_adapter::lab_list_log_files,
         ])
         .run(tauri::generate_context!());
 
@@ -310,38 +313,62 @@ fn setup_inner(app: &tauri::App, app_state: &Arc<AppState>) -> Result<(), String
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create data directory {:?}: {}", data_dir, e))?;
 
+    let artifact_dir = data_dir.join("artifacts");
+    std::fs::create_dir_all(&artifact_dir)
+        .map_err(|e| format!("Failed to create artifact directory {:?}: {}", artifact_dir, e))?;
+    std::env::set_var("BIOSPHERE_ARTIFACT_DIR", &artifact_dir);
+
+    if let Ok(settings) = app_state.settings_repo.load_all() {
+        let custom_data_dir = settings.storage.data_directory.clone();
+        if !custom_data_dir.is_empty() && custom_data_dir != "./data" {
+            let custom_artifact_dir = std::path::PathBuf::from(&custom_data_dir).join("artifacts");
+            if let Err(e) = std::fs::create_dir_all(&custom_artifact_dir) {
+                eprintln!("[SETUP] WARN: Failed to create custom artifact dir {:?}: {}", custom_artifact_dir, e);
+            } else {
+                std::env::set_var("BIOSPHERE_ARTIFACT_DIR", &custom_artifact_dir);
+                eprintln!("[SETUP] Applied custom artifact dir from settings: {:?}", custom_artifact_dir);
+            }
+        }
+    }
+
     eprintln!("[SETUP] Step 3: configuring logger...");
 
     let mut log_config = infrastructure::LogConfig {
         console_output: true,
-        clear_on_start: true,
+        clear_on_start: false,
         ..Default::default()
     };
 
-    #[cfg(debug_assertions)]
-    {
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-            .unwrap_or_else(|_| ".".to_string());
-        let project_root = std::path::PathBuf::from(&manifest_dir)
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| std::path::PathBuf::from(&manifest_dir));
-        log_config.log_dir = project_root.join("data").join("logs");
-    }
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .unwrap_or_else(|_| ".".to_string());
+    let project_root = std::path::PathBuf::from(&manifest_dir)
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from(&manifest_dir));
+    
+    log_config.log_dir = project_root.join("crates").join("biosphere-ai-lab").join("logs");
 
-    #[cfg(not(debug_assertions))]
-    {
-        log_config.log_dir = data_dir.join("logs");
-    }
-
-    eprintln!("[SETUP] Step 4: initializing logger...");
+    eprintln!("[SETUP] Step 4: initializing logger with log_dir: {:?}...", log_config.log_dir);
     init_logger(&data_dir, &log_config);
+
+    let lab_log_config = biosphere_ai_lab::infrastructure::LogConfig {
+        log_dir: log_config.log_dir.clone(),
+        log_file: log_config.log_file.clone(),
+        clear_on_start: false,
+        level: log_config.level.clone(),
+        console_output: log_config.console_output,
+        max_age_minutes: 0,
+    };
+    biosphere_ai_lab::infrastructure::init_logger(&data_dir, &lab_log_config);
+
     log("SYSTEM", "Biosphere AI Lab 启动", None);
+    biosphere_ai_lab::infrastructure::log("SYSTEM", "Biosphere AI Lab core logger initialized", None);
 
     eprintln!("[SETUP] Step 5: setting up app state...");
     biosphere_ai_lab::gateway::setup_app(app, app_state);
 
     log("SYSTEM", &format!("数据目录: {:?}", data_dir), None);
+    log("SYSTEM", &format!("日志目录: {:?}", log_config.log_dir), None);
     eprintln!("[SETUP] All steps completed successfully");
 
     Ok(())

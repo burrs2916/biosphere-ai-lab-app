@@ -36,6 +36,8 @@ pub fn setup_app(app: &tauri::App, app_state: &Arc<crate::gateway::AppState>) {
 
     let state = app_state.clone();
     tauri::async_runtime::spawn(async move {
+        state.recover_orphan_experiments().await;
+
         state.register_default_plugins().await;
         crate::infrastructure::log("SYSTEM", "默认插件注册完成", None);
 

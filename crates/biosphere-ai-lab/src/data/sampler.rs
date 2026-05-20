@@ -463,6 +463,7 @@ pub fn compute_stratified_split_indices(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn test_distributed_sampler_single_replica() {

@@ -136,6 +136,8 @@ impl AppState {
                 experiment_repo.clone(),
                 event_bus.clone(),
             )
+            .with_model_repo(model_repo.clone())
+            .with_dataset_repo(dataset_repo.clone())
         );
 
         let training_handler: Arc<dyn TrainingCommandHandler> = Arc::new(
@@ -187,7 +189,7 @@ impl AppState {
             experiment_repo.clone(),
         ).with_db_conn(conn.clone()));
 
-        Self {
+        let state = Self {
             event_bus,
             command_bus,
             experiment_repo,
@@ -208,6 +210,46 @@ impl AppState {
             data_source_registry: Arc::new(DataSourceRegistry::new()),
             data_connector_registry: Arc::new(DataConnectorRegistry::new()),
             data_accessor_registry: Arc::new(DataAccessorRegistry::new()),
+        };
+
+        state
+    }
+
+    pub async fn recover_orphan_experiments(&self) {
+        let filter = ExperimentFilter::default();
+        let repo = self.experiment_repo.clone();
+        let experiments = match repo.list(&filter).await {
+            Ok(exps) => exps,
+            Err(e) => {
+                crate::infrastructure::log("APP_INIT", "WARN", Some(&format!("加载实验列表失败: {}", e)));
+                return;
+            }
+        };
+
+        let mut orphan_count = 0u32;
+        for exp in &experiments {
+            if exp.status == crate::domain::experiment::aggregate::ExperimentStatus::Running
+                || exp.status == crate::domain::experiment::aggregate::ExperimentStatus::Paused
+            {
+                orphan_count += 1;
+                crate::infrastructure::log("APP_INIT", &format!(
+                    "发现孤儿实验: id='{}', name='{}', status={:?}，标记为Failed",
+                    exp.id, exp.name, exp.status
+                ), None);
+
+                if let Ok(Some(mut experiment)) = repo.load(&exp.id).await {
+                    experiment.status = crate::domain::experiment::aggregate::ExperimentStatus::Failed;
+                    experiment.error_message = Some("Training session lost (app restart or crash). Auto-recovered on startup.".to_string());
+                    experiment.completed_at = Some(chrono::Utc::now());
+                    let _ = repo.save(&experiment).await;
+                }
+            }
+        }
+
+        if orphan_count > 0 {
+            crate::infrastructure::log("APP_INIT", &format!("已恢复 {} 个孤儿实验（标记为Failed）", orphan_count), None);
+        } else {
+            crate::infrastructure::log("APP_INIT", "未发现孤儿实验", None);
         }
     }
 

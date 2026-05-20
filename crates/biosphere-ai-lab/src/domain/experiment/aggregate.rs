@@ -431,6 +431,7 @@ pub struct ExperimentSummary {
     pub status: ExperimentStatus,
     pub task_type: TaskType,
     pub tags: Vec<String>,
+    pub model_id: Option<String>,
     pub dataset_id: Option<String>,
     pub dataset_version: Option<String>,
     pub group: Option<String>,

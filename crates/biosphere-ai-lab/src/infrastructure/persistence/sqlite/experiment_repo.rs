@@ -104,10 +104,19 @@ impl SqliteExperimentRepository {
             CREATE INDEX IF NOT EXISTS idx_logs_exp_time ON experiment_logs(experiment_id, timestamp);"
         ).map_err(|e| LabError::Custom(format!("Schema init error: {}", e)))?;
 
+        conn.execute_batch("ALTER TABLE experiments ADD COLUMN model_id TEXT").ok();
+        conn.execute_batch("ALTER TABLE experiments ADD COLUMN dataset_id TEXT").ok();
+        conn.execute_batch("ALTER TABLE experiments ADD COLUMN dataset_version TEXT").ok();
+        conn.execute_batch("ALTER TABLE experiments ADD COLUMN error_message TEXT").ok();
         conn.execute_batch("ALTER TABLE experiments ADD COLUMN environment_json TEXT").ok();
+        conn.execute_batch("ALTER TABLE experiments ADD COLUMN completed_at TEXT").ok();
         conn.execute_batch("ALTER TABLE experiments ADD COLUMN final_metrics_json TEXT").ok();
         conn.execute_batch("ALTER TABLE experiments ADD COLUMN description TEXT").ok();
         conn.execute_batch("ALTER TABLE experiments ADD COLUMN experiment_group TEXT").ok();
+
+        conn.execute_batch("ALTER TABLE metric_points ADD COLUMN epoch INTEGER").ok();
+
+        conn.execute_batch("ALTER TABLE experiment_logs ADD COLUMN level TEXT NOT NULL DEFAULT 'info'").ok();
 
         Ok(())
     }
@@ -131,9 +140,35 @@ impl ExperimentRepository for SqliteExperimentRepository {
         let final_metrics_json = experiment.final_metrics.as_ref()
             .map(|m| serde_json::to_string(m).unwrap_or_default());
 
+        crate::infrastructure::log("EXP_REPO", &format!("保存实验: id={}, name='{}', status={:?}, model_id={:?}, dataset_id={:?}, artifacts={}, metrics_in_memory={}",
+            experiment.id.as_str(), experiment.name, experiment.status,
+            experiment.model_id.as_ref().map(|m| m.as_str()),
+            experiment.dataset_id,
+            experiment.artifacts.len(),
+            experiment.metrics.all_series().len(),
+        ), None);
+
         conn.execute(
-            "INSERT OR REPLACE INTO experiments (id, name, status, task_type, config_json, params_json, tags_json, artifacts_json, model_id, dataset_id, dataset_version, error_message, environment_json, final_metrics_json, description, experiment_group, created_at, updated_at, completed_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+            "INSERT INTO experiments (id, name, status, task_type, config_json, params_json, tags_json, artifacts_json, model_id, dataset_id, dataset_version, error_message, environment_json, final_metrics_json, description, experiment_group, created_at, updated_at, completed_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+             ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name,
+                status=excluded.status,
+                task_type=excluded.task_type,
+                config_json=excluded.config_json,
+                params_json=excluded.params_json,
+                tags_json=excluded.tags_json,
+                artifacts_json=excluded.artifacts_json,
+                model_id=excluded.model_id,
+                dataset_id=excluded.dataset_id,
+                dataset_version=excluded.dataset_version,
+                error_message=excluded.error_message,
+                environment_json=excluded.environment_json,
+                final_metrics_json=excluded.final_metrics_json,
+                description=excluded.description,
+                experiment_group=excluded.experiment_group,
+                updated_at=excluded.updated_at,
+                completed_at=excluded.completed_at",
             params![
                 experiment.id.as_str(),
                 experiment.name,
@@ -155,7 +190,12 @@ impl ExperimentRepository for SqliteExperimentRepository {
                 experiment.updated_at.to_rfc3339(),
                 experiment.completed_at.map(|t| t.to_rfc3339()),
             ],
-        ).map_err(|e| LabError::Custom(format!("Save experiment error: {}", e)))?;
+        ).map_err(|e| {
+            crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("保存实验失败: id={}, error={}", experiment.id.as_str(), e)));
+            LabError::Custom(format!("Save experiment error: {}", e))
+        })?;
+
+        crate::infrastructure::log("EXP_REPO", &format!("实验保存成功: id={}, status={:?}", experiment.id.as_str(), experiment.status), None);
 
         Ok(())
     }
@@ -247,7 +287,7 @@ impl ExperimentRepository for SqliteExperimentRepository {
         let conn = self.conn.lock().map_err(|e| LabError::Custom(format!("Lock error: {}", e)))?;
 
         let mut sql = String::from(
-            "SELECT id, name, status, task_type, tags_json, dataset_id, dataset_version, experiment_group, created_at, updated_at FROM experiments WHERE 1=1"
+            "SELECT id, name, status, task_type, tags_json, model_id, dataset_id, dataset_version, experiment_group, created_at, updated_at FROM experiments WHERE 1=1"
         );
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
@@ -296,14 +336,15 @@ impl ExperimentRepository for SqliteExperimentRepository {
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
-                row.get::<_, String>(8)?,
+                row.get::<_, Option<String>>(8)?,
                 row.get::<_, String>(9)?,
+                row.get::<_, String>(10)?,
             ))
         }).map_err(|e| LabError::Custom(format!("Query list error: {}", e)))?;
 
         let mut results = Vec::new();
         for row in rows {
-            let (id_str, name, status_str, task_type_json, tags_json, dataset_id, dataset_version, experiment_group, created_at_str, updated_at_str) = row
+            let (id_str, name, status_str, task_type_json, tags_json, model_id, dataset_id, dataset_version, experiment_group, created_at_str, updated_at_str) = row
                 .map_err(|e| LabError::Custom(format!("Row error: {}", e)))?;
 
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
@@ -330,6 +371,7 @@ impl ExperimentRepository for SqliteExperimentRepository {
                 status,
                 task_type,
                 tags,
+                model_id,
                 dataset_id,
                 dataset_version,
                 group: experiment_group,
@@ -378,13 +420,21 @@ impl ExperimentRepository for SqliteExperimentRepository {
         id: &ExperimentId,
         metric_names: &[String],
     ) -> Result<MetricsTimeline> {
-        let conn = self.conn.lock().map_err(|e| LabError::Custom(format!("Lock error: {}", e)))?;
+        crate::infrastructure::log("EXP_REPO", &format!("查询指标: exp={}, metrics={:?}", id.as_str(), metric_names), None);
+
+        let conn = self.conn.lock().map_err(|e| {
+            crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("query_metrics获取锁失败: {}", e)));
+            LabError::Custom(format!("Lock error: {}", e))
+        })?;
         let mut timeline = MetricsTimeline::new();
 
         for name in metric_names {
             let mut stmt = conn.prepare(
                 "SELECT step, value, timestamp, epoch FROM metric_points WHERE experiment_id = ?1 AND metric_name = ?2 ORDER BY step"
-            ).map_err(|e| LabError::Custom(format!("Prepare metrics query: {}", e)))?;
+            ).map_err(|e| {
+                crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("Prepare metrics query失败: {}", e)));
+                LabError::Custom(format!("Prepare metrics query: {}", e))
+            })?;
 
             let points: Vec<MetricPoint> = stmt.query_map(
                 params![id.as_str(), name],
@@ -396,7 +446,10 @@ impl ExperimentRepository for SqliteExperimentRepository {
                         row.get::<_, Option<i64>>(3)?,
                     ))
                 },
-            ).map_err(|e| LabError::Custom(format!("Query metrics error: {}", e)))?
+            ).map_err(|e| {
+                crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("Query metrics失败: exp={}, metric='{}', error={}", id.as_str(), name, e)));
+                LabError::Custom(format!("Query metrics error: {}", e))
+            })?
             .filter_map(|r| r.ok())
             .map(|(step, value, ts, epoch)| MetricPoint {
                 step: step as u64,
@@ -406,6 +459,8 @@ impl ExperimentRepository for SqliteExperimentRepository {
             })
             .collect();
 
+            crate::infrastructure::log("EXP_REPO", &format!("指标 '{}' 查询到 {} 个数据点", name, points.len()), None);
+
             if !points.is_empty() {
                 let mut series = MetricSeries::new(name.clone());
                 series.values = points;
@@ -413,6 +468,7 @@ impl ExperimentRepository for SqliteExperimentRepository {
             }
         }
 
+        crate::infrastructure::log("EXP_REPO", &format!("查询指标完成: exp={}, 共 {} 个指标序列", id.as_str(), timeline.all_series().len()), None);
         Ok(timeline)
     }
 
@@ -435,12 +491,19 @@ impl ExperimentRepository for SqliteExperimentRepository {
         value: f64,
         epoch: Option<usize>,
     ) -> Result<()> {
-        let conn = self.conn.lock().map_err(|e| LabError::Custom(format!("Lock error: {}", e)))?;
+        let conn = self.conn.lock().map_err(|e| {
+            crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("save_metric_point获取锁失败: {}", e)));
+            LabError::Custom(format!("Lock error: {}", e))
+        })?;
 
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-            "INSERT OR REPLACE INTO metric_points (experiment_id, metric_name, step, value, timestamp, epoch)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO metric_points (experiment_id, metric_name, step, value, timestamp, epoch)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(experiment_id, metric_name, step) DO UPDATE SET
+                value=excluded.value,
+                timestamp=excluded.timestamp,
+                epoch=excluded.epoch",
             params![
                 experiment_id.as_str(),
                 metric_name,
@@ -449,7 +512,10 @@ impl ExperimentRepository for SqliteExperimentRepository {
                 now,
                 epoch.map(|e| e as i64),
             ],
-        ).map_err(|e| LabError::Custom(format!("Save metric point error: {}", e)))?;
+        ).map_err(|e| {
+            crate::infrastructure::log("EXP_REPO", "ERROR", Some(&format!("保存指标点失败: exp={}, metric='{}', step={}, error={}", experiment_id, metric_name, step, e)));
+            LabError::Custom(format!("Save metric point error: {}", e))
+        })?;
 
         Ok(())
     }

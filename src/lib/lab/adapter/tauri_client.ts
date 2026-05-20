@@ -180,7 +180,7 @@ export class TauriClient implements LabClient {
   }
 
   async startTraining(name: string, taskType: string, config: TrainingConfig): Promise<string> {
-    return invoke<string>('lab_start_training', { name, taskType, config });
+    return invoke<string>('lab_start_training', { name, taskType, configValue: config });
   }
 
   async stopTraining(experimentId: string): Promise<void> {
@@ -225,6 +225,14 @@ export class TauriClient implements LabClient {
 
   async scanArtifacts(experimentId: string): Promise<ArtifactRef[]> {
     return invoke<ArtifactRef[]>('lab_scan_artifacts', { experimentId });
+  }
+
+  async openArtifactDir(experimentId: string): Promise<void> {
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    const detail = await this.getExperimentDetail(experimentId);
+    if (detail.artifacts.length > 0) {
+      await revealItemInDir(detail.artifacts[0].path);
+    }
   }
 
   async addModelVersion(modelId: string, path: string, description?: string): Promise<void> {

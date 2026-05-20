@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 
 use burn::{
@@ -23,7 +24,7 @@ use burn::{
     train::{
         ClassificationOutput, InferenceStep, Learner,
         MetricEarlyStoppingStrategy, RegressionOutput, StoppingCondition, SupervisedTraining, TrainOutput, TrainStep,
-        metric::{AccuracyMetric, LossMetric, NumericEntry},
+        metric::{AccuracyMetric, LossMetric, MetricId, NumericEntry},
         renderer::{
             EvaluationName, EvaluationProgress, MetricState, MetricsRenderer,
             MetricsRendererEvaluation, MetricsRendererTraining, TrainingProgress,
@@ -221,6 +222,15 @@ impl CsvDataset {
             ));
         }
 
+        let unique_labels: std::collections::HashSet<i64> = items.iter().map(|i| i.label as i64).collect();
+        crate::infrastructure::log("DATA", &format!(
+            "CSV loaded: path='{}', total_rows={}, num_features={}, target_column='{}', unique_labels={:?}, label_range=[{}, {}]",
+            path, items.len(), feature_indices.len(), target_column,
+            unique_labels.iter().collect::<Vec<_>>(),
+            items.iter().map(|i| i.label as f64).fold(f64::INFINITY, f64::min),
+            items.iter().map(|i| i.label as f64).fold(f64::NEG_INFINITY, f64::max),
+        ), None);
+
         Ok(Self { items })
     }
 
@@ -273,6 +283,11 @@ impl CsvDataset {
                 val_items.push(self.items[idx].clone());
             }
         }
+
+        crate::infrastructure::log("DATA", &format!(
+            "Dataset split: total={}, train={}, val={}, ratio={:.2}",
+            total, train_end, total - train_end, train_ratio
+        ), None);
 
         (Self { items: train_items }, Self { items: val_items })
     }
@@ -877,6 +892,7 @@ struct EventBusRenderer {
     current_epoch: usize,
     total_epochs: usize,
     batch_size: usize,
+    metric_names: Arc<Mutex<HashMap<MetricId, String>>>,
 }
 
 impl EventBusRenderer {
@@ -891,6 +907,7 @@ impl EventBusRenderer {
             current_epoch: 0,
             total_epochs: 0,
             batch_size: batch_size.max(1),
+            metric_names: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -903,7 +920,11 @@ impl EventBusRenderer {
         numeric.current()
     }
 
-    fn extract_metric_name(entry: &burn::train::metric::MetricEntry) -> String {
+    fn extract_metric_name(&self, entry: &burn::train::metric::MetricEntry) -> String {
+        let metric_names = self.metric_names.lock().unwrap();
+        if let Some(name) = metric_names.get(&entry.metric_id) {
+            return name.clone();
+        }
         let formatted = &entry.serialized_entry.formatted;
         formatted
             .split_whitespace()
@@ -924,72 +945,76 @@ impl EventBusRenderer {
             }
         }
 
-        let events = self.events.lock().unwrap();
-        let mut train_loss: Option<f64> = None;
-        let mut train_acc: Option<f64> = None;
-        let mut val_loss: Option<f64> = None;
-        let mut val_acc: Option<f64> = None;
-        let mut test_loss: Option<f64> = None;
-        let mut test_acc: Option<f64> = None;
+        let (tl, acc, val_loss, metrics) = {
+            let events = self.events.lock().unwrap();
+            let mut train_loss: Option<f64> = None;
+            let mut train_acc: Option<f64> = None;
+            let mut val_loss: Option<f64> = None;
+            let mut val_acc: Option<f64> = None;
+            let mut test_loss: Option<f64> = None;
+            let mut test_acc: Option<f64> = None;
 
-        for event in events.iter().rev() {
-            match event {
-                RendererEvent::TrainMetric(name, value) => {
-                    if name.contains("Loss") && train_loss.is_none() {
-                        train_loss = Some(*value);
+            for event in events.iter().rev() {
+                match event {
+                    RendererEvent::TrainMetric(name, value) => {
+                        if name.contains("Loss") && train_loss.is_none() {
+                            train_loss = Some(*value);
+                        }
+                        if name.contains("Accuracy") && train_acc.is_none() {
+                            train_acc = Some(*value);
+                        }
                     }
-                    if name.contains("Accuracy") && train_acc.is_none() {
-                        train_acc = Some(*value);
+                    RendererEvent::ValidMetric(name, value) => {
+                        if name.contains("Loss") && val_loss.is_none() {
+                            val_loss = Some(*value);
+                        }
+                        if name.contains("Accuracy") && val_acc.is_none() {
+                            val_acc = Some(*value);
+                        }
                     }
+                    RendererEvent::TestMetric(name, value) => {
+                        if name.contains("Loss") && test_loss.is_none() {
+                            test_loss = Some(*value);
+                        }
+                        if name.contains("Accuracy") && test_acc.is_none() {
+                            test_acc = Some(*value);
+                        }
+                    }
+                    _ => {}
                 }
-                RendererEvent::ValidMetric(name, value) => {
-                    if name.contains("Loss") && val_loss.is_none() {
-                        val_loss = Some(*value);
-                    }
-                    if name.contains("Accuracy") && val_acc.is_none() {
-                        val_acc = Some(*value);
-                    }
+                if train_loss.is_some()
+                    && train_acc.is_some()
+                    && val_loss.is_some()
+                    && val_acc.is_some()
+                    && test_loss.is_some()
+                    && test_acc.is_some()
+                {
+                    break;
                 }
-                RendererEvent::TestMetric(name, value) => {
-                    if name.contains("Loss") && test_loss.is_none() {
-                        test_loss = Some(*value);
-                    }
-                    if name.contains("Accuracy") && test_acc.is_none() {
-                        test_acc = Some(*value);
-                    }
-                }
-                _ => {}
             }
-            if train_loss.is_some()
-                && train_acc.is_some()
-                && val_loss.is_some()
-                && val_acc.is_some()
-                && test_loss.is_some()
-                && test_acc.is_some()
-            {
-                break;
+
+            let tl = train_loss.unwrap_or(0.0);
+            let acc = train_acc.or(val_acc).unwrap_or(0.0);
+
+            let mut metrics = serde_json::Map::new();
+            if let Some(a) = train_acc {
+                metrics.insert("train_accuracy".to_string(), serde_json::json!(a));
             }
-        }
+            if let Some(a) = val_acc {
+                metrics.insert("val_accuracy".to_string(), serde_json::json!(a));
+            }
+            if let Some(l) = train_loss {
+                metrics.insert("best_loss".to_string(), serde_json::json!(l));
+            }
+            if let Some(tl_val) = test_loss {
+                metrics.insert("test_loss".to_string(), serde_json::json!(tl_val));
+            }
+            if let Some(ta_val) = test_acc {
+                metrics.insert("test_accuracy".to_string(), serde_json::json!(ta_val));
+            }
 
-        let tl = train_loss.unwrap_or(0.0);
-        let acc = train_acc.or(val_acc).unwrap_or(0.0);
-
-        let mut metrics = serde_json::Map::new();
-        if let Some(a) = train_acc {
-            metrics.insert("train_accuracy".to_string(), serde_json::json!(a));
-        }
-        if let Some(a) = val_acc {
-            metrics.insert("val_accuracy".to_string(), serde_json::json!(a));
-        }
-        if let Some(l) = train_loss {
-            metrics.insert("best_loss".to_string(), serde_json::json!(l));
-        }
-        if let Some(tl_val) = test_loss {
-            metrics.insert("test_loss".to_string(), serde_json::json!(tl_val));
-        }
-        if let Some(ta_val) = test_acc {
-            metrics.insert("test_accuracy".to_string(), serde_json::json!(ta_val));
-        }
+            (tl, acc, val_loss, serde_json::Value::Object(metrics))
+        };
 
         self.event_bus.emit(LabEvent::EpochCompleted {
             session_id: self.session_id.clone(),
@@ -997,17 +1022,17 @@ impl EventBusRenderer {
             total_epochs: adjusted_total,
             train_loss: tl,
             val_loss,
-            metrics: serde_json::Value::Object(metrics),
+            metrics,
         });
 
         let progress_msg = match val_loss {
             Some(vl) => format!(
                 "Epoch {}/{} - loss: {:.4} - val_loss: {:.4} - acc: {:.1}%",
-                adjusted_epoch, adjusted_total, tl, vl, acc * 100.0
+                adjusted_epoch, adjusted_total, tl, vl, acc
             ),
             None => format!(
                 "Epoch {}/{} - loss: {:.4} - acc: {:.1}%",
-                adjusted_epoch, adjusted_total, tl, acc * 100.0
+                adjusted_epoch, adjusted_total, tl, acc
             ),
         };
         self.event_bus.emit(LabEvent::ProgressUpdate {
@@ -1040,7 +1065,7 @@ impl MetricsRendererTraining for EventBusRenderer {
         }
         self.train_control.wait_while_paused();
         if let MetricState::Numeric(entry, numeric) = state {
-            let name = Self::extract_metric_name(&entry);
+            let name = self.extract_metric_name(&entry);
             let value = Self::extract_metric_value(&numeric);
             self.events
                 .lock()
@@ -1054,7 +1079,7 @@ impl MetricsRendererTraining for EventBusRenderer {
             return;
         }
         if let MetricState::Numeric(entry, numeric) = state {
-            let name = Self::extract_metric_name(&entry);
+            let name = self.extract_metric_name(&entry);
             let value = Self::extract_metric_value(&numeric);
             self.events
                 .lock()
@@ -1127,14 +1152,56 @@ impl MetricsRendererTraining for EventBusRenderer {
                 iteration: item.iteration,
             });
 
+        self.event_bus.emit(LabEvent::LogOutput {
+            session_id: self.session_id.clone(),
+            level: "info".to_string(),
+            message: format!(
+                "Validation epoch {}/{} iteration={}",
+                item.epoch, item.epoch_total, item.iteration
+            ),
+        });
+
         self.emit_epoch_if_needed(item.epoch, item.epoch_total);
     }
 
     fn on_train_end(
         &mut self,
-        _summary: Option<LearnerSummary>,
+        summary: Option<LearnerSummary>,
     ) -> Result<(), Box<dyn core::error::Error>> {
         self.events.lock().unwrap().push(RendererEvent::TrainEnd);
+
+        let summary_info = match &summary {
+            Some(s) => format!("epochs_completed={}", s.epochs),
+            None => "no_summary".to_string(),
+        };
+
+        self.event_bus.emit(LabEvent::LogOutput {
+            session_id: self.session_id.clone(),
+            level: "info".to_string(),
+            message: format!("Training loop ended: {}", summary_info),
+        });
+
+        self.event_bus.emit(LabEvent::SessionCompleted {
+            session_id: self.session_id.clone(),
+            final_metrics: match &summary {
+                Some(s) => {
+                    let mut m = serde_json::Map::new();
+                    for metric_summary in &s.metrics.train {
+                        if let Some(last) = metric_summary.entries.last() {
+                            m.insert(metric_summary.name.clone(), serde_json::json!(last.value));
+                        }
+                    }
+                    for metric_summary in &s.metrics.valid {
+                        if let Some(last) = metric_summary.entries.last() {
+                            m.insert(format!("val_{}", metric_summary.name), serde_json::json!(last.value));
+                        }
+                    }
+                    serde_json::Value::Object(m)
+                }
+                None => serde_json::Value::Object(serde_json::Map::new()),
+            },
+        });
+
         Ok(())
     }
 }
@@ -1145,7 +1212,7 @@ impl MetricsRendererEvaluation for EventBusRenderer {
             return;
         }
         if let MetricState::Numeric(entry, numeric) = state {
-            let metric_name = Self::extract_metric_name(&entry);
+            let metric_name = self.extract_metric_name(&entry);
             let value = Self::extract_metric_value(&numeric);
             let prefixed_name = format!("test_{}", metric_name);
             self.events
@@ -1237,8 +1304,10 @@ impl MetricsRenderer for EventBusRenderer {
 
     fn register_metric(
         &mut self,
-        _definition: burn::train::metric::MetricDefinition,
+        definition: burn::train::metric::MetricDefinition,
     ) {
+        let mut metric_names = self.metric_names.lock().unwrap();
+        metric_names.insert(definition.metric_id, definition.name);
     }
 }
 
@@ -1249,14 +1318,26 @@ pub fn run_training(
     artifact_dir: &str,
     train_control: Arc<TrainControl>,
 ) -> crate::core::Result<()> {
-    match config.compute_backend {
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "run_training called: session_id={}, backend={:?}, model={}, epochs={}, batch_size={}",
+        session_id, config.compute_backend, config.model_id, config.epochs, config.batch_size
+    ), None);
+
+    let result = match config.compute_backend {
         ComputeBackend::Wgpu | ComputeBackend::Cuda | ComputeBackend::Metal | ComputeBackend::Rocm => {
             run_training_with_backend::<WgpuBackend>(event_bus, session_id, config, artifact_dir, train_control)
         }
         ComputeBackend::Cpu => {
             run_training_with_backend::<CpuBackend>(event_bus, session_id, config, artifact_dir, train_control)
         }
+    };
+
+    match &result {
+        Ok(()) => crate::infrastructure::log("BURN_TRAIN", "run_training completed successfully", None),
+        Err(e) => crate::infrastructure::log("BURN_TRAIN", &format!("run_training FAILED: {}", e), None),
     }
+
+    result
 }
 
 fn run_training_with_backend<B>(
@@ -1272,6 +1353,11 @@ where
     let device = B::Device::default();
     let seed = config.seed.unwrap_or(42);
     B::seed(&device, seed);
+
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "Backend initialized: seed={}, artifact_dir='{}'",
+        seed, artifact_dir
+    ), None);
 
     std::fs::create_dir_all(artifact_dir).ok();
 
@@ -1384,14 +1470,14 @@ where
 
     let mut dataloader_train_builder = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
-        .num_workers(2);
+        .num_workers(0);
     if config.shuffle {
         dataloader_train_builder = dataloader_train_builder.shuffle(seed);
     }
     let dataloader_train = dataloader_train_builder.build(dataset_train);
     let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
         .batch_size(config.batch_size)
-        .num_workers(2)
+        .num_workers(0)
         .build(dataset_valid);
 
     let recorder = burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new();
@@ -1409,14 +1495,29 @@ where
             let mut training = SupervisedTraining::new(artifact_dir, dataloader_train.clone(), dataloader_valid.clone())
                 .metrics((AccuracyMetric::<NdArray>::new(), LossMetric::<NdArray>::new()))
                 .num_epochs(config.epochs)
-                .renderer(renderer);
+                .renderer(renderer)
+                .with_file_checkpointer(burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new());
 
             if let Some(epoch) = config.checkpoint_interval {
                 training = training.checkpoint(epoch);
             }
 
             let learner = Learner::new(model.clone(), optim.clone(), lr_scheduler);
-            let _result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Classification training loop starting...", None);
+            let result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Classification training loop completed", None);
+
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Saving final model weights after resume...", None);
+            let model_save_path = std::path::Path::new(artifact_dir).join("model.mpk");
+            match result.model.save_file(&model_save_path, &burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new()) {
+                Ok(_) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model weights saved to: {}", model_save_path.display()), None);
+                }
+                Err(e) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Failed to save model weights: {:?}", e), None);
+                }
+            }
+
             Ok::<(), crate::core::LabError>(())
         })?;
     } else {
@@ -1432,14 +1533,29 @@ where
             let mut training = SupervisedTraining::new(artifact_dir, dataloader_train.clone(), dataloader_valid.clone())
                 .metrics((LossMetric::<NdArray>::new(),))
                 .num_epochs(config.epochs)
-                .renderer(renderer);
+                .renderer(renderer)
+                .with_file_checkpointer(burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new());
 
             if let Some(epoch) = config.checkpoint_interval {
                 training = training.checkpoint(epoch);
             }
 
             let learner = Learner::new(model.clone(), optim.clone(), lr_scheduler);
-            let _result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Regression training loop starting...", None);
+            let result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Regression training loop completed", None);
+
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Saving final model weights after resume...", None);
+            let model_save_path = std::path::Path::new(artifact_dir).join("model.mpk");
+            match result.model.save_file(&model_save_path, &burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new()) {
+                Ok(_) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model weights saved to: {}", model_save_path.display()), None);
+                }
+                Err(e) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Failed to save model weights: {:?}", e), None);
+                }
+            }
+
             Ok::<(), crate::core::LabError>(())
         })?;
     }
@@ -1459,6 +1575,11 @@ fn run_mlp_training<B>(
 where
     B: AutodiffBackend,
 {
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[MLP] Starting MLP training: data_path='{}', epochs={}, batch_size={}, lr={}",
+        config.data_path, config.epochs, config.batch_size, config.learning_rate
+    ), None);
+
     let (dataset_train, dataset_valid) = if config.data_path.is_empty() {
         let dataset = CsvDataset::from_mnist()?;
         let train_ratio = 1.0 - config.validation_split;
@@ -1513,6 +1634,11 @@ where
         1
     };
 
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[MLP] Dataset ready: train_samples={}, val_samples={}, num_features={}, num_outputs={}, is_classification={}",
+        dataset_train.len(), dataset_valid.len(), num_features, num_outputs, is_classification
+    ), None);
+
     event_bus.emit(LabEvent::DataLoaded {
         session_id: session_id.clone(),
         rows: dataset_train.len() + dataset_valid.len(),
@@ -1532,7 +1658,7 @@ where
 
     let mut dataloader_train_builder = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
-        .num_workers(2);
+        .num_workers(0);
     if config.shuffle {
         dataloader_train_builder = dataloader_train_builder.shuffle(seed);
     }
@@ -1540,20 +1666,35 @@ where
 
     let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
         .batch_size(config.batch_size)
-        .num_workers(2)
+        .num_workers(0)
         .build(dataset_valid);
+
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[MLP] DataLoader created: batch_size={}, shuffle={}, num_workers=0",
+        config.batch_size, config.shuffle
+    ), None);
 
     let renderer = EventBusRenderer::new(event_bus, session_id, train_control, config.batch_size);
 
     if is_classification {
+        crate::infrastructure::log("BURN_TRAIN", &format!(
+            "[MLP] Creating classification model: input={}, hidden={:?}, output={}",
+            num_features, hidden_sizes, num_outputs
+        ), None);
         let model = DynamicMlp::<B>::new(num_features, hidden_sizes.clone(), num_outputs, &device);
         let optim = create_adam_config(&config.optimizer).init::<B, DynamicMlp<B>>();
+
+        crate::infrastructure::log("BURN_TRAIN", &format!(
+            "[MLP] Model created, launching training: epochs={}, artifact_dir='{}'",
+            config.epochs, artifact_dir
+        ), None);
 
         dispatch_lr_scheduler!(config, config.learning_rate, config.epochs, |lr_scheduler| {
             let mut training = SupervisedTraining::new(artifact_dir, dataloader_train.clone(), dataloader_valid.clone())
                 .metrics((AccuracyMetric::<NdArray>::new(), LossMetric::<NdArray>::new()))
                 .num_epochs(config.epochs)
-                .renderer(renderer.clone());
+                .renderer(renderer.clone())
+                .with_file_checkpointer(burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new());
 
             if let Some(epoch) = config.checkpoint_interval {
                 training = training.checkpoint(epoch);
@@ -1572,7 +1713,20 @@ where
             }
 
             let learner = Learner::new(model.clone(), optim.clone(), lr_scheduler);
-            let _result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Classification training launch starting...", None);
+            let result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Classification training launch completed", None);
+
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Saving final model weights...", None);
+            let model_save_path = std::path::Path::new(artifact_dir).join("model.mpk");
+            match result.model.save_file(&model_save_path, &burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new()) {
+                Ok(_) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model weights saved to: {}", model_save_path.display()), None);
+                }
+                Err(e) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Failed to save model weights: {:?}", e), None);
+                }
+            }
 
             let metadata = serde_json::json!({
                 "model_id": config.model_id,
@@ -1580,24 +1734,33 @@ where
                 "num_classes": num_outputs,
                 "is_classification": is_classification,
                 "hidden_sizes": hidden_sizes.clone(),
-                "task_type": serde_json::to_string(&config.task_type).unwrap_or_default(),
+                "task_type": config.task_type,
             });
             let metadata_path = std::path::Path::new(artifact_dir).join("model_metadata.json");
             if let Err(e) = std::fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap_or_default()) {
                 crate::infrastructure::log("BURN", &format!("Failed to write model metadata: {}", e), None);
+            } else {
+                crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model metadata saved to: {}", metadata_path.display()), None);
             }
 
             Ok::<(), crate::core::LabError>(())
         })?;
     } else {
+        crate::infrastructure::log("BURN_TRAIN", &format!(
+            "[MLP] Creating regression model: input={}, hidden={:?}, output={}",
+            num_features, hidden_sizes, num_outputs
+        ), None);
         let model = MlpRegressor::<B>::new(num_features, hidden_sizes.clone(), num_outputs, &device);
         let optim = create_adam_config(&config.optimizer).init::<B, MlpRegressor<B>>();
+
+        crate::infrastructure::log("BURN_TRAIN", "[MLP] Regression model created, launching training...", None);
 
         dispatch_lr_scheduler!(config, config.learning_rate, config.epochs, |lr_scheduler| {
             let mut training = SupervisedTraining::new(artifact_dir, dataloader_train.clone(), dataloader_valid.clone())
                 .metrics((LossMetric::<NdArray>::new(),))
                 .num_epochs(config.epochs)
-                .renderer(renderer.clone());
+                .renderer(renderer.clone())
+                .with_file_checkpointer(burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new());
 
             if let Some(epoch) = config.checkpoint_interval {
                 training = training.checkpoint(epoch);
@@ -1616,7 +1779,20 @@ where
             }
 
             let learner = Learner::new(model.clone(), optim.clone(), lr_scheduler);
-            let _result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Regression training launch starting...", None);
+            let result: LearningResult<_> = training.launch(learner);
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Regression training launch completed", None);
+
+            crate::infrastructure::log("BURN_TRAIN", "[MLP] Saving final model weights...", None);
+            let model_save_path = std::path::Path::new(artifact_dir).join("model.mpk");
+            match result.model.save_file(&model_save_path, &burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new()) {
+                Ok(_) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model weights saved to: {}", model_save_path.display()), None);
+                }
+                Err(e) => {
+                    crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Failed to save model weights: {:?}", e), None);
+                }
+            }
 
             let metadata = serde_json::json!({
                 "model_id": config.model_id,
@@ -1624,11 +1800,13 @@ where
                 "num_outputs": num_outputs,
                 "is_classification": is_classification,
                 "hidden_sizes": hidden_sizes.clone(),
-                "task_type": serde_json::to_string(&config.task_type).unwrap_or_default(),
+                "task_type": config.task_type,
             });
             let metadata_path = std::path::Path::new(artifact_dir).join("model_metadata.json");
             if let Err(e) = std::fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap_or_default()) {
                 crate::infrastructure::log("BURN", &format!("Failed to write model metadata: {}", e), None);
+            } else {
+                crate::infrastructure::log("BURN_TRAIN", &format!("[MLP] Model metadata saved to: {}", metadata_path.display()), None);
             }
 
             Ok::<(), crate::core::LabError>(())
@@ -1650,6 +1828,11 @@ fn run_cnn_training<B>(
 where
     B: AutodiffBackend,
 {
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[CNN] Starting CNN training: data_path='{}', epochs={}, batch_size={}, lr={}",
+        config.data_path, config.epochs, config.batch_size, config.learning_rate
+    ), None);
+
     let (dataset_train, dataset_valid) = if config.data_path.is_empty() {
         let dataset = ImageDataset::from_mnist_images()?;
         let train_ratio = 1.0 - config.validation_split;
@@ -1694,6 +1877,11 @@ where
 
     let num_classes = dataset_train.num_classes();
 
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[CNN] Dataset ready: train_samples={}, val_samples={}, num_classes={}",
+        dataset_train.len(), dataset_valid.len(), num_classes
+    ), None);
+
     event_bus.emit(LabEvent::DataLoaded {
         session_id: session_id.clone(),
         rows: dataset_train.len() + dataset_valid.len(),
@@ -1709,7 +1897,7 @@ where
 
     let mut dataloader_train_builder = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
-        .num_workers(2);
+        .num_workers(0);
     if config.shuffle {
         dataloader_train_builder = dataloader_train_builder.shuffle(seed);
     }
@@ -1717,10 +1905,15 @@ where
 
     let dataloader_valid = DataLoaderBuilder::new(batcher_valid)
         .batch_size(config.batch_size)
-        .num_workers(2)
+        .num_workers(0)
         .build(dataset_valid);
 
     let model = DynamicCnn::<B>::new(channels, num_classes, &device);
+
+    crate::infrastructure::log("BURN_TRAIN", &format!(
+        "[CNN] Model created: channels={}, num_classes={}, image={}x{}",
+        channels, num_classes, image_height, image_width
+    ), None);
 
     let optim = create_adam_config(&config.optimizer).init::<B, DynamicCnn<B>>();
     let renderer = EventBusRenderer::new(event_bus, session_id, train_control, config.batch_size);
@@ -1729,7 +1922,8 @@ where
         let mut training = SupervisedTraining::new(artifact_dir, dataloader_train.clone(), dataloader_valid.clone())
             .metrics((AccuracyMetric::<NdArray>::new(), LossMetric::<NdArray>::new()))
             .num_epochs(config.epochs)
-            .renderer(renderer.clone());
+            .renderer(renderer.clone())
+            .with_file_checkpointer(burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new());
 
         if let Some(epoch) = config.checkpoint_interval {
             training = training.checkpoint(epoch);
@@ -1748,7 +1942,37 @@ where
         }
 
         let learner = Learner::new(model.clone(), optim.clone(), lr_scheduler);
-        let _result: LearningResult<_> = training.launch(learner);
+        crate::infrastructure::log("BURN_TRAIN", "[CNN] Training launch starting...", None);
+        let result: LearningResult<_> = training.launch(learner);
+        crate::infrastructure::log("BURN_TRAIN", "[CNN] Training launch completed", None);
+
+        crate::infrastructure::log("BURN_TRAIN", "[CNN] Saving final model weights...", None);
+        let model_save_path = std::path::Path::new(artifact_dir).join("model.mpk");
+        match result.model.save_file(&model_save_path, &burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new()) {
+            Ok(_) => {
+                crate::infrastructure::log("BURN_TRAIN", &format!("[CNN] Model weights saved to: {}", model_save_path.display()), None);
+            }
+            Err(e) => {
+                crate::infrastructure::log("BURN_TRAIN", &format!("[CNN] Failed to save model weights: {:?}", e), None);
+            }
+        }
+
+        let metadata = serde_json::json!({
+            "model_id": config.model_id,
+            "num_classes": num_classes,
+            "channels": channels,
+            "image_height": image_height,
+            "image_width": image_width,
+            "is_classification": true,
+            "task_type": config.task_type,
+        });
+        let metadata_path = std::path::Path::new(artifact_dir).join("model_metadata.json");
+        if let Err(e) = std::fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap_or_default()) {
+            crate::infrastructure::log("BURN_TRAIN", &format!("[CNN] Failed to write model metadata: {}", e), None);
+        } else {
+            crate::infrastructure::log("BURN_TRAIN", &format!("[CNN] Model metadata saved to: {}", metadata_path.display()), None);
+        }
+
         Ok::<(), crate::core::LabError>(())
     })
 }
@@ -1881,6 +2105,14 @@ where
     let is_classification = matches!(config.task_type, TaskType::Classification);
     let model_id = &config.model_id;
 
+    crate::infrastructure::log("BURN_INFER", &format!(
+        "[Inference] Starting: model='{}', backend={}, task_type={}, input_rows={}",
+        model_id,
+        std::any::type_name::<B>().split("::").last().unwrap_or("unknown"),
+        config.task_type,
+        input_data.len()
+    ), None);
+
     if model_id.starts_with("cnn") {
         let channels: usize = config.custom_params.get("input_channels")
             .and_then(|v| v.as_u64())
@@ -1900,10 +2132,18 @@ where
 
         let model = DynamicCnn::<B>::new(channels, num_classes, &device);
 
+        crate::infrastructure::log("BURN_INFER", &format!("[CNN] Model created: channels={}, classes={}, {}x{}", channels, num_classes, height, width), None);
+
         let checkpoint_path = find_latest_checkpoint(artifact_dir);
         let checkpoint_path = match checkpoint_path {
-            Some(p) => p,
-            None => return Err(crate::core::LabError::InferenceFailed("No checkpoint found".to_string())),
+            Some(p) => {
+                crate::infrastructure::log("BURN_INFER", &format!("[CNN] Loading checkpoint: '{}'", p.display()), None);
+                p
+            },
+            None => {
+                crate::infrastructure::log("BURN_INFER", "ERROR", Some("[CNN] No checkpoint found"));
+                return Err(crate::core::LabError::InferenceFailed("No checkpoint found".to_string()));
+            }
         };
 
         let recorder = burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new();
@@ -1969,6 +2209,7 @@ where
             }
         }
 
+        crate::infrastructure::log("BURN_INFER", &format!("[CNN] Inference completed: {} predictions, {} classes", predictions.len(), predicted_classes.len()), None);
         Ok(InferenceResult { predictions, predicted_classes, probabilities })
     } else {
         let num_features = input_data.first().map(|r| r.len()).unwrap_or(1);
@@ -1992,12 +2233,19 @@ where
                 else { vec![256, 128, 64] }
             });
 
-        let model = DynamicMlp::<B>::new(num_features, hidden_sizes, num_outputs, &device);
+        crate::infrastructure::log("BURN_INFER", &format!("[MLP] Creating model: features={}, hidden={:?}, outputs={}", num_features, hidden_sizes, num_outputs), None);
+        let model = DynamicMlp::<B>::new(num_features, hidden_sizes.clone(), num_outputs, &device);
 
         let checkpoint_path = find_latest_checkpoint(artifact_dir);
         let checkpoint_path = match checkpoint_path {
-            Some(p) => p,
-            None => return Err(crate::core::LabError::InferenceFailed("No checkpoint found".to_string())),
+            Some(p) => {
+                crate::infrastructure::log("BURN_INFER", &format!("[MLP] Loading checkpoint: '{}'", p.display()), None);
+                p
+            },
+            None => {
+                crate::infrastructure::log("BURN_INFER", "ERROR", Some("[MLP] No checkpoint found"));
+                return Err(crate::core::LabError::InferenceFailed("No checkpoint found".to_string()));
+            }
         };
 
         let recorder = burn::record::DefaultFileRecorder::<burn::record::FullPrecisionSettings>::new();
@@ -2060,75 +2308,75 @@ where
             }
         }
 
+        crate::infrastructure::log("BURN_INFER", &format!("[MLP] Inference completed: {} predictions, {} classes", predictions.len(), predicted_classes.len()), None);
         Ok(InferenceResult { predictions, predicted_classes, probabilities })
     }
 }
 
 fn find_latest_checkpoint(artifact_dir: &str) -> Option<std::path::PathBuf> {
-    let checkpoint_dir = std::path::Path::new(artifact_dir);
-    if !checkpoint_dir.exists() {
+    let artifact_path = std::path::Path::new(artifact_dir);
+    if !artifact_path.exists() {
+        crate::infrastructure::log("BURN_CHECKPOINT", &format!("Artifact dir does not exist: {}", artifact_dir), None);
         return None;
     }
 
-    let mut latest_epoch: usize = 0;
-    let mut latest_path: Option<std::path::PathBuf> = None;
+    crate::infrastructure::log("BURN_CHECKPOINT", &format!("Searching for checkpoint in: {}", artifact_dir), None);
 
-    if let Ok(entries) = std::fs::read_dir(checkpoint_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let name = path.file_name()?.to_string_lossy();
-            if name.starts_with("checkpoint-") || name.starts_with("model-") {
-                if path.is_dir() {
-                    if let Some(checkpoint_file) = find_checkpoint_in_dir(&path) {
-                        if let Some(epoch_str) = name.split('-').last() {
-                            if let Ok(epoch) = epoch_str.parse::<usize>() {
-                                if epoch >= latest_epoch {
-                                    latest_epoch = epoch;
-                                    latest_path = Some(checkpoint_file);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    let is_checkpoint = name.ends_with(".mpk.gz")
-                        || name.ends_with(".mpk")
-                        || name.ends_with(".bin");
-                    if is_checkpoint {
-                        if let Some(epoch_str) = name.split('-').last() {
-                            let epoch_result = epoch_str
-                                .strip_suffix(".mpk.gz")
-                                .or_else(|| epoch_str.strip_suffix(".mpk"))
-                                .or_else(|| epoch_str.strip_suffix(".bin"))
-                                .and_then(|s| s.parse::<usize>().ok())
-                                .or_else(|| epoch_str.parse::<usize>().ok());
-                            if let Some(epoch) = epoch_result {
-                                if epoch >= latest_epoch {
-                                    latest_epoch = epoch;
-                                    latest_path = Some(path);
-                                }
-                            }
-                        }
+    let model_final_path = artifact_path.join("model.mpk");
+    if model_final_path.exists() {
+        crate::infrastructure::log("BURN_CHECKPOINT", &format!("Found final model: {}", model_final_path.display()), None);
+        return Some(model_final_path);
+    }
+
+    let checkpoint_dir = artifact_path.join("checkpoint");
+    if checkpoint_dir.exists() {
+        crate::infrastructure::log("BURN_CHECKPOINT", &format!("Searching in checkpoint dir: {}", checkpoint_dir.display()), None);
+        let mut latest_epoch: usize = 0;
+        let mut latest_path: Option<std::path::PathBuf> = None;
+
+        if let Ok(entries) = std::fs::read_dir(&checkpoint_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_file() { continue; }
+                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if !name.starts_with("model-") { continue; }
+
+                let epoch_result = name
+                    .strip_prefix("model-")
+                    .and_then(|s| s.strip_suffix(".mpk").or_else(|| s.strip_suffix(".mpk.gz")).or_else(|| s.strip_suffix(".bin")))
+                    .and_then(|s| s.parse::<usize>().ok());
+                if let Some(epoch) = epoch_result {
+                    crate::infrastructure::log("BURN_CHECKPOINT", &format!("Found checkpoint: {} (epoch={})", name, epoch), None);
+                    if epoch >= latest_epoch {
+                        latest_epoch = epoch;
+                        latest_path = Some(path);
                     }
                 }
             }
         }
+
+        if latest_path.is_some() {
+            crate::infrastructure::log("BURN_CHECKPOINT", &format!("Latest checkpoint: epoch={}", latest_epoch), None);
+            return latest_path;
+        }
     }
 
-    if latest_path.is_none() {
-        if let Some(cp_file) = find_checkpoint_in_dir(checkpoint_dir) {
+    crate::infrastructure::log("BURN_CHECKPOINT", "No checkpoint in checkpoint/ dir, searching artifact root...", None);
+    if let Some(cp_file) = find_checkpoint_in_dir(artifact_path) {
+        crate::infrastructure::log("BURN_CHECKPOINT", &format!("Found checkpoint in root: {}", cp_file.display()), None);
+        return Some(cp_file);
+    }
+
+    let checkpoint_subdir = artifact_path.join("checkpoint");
+    if checkpoint_subdir.exists() {
+        if let Some(cp_file) = find_checkpoint_in_dir(&checkpoint_subdir) {
+            crate::infrastructure::log("BURN_CHECKPOINT", &format!("Found checkpoint in checkpoint/: {}", cp_file.display()), None);
             return Some(cp_file);
         }
-        let mpk_path = checkpoint_dir.join("checkpoint.mpk.gz");
-        if mpk_path.exists() {
-            return Some(mpk_path);
-        }
-        let json_path = checkpoint_dir.join("checkpoint.json");
-        if json_path.exists() {
-            return Some(json_path);
-        }
     }
 
-    latest_path
+    crate::infrastructure::log("BURN_CHECKPOINT", "WARN", Some("No checkpoint found anywhere"));
+    None
 }
 
 pub fn find_checkpoint_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {

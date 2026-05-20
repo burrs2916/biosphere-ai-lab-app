@@ -550,6 +550,7 @@ impl StreamingGlobalShuffle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     fn create_test_manifest(num_shards: usize, samples_per_shard: usize) -> ShardManifest {
         let shards: Vec<ShardInfo> = (0..num_shards)

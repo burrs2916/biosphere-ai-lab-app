@@ -54,37 +54,103 @@ pub fn get_export_filename(experiment_id: &str, format: &ExportFormat) -> String
 }
 
 fn find_latest_checkpoint(artifact_dir: &str) -> Option<(i64, String)> {
-    let checkpoint_dir = format!("{}/checkpoints", artifact_dir);
-    if !Path::new(&checkpoint_dir).exists() {
+    let artifact_path = Path::new(artifact_dir);
+    if !artifact_path.exists() {
+        log("EXPORT", &format!("Artifact dir does not exist: {}", artifact_dir), None);
         return None;
     }
 
-    let entries = std::fs::read_dir(&checkpoint_dir).ok()?;
-    let mut latest: Option<(i64, String)> = None;
+    let model_final_path = artifact_path.join("model.mpk");
+    if model_final_path.exists() {
+        log("EXPORT", &format!("Found final model.mpk: {}", model_final_path.display()), None);
+        return Some((0, model_final_path.to_string_lossy().to_string()));
+    }
 
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().to_string();
-        let epoch = name
-            .strip_prefix("checkpoint-epoch-")
-            .and_then(|s| {
-                s.strip_suffix(".pt")
-                    .or_else(|| s.strip_suffix(".ot"))
-                    .or_else(|| s.strip_suffix(".bin"))
-            })
-            .and_then(|s| s.parse::<i64>().ok());
+    let checkpoint_dir = format!("{}/checkpoint", artifact_dir);
+    if Path::new(&checkpoint_dir).exists() {
+        log("EXPORT", &format!("Searching in checkpoint dir: {}", checkpoint_dir), None);
+        if let Ok(entries) = std::fs::read_dir(&checkpoint_dir) {
+            let mut latest_epoch: usize = 0;
+            let mut latest_path: Option<String> = None;
 
-        if let Some(epoch) = epoch {
-            match &latest {
-                None => latest = Some((epoch, entry.path().to_string_lossy().to_string())),
-                Some((prev, _)) if epoch > *prev => {
-                    latest = Some((epoch, entry.path().to_string_lossy().to_string()));
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_file() { continue; }
+                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if !name.starts_with("model-") { continue; }
+
+                let epoch_result = name
+                    .strip_prefix("model-")
+                    .and_then(|s| {
+                        s.strip_suffix(".mpk")
+                            .or_else(|| s.strip_suffix(".mpk.gz"))
+                            .or_else(|| s.strip_suffix(".bin"))
+                    })
+                    .and_then(|s| s.parse::<usize>().ok());
+
+                if let Some(epoch) = epoch_result {
+                    if epoch >= latest_epoch {
+                        latest_epoch = epoch;
+                        latest_path = Some(path.to_string_lossy().to_string());
+                    }
                 }
-                _ => {}
+            }
+
+            if let Some(cp_path) = latest_path {
+                log("EXPORT", &format!("Found latest checkpoint: epoch={}, path={}", latest_epoch, cp_path), None);
+                return Some((latest_epoch as i64, cp_path));
             }
         }
     }
 
-    latest
+    let checkpoints_dir = format!("{}/checkpoints", artifact_dir);
+    if Path::new(&checkpoints_dir).exists() {
+        log("EXPORT", &format!("Searching in checkpoints dir: {}", checkpoints_dir), None);
+        if let Ok(entries) = std::fs::read_dir(&checkpoints_dir) {
+            let mut latest: Option<(i64, String)> = None;
+
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let epoch = name
+                    .strip_prefix("checkpoint-epoch-")
+                    .and_then(|s| {
+                        s.strip_suffix(".pt")
+                            .or_else(|| s.strip_suffix(".ot"))
+                            .or_else(|| s.strip_suffix(".bin"))
+                    })
+                    .and_then(|s| s.parse::<i64>().ok());
+
+                if let Some(epoch) = epoch {
+                    match &latest {
+                        None => latest = Some((epoch, entry.path().to_string_lossy().to_string())),
+                        Some((prev, _)) if epoch > *prev => {
+                            latest = Some((epoch, entry.path().to_string_lossy().to_string()));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            if latest.is_some() {
+                return latest;
+            }
+        }
+    }
+
+    if let Ok(entries) = std::fs::read_dir(artifact_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() { continue; }
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if name.starts_with("model.") || name.starts_with("checkpoint-epoch-") || name.ends_with(".mpk") || name.ends_with(".ot") || name.ends_with(".bin") {
+                log("EXPORT", &format!("Found model file in root: {}", path.display()), None);
+                return Some((0, path.to_string_lossy().to_string()));
+            }
+        }
+    }
+
+    log("EXPORT", "No checkpoint or model file found", None);
+    None
 }
 
 #[cfg(feature = "tch-engine")]
@@ -332,6 +398,8 @@ pub fn export_burn_model(
     let artifact_dir = crate::core::config::get_artifact_dir(experiment_id);
     let output_path = format!("{}/{}", output_dir, get_export_filename(experiment_id, &ExportFormat::BurnRecord));
 
+    log("EXPORT", &format!("export_burn_model: artifact_dir='{}', output_dir='{}', output_path='{}'", artifact_dir, output_dir, output_path), None);
+
     if let Err(e) = std::fs::create_dir_all(output_dir) {
         return ExportResult {
             success: false,
@@ -343,14 +411,18 @@ pub fn export_burn_model(
     }
 
     let checkpoint = match find_latest_checkpoint(&artifact_dir) {
-        Some(c) => c,
+        Some(c) => {
+            log("EXPORT", &format!("Found checkpoint: epoch={}, path='{}'", c.0, c.1), None);
+            c
+        }
         None => {
+            log("EXPORT", &format!("No checkpoint found in artifact_dir: '{}'", artifact_dir), None);
             return ExportResult {
                 success: false,
                 format: ExportFormat::BurnRecord,
                 output_path,
                 file_size_bytes: 0,
-                message: "No checkpoints found for Burn model".to_string(),
+                message: format!("No checkpoints found for Burn model in: {}", artifact_dir),
             };
         }
     };
@@ -363,10 +435,11 @@ pub fn export_burn_model(
                 format: ExportFormat::BurnRecord,
                 output_path,
                 file_size_bytes: bytes,
-                message: format!("Burn record exported from epoch {}", checkpoint.0),
+                message: format!("Burn record exported from epoch {} ({})", checkpoint.0, checkpoint.1),
             }
         }
         Err(e) => {
+            log("EXPORT", &format!("Failed to copy checkpoint: {} -> {}, error: {}", checkpoint.1, output_path, e), None);
             ExportResult {
                 success: false,
                 format: ExportFormat::BurnRecord,
@@ -382,9 +455,10 @@ pub fn export_model(request: &ExportRequest, config: &TrainingConfig) -> ExportR
     let output_dir = request.output_path.clone()
         .unwrap_or_else(|| get_default_export_dir(&request.experiment_id));
 
+    let artifact_dir = crate::core::config::get_artifact_dir(&request.experiment_id);
     log("EXPORT", &format!(
-        "Exporting model: experiment={}, format={}, output_dir={}",
-        request.experiment_id, request.format, output_dir
+        "Exporting model: experiment={}, engine={}, format={}, output_dir={}, artifact_dir={}",
+        request.experiment_id, config.engine_id, request.format, output_dir, artifact_dir
     ), None);
 
     match config.engine_id.as_str() {
@@ -402,6 +476,7 @@ pub fn export_model(request: &ExportRequest, config: &TrainingConfig) -> ExportR
                     &output_dir,
                 ),
                 ExportFormat::TorchScript | ExportFormat::Onnx => {
+                    log("EXPORT", &format!("{} export not supported for Burn engine", request.format), None);
                     ExportResult {
                         success: false,
                         format: request.format.clone(),
@@ -413,6 +488,7 @@ pub fn export_model(request: &ExportRequest, config: &TrainingConfig) -> ExportR
             }
         }
         _ => {
+            log("EXPORT", &format!("Unknown engine: {}", config.engine_id), None);
             ExportResult {
                 success: false,
                 format: request.format.clone(),

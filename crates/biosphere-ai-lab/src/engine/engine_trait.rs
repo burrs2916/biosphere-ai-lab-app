@@ -7,6 +7,7 @@ use crate::types::{ComputeBackend, SessionId, SessionStatus};
 #[derive(Debug, Clone)]
 pub struct SessionHandle {
     pub session_id: SessionId,
+    pub experiment_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

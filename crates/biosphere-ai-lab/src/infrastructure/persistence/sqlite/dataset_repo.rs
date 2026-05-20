@@ -75,6 +75,8 @@ impl SqliteDatasetRepository {
 
 const SELECT_COLS: &str = "id, name, version, status, format, path, digest, rows, columns, column_profiles_json, memory_size_mb, tags_json, COALESCE(description, ''), COALESCE(source_type, ''), COALESCE(source_uri, ''), experiment_ids_json, metadata_json, version_history_json, card_json, created_at, updated_at";
 
+const INSERT_COLS: &str = "id, name, version, status, format, path, digest, rows, columns, column_profiles_json, memory_size_mb, tags_json, description, source_type, source_uri, experiment_ids_json, metadata_json, version_history_json, card_json, created_at, updated_at";
+
 fn row_to_dataset(
     id_str: String,
     name: String,
@@ -173,7 +175,7 @@ impl DatasetRepository for SqliteDatasetRepository {
             .map_err(|e| LabError::Custom(format!("Serialize card: {}", e)))?;
 
         conn.execute(
-            &format!("INSERT OR REPLACE INTO datasets ({}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)", SELECT_COLS),
+            &format!("INSERT OR REPLACE INTO datasets ({}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)", INSERT_COLS),
             params![
                 dataset.id.as_str(),
                 dataset.name,
@@ -356,6 +358,8 @@ impl DatasetRepository for SqliteDatasetRepository {
 
     async fn delete(&self, id: &DatasetId) -> Result<()> {
         let conn = self.conn.lock().map_err(|e| LabError::Custom(format!("Lock error: {}", e)))?;
+        conn.execute("DELETE FROM dataset_splits WHERE dataset_id = ?1", [id.as_str()])
+            .map_err(|e| LabError::Custom(format!("Delete dataset splits error: {}", e)))?;
         conn.execute("DELETE FROM datasets WHERE id = ?1", [id.as_str()])
             .map_err(|e| LabError::Custom(format!("Delete dataset error: {}", e)))?;
         Ok(())

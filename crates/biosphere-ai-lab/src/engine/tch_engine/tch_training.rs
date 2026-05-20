@@ -634,7 +634,7 @@ fn run_mlp_training(
         "num_classes": num_outputs,
         "is_classification": is_classification,
         "hidden_sizes": hidden_sizes,
-        "task_type": serde_json::to_string(&config.task_type).unwrap_or_default(),
+        "task_type": config.task_type,
         "model_path": final_path,
     });
     let metadata_path = std::path::Path::new(artifact_dir).join("model_metadata.json");
@@ -1506,7 +1506,7 @@ fn run_cnn_training(
         "input_height": input_height,
         "input_width": input_width,
         "num_classes": num_classes,
-        "task_type": serde_json::to_string(&config.task_type).unwrap_or_default(),
+        "task_type": config.task_type,
         "model_path": final_path,
     });
     let metadata_path = std::path::Path::new(artifact_dir).join("model_metadata.json");

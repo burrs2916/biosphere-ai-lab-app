@@ -81,6 +81,7 @@ impl Engine for BurnEngine {
         let session_id = SessionId::new();
         let handle = SessionHandle {
             session_id: session_id.clone(),
+            experiment_id: None,
         };
 
         let train_control = Arc::new(TrainControl::new());
@@ -123,10 +124,12 @@ impl Engine for BurnEngine {
         let sessions = self.sessions.clone();
         let event_bus = self.event_bus.clone();
         let session_id = handle.session_id.clone();
+        let experiment_id = handle.experiment_id.clone();
 
         tokio::spawn(async move {
             let result = Self::run_training(
                 &session_id,
+                &experiment_id,
                 &config,
                 &sessions,
                 event_bus.clone(),
@@ -349,6 +352,7 @@ impl Engine for BurnEngine {
 impl BurnEngine {
     async fn run_training(
         session_id: &SessionId,
+        experiment_id: &Option<String>,
         config: &TrainingConfig,
         sessions: &Arc<RwLock<HashMap<String, SessionState>>>,
         event_bus: Option<Arc<EventBus>>,
@@ -366,7 +370,18 @@ impl BurnEngine {
             }
         }
 
-        let artifact_dir = crate::core::config::get_artifact_dir(&session_id.to_string());
+        let artifact_dir = crate::core::config::get_artifact_dir(
+            experiment_id.as_deref().unwrap_or(&session_id.to_string())
+        );
+
+        crate::infrastructure::log("BURN_ENGINE", &format!(
+            "Spawning training task: session_id={}, experiment_id={}, model={}, backend={:?}, artifact_dir='{}'",
+            session_id,
+            experiment_id.as_deref().unwrap_or("N/A"),
+            config.model_id,
+            config.compute_backend,
+            artifact_dir
+        ), None);
 
         let eb = event_bus.clone();
         let sid = session_id.clone();
@@ -375,22 +390,45 @@ impl BurnEngine {
 
         let result = tokio::task::spawn_blocking(move || {
             if tc.is_cancelled() {
-                return Err(LabError::TrainingFailed("Training cancelled".to_string()));
+                return Err(LabError::TrainingFailed("Training cancelled before start".to_string()));
             }
 
-            run_training(
+            crate::infrastructure::log("BURN_ENGINE", &format!(
+                "Training task started on thread: session_id={}", sid
+            ), None);
+
+            let result = run_training(
                 eb,
-                sid,
+                sid.clone(),
                 &config_clone,
                 &artifact_dir,
                 tc,
-            )
+            );
+
+            match &result {
+                Ok(()) => crate::infrastructure::log("BURN_ENGINE", &format!(
+                    "Training task completed: session_id={}", sid
+                ), None),
+                Err(e) => crate::infrastructure::log("BURN_ENGINE", &format!(
+                    "Training task FAILED: session_id={}, error={}", sid, e
+                ), None),
+            }
+
+            result
         })
         .await
-        .map_err(|e| LabError::TrainingFailed(format!("Training task panicked: {}", e)))?
+        .map_err(|e| {
+            crate::infrastructure::log("BURN_ENGINE", &format!(
+                "Training task PANICKED: session_id={}, error={}", session_id, e
+            ), None);
+            LabError::TrainingFailed(format!("Training task panicked: {}", e))
+        })?
         .map_err(|e| LabError::TrainingFailed(e.to_string()));
 
         if train_control.is_cancelled() {
+            crate::infrastructure::log("BURN_ENGINE", &format!(
+                "Training was cancelled: session_id={}", session_id
+            ), None);
             return Err(LabError::TrainingFailed("Training cancelled".to_string()));
         }
 

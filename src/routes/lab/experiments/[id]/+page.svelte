@@ -857,56 +857,6 @@
 							{/each}
 						</div>
 					{/if}
-
-					<hr class="section-divider" />
-
-					<h3 class="subsection-title">{$t('experimentDetail.batchInference')}</h3>
-					<p class="inference-hint">{$t('experimentDetail.batchInferenceHint')}</p>
-
-					<div class="inference-form">
-						<textarea
-							bind:value={batchInferenceData}
-							placeholder="5.1, 3.5, 1.4, 0.2&#10;6.2, 2.9, 4.3, 1.3&#10;7.7, 3.8, 6.7, 2.2"
-							class="inference-textarea"
-							rows="5"
-						></textarea>
-						<button
-							class="btn-inference"
-							on:click={runBatchInference}
-							disabled={batchInferenceRunning || !batchInferenceData.trim()}
-						>
-							{batchInferenceRunning ? $t('experimentDetail.inferring') : `📦 ${$t('experimentDetail.batchInference')}`}
-						</button>
-					</div>
-
-					{#if batchInferenceError}
-						<div class="error-banner">
-							<span class="error-icon">✗</span>
-							<span>{batchInferenceError}</span>
-						</div>
-					{/if}
-
-					{#if batchInferenceResults.length > 0}
-						<div class="inference-result">
-							<h4>{$t('experimentDetail.batchResults')} ({batchInferenceResults.length})</h4>
-							<div class="batch-results-table">
-								<div class="batch-table-header">
-									<span>#</span>
-									<span>{$t('experimentDetail.input')}</span>
-									<span>{$t('experimentDetail.predictedClass')}</span>
-									<span>{$t('experimentDetail.predictedValue')}</span>
-								</div>
-								{#each batchInferenceResults as item, i}
-									<div class="batch-table-row">
-										<span>{i + 1}</span>
-										<span class="batch-input">{item ? item.input.map(v => v.toFixed(2)).join(', ') : '-'}</span>
-										<span class="batch-predicted">{item && item.result.predicted_classes.length > 0 ? item.result.predicted_classes[0] : '-'}</span>
-										<span class="batch-value">{item && item.result.predictions.length > 0 ? item.result.predictions.map(v => v.toFixed(4)).join(', ') : '-'}</span>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
 				</div>
 				<div class="header-right">
 					{#if detail.status === 'running'}
@@ -922,6 +872,9 @@
 					{/if}
 					{#if detail.status === 'completed' && !detail.model_id}
 						<button class="register-btn" on:click={openRegisterModal}>📦 {$t('experimentDetail.registerModel')}</button>
+					{/if}
+					{#if detail.status === 'completed' && detail.model_id}
+						<a href="/lab/models" class="registered-badge">✅ {$t('experimentDetail.modelRegistered')}</a>
 					{/if}
 					{#if detail.status !== 'running' && detail.status !== 'paused' && detail.status !== 'archived'}
 						<button class="archive-btn" on:click={archiveExperiment}>📁 {$t('experimentDetail.archive')}</button>
@@ -946,6 +899,72 @@
 			{/if}
 			<div class="progress-section">
 				<TrainingProgress sessionId={experimentId} />
+			</div>
+		{/if}
+
+		{#if detail.status === 'completed'}
+			<div class="training-summary">
+				<div class="summary-header">
+					<span class="summary-icon">✅</span>
+					<h3 class="summary-title">{$t('experimentDetail.trainingComplete')}</h3>
+					<span class="summary-duration">{$t('experimentDetail.duration')}: {duration(detail.created_at, detail.completed_at)}</span>
+				</div>
+				<div class="summary-metrics">
+					{#if detail.final_metrics}
+						{#if detail.final_metrics.train_loss !== undefined}
+							<div class="summary-metric-card">
+								<span class="summary-metric-label">{$t('experimentDetail.finalTrainLoss')}</span>
+								<span class="summary-metric-value">{detail.final_metrics.train_loss.toFixed(4)}</span>
+							</div>
+						{/if}
+						{#if detail.final_metrics.val_loss !== undefined}
+							<div class="summary-metric-card">
+								<span class="summary-metric-label">{$t('experimentDetail.finalValLoss')}</span>
+								<span class="summary-metric-value">{detail.final_metrics.val_loss.toFixed(4)}</span>
+							</div>
+						{/if}
+						{#if detail.final_metrics.train_accuracy !== undefined}
+							<div class="summary-metric-card">
+								<span class="summary-metric-label">{$t('experimentDetail.finalTrainAcc')}</span>
+								<span class="summary-metric-value">{(detail.final_metrics.train_accuracy * 100).toFixed(1)}%</span>
+							</div>
+						{/if}
+						{#if detail.final_metrics.val_accuracy !== undefined}
+							<div class="summary-metric-card highlight">
+								<span class="summary-metric-label">{$t('experimentDetail.finalValAcc')}</span>
+								<span class="summary-metric-value">{(detail.final_metrics.val_accuracy * 100).toFixed(1)}%</span>
+							</div>
+						{/if}
+						{#if detail.final_metrics.accuracy !== undefined}
+							<div class="summary-metric-card highlight">
+								<span class="summary-metric-label">{$t('experimentDetail.accuracy')}</span>
+								<span class="summary-metric-value">{(detail.final_metrics.accuracy * 100).toFixed(1)}%</span>
+							</div>
+						{/if}
+						{#if detail.final_metrics.best_loss !== undefined}
+							<div class="summary-metric-card">
+								<span class="summary-metric-label">{$t('experimentDetail.bestLoss')}</span>
+								<span class="summary-metric-value">{detail.final_metrics.best_loss.toFixed(4)}</span>
+							</div>
+						{/if}
+					{:else}
+						{#each Object.entries(detail.metrics.series) as [name, series]}
+							{#if series.values.length > 0}
+								<div class="summary-metric-card">
+									<span class="summary-metric-label">{name}</span>
+									<span class="summary-metric-value">{series.values[series.values.length - 1].value.toFixed(4)}</span>
+								</div>
+							{/if}
+						{/each}
+					{/if}
+				</div>
+				<div class="summary-actions">
+					<button class="summary-action-btn primary" on:click={() => { activeTab = 'inference'; }}>🔮 {$t('experimentDetail.goInference')}</button>
+					<button class="summary-action-btn" on:click={() => { activeTab = 'artifacts'; }}>📦 {$t('experimentDetail.viewArtifacts')}</button>
+					{#if detail.model_id}
+						<a href="/lab/models" class="summary-action-btn">📦 {$t('experimentDetail.viewModel')}</a>
+					{/if}
+				</div>
 			</div>
 		{/if}
 
@@ -1294,9 +1313,16 @@
 							<span class="artifacts-count">{$t('experimentDetail.artifactCount', { count: detail.artifacts.length })}</span>
 							<span class="artifacts-total-size">{$t('experimentDetail.totalSize')}: {formatSize(detail.artifacts.reduce((s, a) => s + a.size_bytes, 0))}</span>
 						</div>
-						<button class="btn-scan" on:click={scanArtifactsAction} disabled={scanningArtifacts}>
-							{scanningArtifacts ? $t('experimentDetail.scanning') : `🔍 ${$t('experimentDetail.scanNewArtifacts')}`}
-						</button>
+						<div class="artifacts-toolbar-right">
+							{#if detail.artifacts.length > 0}
+								<button class="btn-scan" on:click={async () => { try { const client = getLabClient(); await client.openArtifactDir(experimentId); } catch (e) { console.error('Open dir failed:', e); } }}>
+									📁 {$t('experimentDetail.openDir')}
+								</button>
+							{/if}
+							<button class="btn-scan" on:click={scanArtifactsAction} disabled={scanningArtifacts}>
+								{scanningArtifacts ? $t('experimentDetail.scanning') : `🔍 ${$t('experimentDetail.scanNewArtifacts')}`}
+							</button>
+						</div>
 					</div>
 					{#if detail.artifacts.length > 0}
 						<div class="artifacts-tree">
@@ -1544,6 +1570,56 @@
 									</div>
 								</div>
 							{/if}
+						</div>
+					{/if}
+
+					<hr class="section-divider" />
+
+					<h3 class="subsection-title">{$t('experimentDetail.batchInference')}</h3>
+					<p class="inference-hint">{$t('experimentDetail.batchInferenceHint')}</p>
+
+					<div class="inference-form">
+						<textarea
+							bind:value={batchInferenceData}
+							placeholder="5.1, 3.5, 1.4, 0.2&#10;6.2, 2.9, 4.3, 1.3&#10;7.7, 3.8, 6.7, 2.2"
+							class="inference-textarea"
+							rows="5"
+						></textarea>
+						<button
+							class="btn-inference"
+							on:click={runBatchInference}
+							disabled={batchInferenceRunning || !batchInferenceData.trim()}
+						>
+							{batchInferenceRunning ? $t('experimentDetail.inferring') : `📦 ${$t('experimentDetail.batchInference')}`}
+						</button>
+					</div>
+
+					{#if batchInferenceError}
+						<div class="error-banner">
+							<span class="error-icon">✗</span>
+							<span>{batchInferenceError}</span>
+						</div>
+					{/if}
+
+					{#if batchInferenceResults.length > 0}
+						<div class="inference-result">
+							<h4>{$t('experimentDetail.batchResults')} ({batchInferenceResults.length})</h4>
+							<div class="batch-results-table">
+								<div class="batch-table-header">
+									<span>#</span>
+									<span>{$t('experimentDetail.input')}</span>
+									<span>{$t('experimentDetail.predictedClass')}</span>
+									<span>{$t('experimentDetail.predictedValue')}</span>
+								</div>
+								{#each batchInferenceResults as item, i}
+									<div class="batch-table-row">
+										<span>{i + 1}</span>
+										<span class="batch-input">{item ? item.input.map(v => v.toFixed(2)).join(', ') : '-'}</span>
+										<span class="batch-predicted">{item && item.result.predicted_classes.length > 0 ? item.result.predicted_classes[0] : '-'}</span>
+										<span class="batch-value">{item && item.result.predictions.length > 0 ? item.result.predictions.map(v => v.toFixed(4)).join(', ') : '-'}</span>
+									</div>
+								{/each}
+							</div>
 						</div>
 					{/if}
 
@@ -2158,6 +2234,135 @@
 		border-radius: 10px;
 		padding: 1rem 1.25rem;
 		margin-bottom: 1.5rem;
+	}
+
+	.training-summary {
+		background: rgba(59, 130, 246, 0.06);
+		border: 1px solid rgba(59, 130, 246, 0.2);
+		border-radius: 10px;
+		padding: 1.25rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.summary-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.summary-icon {
+		font-size: 1.25rem;
+	}
+
+	.summary-title {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: var(--text-primary, #e5e7eb);
+		margin: 0;
+	}
+
+	.summary-duration {
+		color: var(--text-secondary, #9ca3af);
+		font-size: 0.85rem;
+		margin-left: auto;
+	}
+
+	.summary-metrics {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.summary-metric-card {
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 8px;
+		padding: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.summary-metric-card.highlight {
+		border-color: rgba(16, 185, 129, 0.3);
+		background: rgba(16, 185, 129, 0.06);
+	}
+
+	.summary-metric-label {
+		color: var(--text-secondary, #9ca3af);
+		font-size: 0.78rem;
+	}
+
+	.summary-metric-value {
+		color: var(--text-primary, #e5e7eb);
+		font-size: 1.25rem;
+		font-weight: 600;
+		font-family: monospace;
+	}
+
+	.summary-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.summary-action-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.4rem 0.9rem;
+		border-radius: 6px;
+		font-size: 0.85rem;
+		font-weight: 500;
+		cursor: pointer;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		background: rgba(255, 255, 255, 0.04);
+		color: var(--text-primary, #e5e7eb);
+		text-decoration: none;
+		transition: all 0.2s;
+	}
+
+	.summary-action-btn:hover {
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.summary-action-btn.primary {
+		background: rgba(16, 185, 129, 0.15);
+		border-color: rgba(16, 185, 129, 0.3);
+		color: #10b981;
+	}
+
+	.summary-action-btn.primary:hover {
+		background: rgba(16, 185, 129, 0.25);
+	}
+
+	.registered-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.5rem 1.25rem;
+		border-radius: 8px;
+		font-size: 0.9rem;
+		font-weight: 500;
+		background: rgba(16, 185, 129, 0.1);
+		border: 1px solid rgba(16, 185, 129, 0.25);
+		color: #10b981;
+		text-decoration: none;
+		margin-left: 0.75rem;
+		transition: all 0.2s;
+	}
+
+	.registered-badge:hover {
+		background: rgba(16, 185, 129, 0.2);
+	}
+
+	.artifacts-toolbar-right {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
 	}
 
 	.tab-bar {

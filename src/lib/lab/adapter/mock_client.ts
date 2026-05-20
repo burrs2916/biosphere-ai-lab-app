@@ -553,6 +553,10 @@ export class MockClient implements LabClient {
     return [];
   }
 
+  async openArtifactDir(experimentId: string): Promise<void> {
+    console.log('[MockClient] openArtifactDir:', experimentId);
+  }
+
   async selectFile(filters?: FileFilter[]): Promise<string | null> {
     console.log('[MockClient] selectFile:', filters);
     return '/mock/path/to/file.csv';

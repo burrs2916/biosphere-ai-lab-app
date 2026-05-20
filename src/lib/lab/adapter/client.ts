@@ -100,6 +100,7 @@ export interface LabClient {
   listArtifacts(experimentId: string): Promise<ArtifactRef[]>;
   getArtifactContent(experimentId: string, artifactPath: string): Promise<number[]>;
   scanArtifacts(experimentId: string): Promise<ArtifactRef[]>;
+  openArtifactDir(experimentId: string): Promise<void>;
   listCheckpoints(experimentId: string): Promise<CheckpointInfo[]>;
   deleteCheckpoint(experimentId: string, checkpointName: string): Promise<void>;
   evaluateModel(experimentId: string, testDataPath: string): Promise<EvaluationResult>;

@@ -79,7 +79,7 @@ pub mod prelude {
     pub use crate::hardware::{HardwareDetector, HardwareInfo, GpuInfo, ConfigRecommender, TrainingRecommendation};
     pub use crate::remote::{RemoteBackend, RemoteConfig, RemoteAuth, ConnectionHandle, RemoteStatus};
     pub use crate::gateway::AppState;
-    pub use crate::infrastructure::{LogConfig, log};
+    pub use crate::infrastructure::{LogConfig, log, log_with_level, LogLevel};
     pub use crate::domain::CommandBus;
     pub use crate::domain::experiment::{Experiment, ExperimentId, ExperimentStatus, ExperimentSummary, ExperimentFilter, MetricsTimeline, ExperimentRepository};
     pub use crate::domain::training::{TrainingCommand, TrainingService};

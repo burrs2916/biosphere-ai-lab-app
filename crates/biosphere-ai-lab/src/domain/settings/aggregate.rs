@@ -39,7 +39,7 @@ pub struct TrainingSettings {
 impl Default for TrainingSettings {
     fn default() -> Self {
         Self {
-            default_compute_backend: "wgpu".to_string(),
+            default_compute_backend: "cpu".to_string(),
             default_engine: "burn".to_string(),
             max_concurrent_experiments: 1,
             auto_checkpoint: false,

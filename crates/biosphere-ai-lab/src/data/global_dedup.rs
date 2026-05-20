@@ -662,6 +662,7 @@ pub fn compute_text_similarity(text1: &str, text2: &str, shingle_size: usize) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     fn test_config() -> GlobalDedupConfig {
         GlobalDedupConfig {

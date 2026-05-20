@@ -157,16 +157,33 @@ pub async fn lab_create_experiment(
     config: crate::core::config::TrainingConfig,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
+    crate::infrastructure::log("TRAINING_CONFIG", "========== 开始创建实验 ==========", None);
+    crate::infrastructure::log("TRAINING_CONFIG", &format!("参数: name='{}', task_type='{}'", name, task_type), None);
+    crate::infrastructure::log("TRAINING_CONFIG", &format!("训练配置: data_path='{}', epochs={}, batch_size={}, learning_rate={}", 
+        config.data_path, config.epochs, config.batch_size, config.learning_rate), None);
+
+    crate::infrastructure::log("TRAINING_CONFIG", "步骤1: 验证实验名称...", None);
     if name.trim().is_empty() {
+        crate::infrastructure::log("TRAINING_CONFIG", "ERROR", Some("实验名称不能为空"));
         return Err("Experiment name cannot be empty".to_string());
     }
+    crate::infrastructure::log("TRAINING_CONFIG", "实验名称验证通过", None);
+
+    crate::infrastructure::log("TRAINING_CONFIG", "步骤2: 验证数据路径安全性...", None);
     if !config.data_path.is_empty() && (config.data_path.contains("..") || config.data_path.contains('~')) {
+        crate::infrastructure::log("TRAINING_CONFIG", "ERROR", Some(&format!("数据路径包含非法字符: '{}'", config.data_path)));
         return Err("Data path contains invalid traversal sequence".to_string());
     }
+    crate::infrastructure::log("TRAINING_CONFIG", "数据路径安全验证通过", None);
+
+    crate::infrastructure::log("TRAINING_CONFIG", "步骤3: 验证训练配置...", None);
     if let Err(e) = config.validate() {
+        crate::infrastructure::log("TRAINING_CONFIG", "ERROR", Some(&format!("训练配置验证失败: {}", e)));
         return Err(format!("Invalid training config: {}", e));
     }
+    crate::infrastructure::log("TRAINING_CONFIG", "训练配置验证通过", None);
 
+    crate::infrastructure::log("TRAINING_CONFIG", "步骤4: 解析任务类型...", None);
     let tt = match task_type.as_str() {
         "classification" => TaskType::Classification,
         "regression" => TaskType::Regression,
@@ -177,7 +194,9 @@ pub async fn lab_create_experiment(
         "nlp" => TaskType::Nlp,
         _ => TaskType::Custom,
     };
+    crate::infrastructure::log("TRAINING_CONFIG", &format!("任务类型解析完成: {:?}", tt), None);
 
+    crate::infrastructure::log("TRAINING_CONFIG", "步骤5: 发送创建实验命令...", None);
     let cmd = ExperimentCommand::CreateExperiment {
         name: name.clone(),
         task_type: tt,
@@ -185,11 +204,22 @@ pub async fn lab_create_experiment(
     };
 
     let result = state.command_bus.dispatch_experiment(cmd).await
-        .map_err(|e| format!("创建实验 '{}' 失败: {}。实验名称可能已存在", name, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_CONFIG", "ERROR", Some(&format!("创建实验 '{}' 失败: {}", name, e)));
+            format!("创建实验 '{}' 失败: {}。实验名称可能已存在", name, e)
+        })?;
+    crate::infrastructure::log("TRAINING_CONFIG", "创建实验命令执行成功", None);
 
     match result {
-        Some(id) => Ok(id.to_string()),
-        None => Err(format!("实验 '{}' 创建后无法获取ID，请刷新列表查看", name)),
+        Some(id) => {
+            crate::infrastructure::log("TRAINING_CONFIG", "========== 实验创建完成 ==========", None);
+            crate::infrastructure::log("TRAINING_CONFIG", &format!("实验ID: {}", id), None);
+            Ok(id.to_string())
+        },
+        None => {
+            crate::infrastructure::log("TRAINING_CONFIG", "ERROR", Some(&format!("实验 '{}' 创建后无法获取ID", name)));
+            Err(format!("实验 '{}' 创建后无法获取ID，请刷新列表查看", name))
+        },
     }
 }
 
@@ -202,17 +232,34 @@ pub async fn lab_list_experiments(
     group: Option<String>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<Vec<crate::domain::experiment::ExperimentSummary>, String> {
+    crate::infrastructure::log("EXP_QUERY", "查询实验列表", None);
+    crate::infrastructure::log("EXP_QUERY", &format!("filters: status={:?}, task_type={:?}, name_contains={:?}, group={:?}", 
+        status, task_type, name_contains, group), None);
+
     let mut filter = ExperimentFilter::default();
     if let Some(ref s) = status {
-        filter.status = Some(s.parse().map_err(|e: String| format!("无效的实验状态 '{}': {}", s, e))?);
+        filter.status = Some(s.parse().map_err(|e: String| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("无效状态: {}", e)));
+            format!("无效的实验状态 '{}': {}", s, e)
+        })?);
     }
     if let Some(ref tt) = task_type {
-        filter.task_type = Some(tt.parse().map_err(|_| format!("无效的任务类型 '{}'。支持: classification, regression, clustering, detection, segmentation, generation, nlp", tt))?);
+        filter.task_type = Some(tt.parse().map_err(|_| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("无效任务类型: '{}'", tt)));
+            format!("无效的任务类型 '{}'。支持: classification, regression, clustering, detection, segmentation, generation, nlp", tt)
+        })?);
     }
     filter.name_contains = name_contains;
     filter.group = group;
-    state.experiment_repo.list(&filter).await
-        .map_err(|e| format!("查询实验列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e))
+
+    let result = state.experiment_repo.list(&filter).await
+        .map_err(|e| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("查询失败: {}", e)));
+            format!("查询实验列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e)
+        })?;
+
+    crate::infrastructure::log("EXP_QUERY", &format!("查询完成: {} 条记录", result.len()), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -221,10 +268,21 @@ pub async fn lab_get_experiment_detail(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<crate::domain::experiment::aggregate::Experiment, String> {
+    crate::infrastructure::log("EXP_QUERY", &format!("加载实验详情: id='{}'", experiment_id), None);
+
     let id = ExperimentId::from_str(&experiment_id);
-    state.experiment_repo.load(&id).await
-        .map_err(|e| format!("加载实验 '{}' 失败: {}。实验可能已被删除或数据库异常", experiment_id, e))?
-        .ok_or_else(|| format!("实验 '{}' 不存在。可能已被删除或ID不正确", experiment_id))
+    let result = state.experiment_repo.load(&id).await
+        .map_err(|e| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("加载失败: {}", e)));
+            format!("加载实验 '{}' 失败: {}。实验可能已被删除或数据库异常", experiment_id, e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("实验不存在: '{}'", experiment_id)));
+            format!("实验 '{}' 不存在。可能已被删除或ID不正确", experiment_id)
+        })?;
+
+    crate::infrastructure::log("EXP_QUERY", &format!("加载成功: name='{}', status={:?}", result.name, result.status), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -234,9 +292,17 @@ pub async fn lab_query_metrics(
     metric_names: Vec<String>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<MetricsTimeline, String> {
+    crate::infrastructure::log("EXP_QUERY", &format!("查询指标: exp='{}', metrics={:?}", experiment_id, metric_names), None);
+
     let id = ExperimentId::from_str(&experiment_id);
-    state.experiment_repo.query_metrics(&id, &metric_names).await
-        .map_err(|e| format!("查询实验 '{}' 指标失败: {}。实验可能不存在或指标数据为空", experiment_id, e))
+    let result = state.experiment_repo.query_metrics(&id, &metric_names).await
+        .map_err(|e| {
+            crate::infrastructure::log("EXP_QUERY", "ERROR", Some(&format!("查询指标失败: {}", e)));
+            format!("查询实验 '{}' 指标失败: {}。实验可能不存在或指标数据为空", experiment_id, e)
+        })?;
+
+    crate::infrastructure::log("EXP_QUERY", &format!("查询完成: {} 个指标序列", result.series_names().len()), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -317,6 +383,9 @@ pub async fn lab_register_model(
     framework: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
+    crate::infrastructure::log("MODEL_OP", "========== 注册模型 ==========", None);
+    crate::infrastructure::log("MODEL_OP", &format!("name='{}', version='{}', framework='{}'", name, version, framework), None);
+
     let cmd = ModelCommand::RegisterModel {
         name: name.clone(),
         version: version.clone(),
@@ -324,8 +393,12 @@ pub async fn lab_register_model(
     };
 
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("注册模型 '{}' (版本: {}) 失败: {}。模型名称可能已存在", name, version, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("注册失败: {}", e)));
+            format!("注册模型 '{}' (版本: {}) 失败: {}。模型名称可能已存在", name, version, e)
+        })?;
 
+    crate::infrastructure::log("MODEL_OP", "========== 模型注册完成 ==========", None);
     Ok("registered".to_string())
 }
 
@@ -337,6 +410,9 @@ pub async fn lab_register_model_from_experiment(
     version: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("MODEL_OP", "========== 从实验注册模型 ==========", None);
+    crate::infrastructure::log("MODEL_OP", &format!("experiment='{}', name='{}', version='{}'", experiment_id, name, version), None);
+
     let cmd = ModelCommand::RegisterModelFromExperiment {
         experiment_id: crate::domain::experiment::aggregate::ExperimentId::from_str(&experiment_id),
         name: name.clone(),
@@ -344,8 +420,12 @@ pub async fn lab_register_model_from_experiment(
     };
 
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("从实验 '{}' 注册模型 '{}' 失败: {}。请确认实验已完成训练", experiment_id, name, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("注册失败: {}", e)));
+            format!("从实验 '{}' 注册模型 '{}' 失败: {}。请确认实验已完成训练", experiment_id, name, e)
+        })?;
 
+    crate::infrastructure::log("MODEL_OP", "========== 从实验注册模型完成 ==========", None);
     Ok(())
 }
 
@@ -355,6 +435,8 @@ pub async fn lab_list_model_registrations(
     status_filter: Option<String>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<Vec<crate::domain::model::aggregate::ModelRegistration>, String> {
+    crate::infrastructure::log("MODEL_QUERY", &format!("查询模型列表: status={:?}", status_filter), None);
+
     let status = match status_filter.as_deref() {
         Some("staging") => Some(ModelStatus::Staging),
         Some("production") => Some(ModelStatus::Production),
@@ -362,8 +444,14 @@ pub async fn lab_list_model_registrations(
         Some("none") => Some(ModelStatus::None),
         _ => None,
     };
-    state.model_repo.list(status).await
-        .map_err(|e| format!("查询模型列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e))
+    let result = state.model_repo.list(status).await
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_QUERY", "ERROR", Some(&format!("查询失败: {}", e)));
+            format!("查询模型列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e)
+        })?;
+
+    crate::infrastructure::log("MODEL_QUERY", &format!("查询完成: {} 条记录", result.len()), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -372,10 +460,21 @@ pub async fn lab_get_model_registration(
     model_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<crate::domain::model::aggregate::ModelRegistration, String> {
+    crate::infrastructure::log("MODEL_QUERY", &format!("加载模型详情: id='{}'", model_id), None);
+
     let id = ModelId::from_str(&model_id);
-    state.model_repo.load(&id).await
-        .map_err(|e| format!("加载模型 '{}' 失败: {}。模型可能已被删除或数据库异常", model_id, e))?
-        .ok_or_else(|| format!("模型 '{}' 不存在。可能已被删除或ID不正确", model_id))
+    let result = state.model_repo.load(&id).await
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_QUERY", "ERROR", Some(&format!("加载失败: {}", e)));
+            format!("加载模型 '{}' 失败: {}。模型可能已被删除或数据库异常", model_id, e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("MODEL_QUERY", "ERROR", Some(&format!("模型不存在: '{}'", model_id)));
+            format!("模型 '{}' 不存在。可能已被删除或ID不正确", model_id)
+        })?;
+
+    crate::infrastructure::log("MODEL_QUERY", &format!("加载成功: name='{}', status={:?}", result.name, result.status), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -384,11 +483,15 @@ pub async fn lab_promote_model_staging(
     model_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("MODEL_OP", &format!("提升模型到Staging: id='{}'", model_id), None);
     let cmd = ModelCommand::PromoteToStaging {
         model_id: ModelId::from_str(&model_id),
     };
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("将模型 '{}' 提升为 Staging 失败: {}。请确认模型状态正确", model_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("提升失败: {}", e)));
+            format!("将模型 '{}' 提升为 Staging 失败: {}。请确认模型状态正确", model_id, e)
+        })
 }
 
 #[cfg(feature = "tauri")]
@@ -397,11 +500,15 @@ pub async fn lab_promote_model_production(
     model_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("MODEL_OP", &format!("提升模型到Production: id='{}'", model_id), None);
     let cmd = ModelCommand::PromoteToProduction {
         model_id: ModelId::from_str(&model_id),
     };
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("将模型 '{}' 提升为 Production 失败: {}。请确认模型处于 Staging 状态", model_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("提升失败: {}", e)));
+            format!("将模型 '{}' 提升为 Production 失败: {}。请确认模型处于 Staging 状态", model_id, e)
+        })
 }
 
 #[cfg(feature = "tauri")]
@@ -410,11 +517,15 @@ pub async fn lab_archive_model(
     model_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("MODEL_OP", &format!("归档模型: id='{}'", model_id), None);
     let cmd = ModelCommand::ArchiveModel {
         model_id: ModelId::from_str(&model_id),
     };
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("归档模型 '{}' 失败: {}。请确认模型未被部署", model_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("归档失败: {}", e)));
+            format!("归档模型 '{}' 失败: {}。请确认模型未被部署", model_id, e)
+        })
 }
 
 #[cfg(feature = "tauri")]
@@ -423,11 +534,15 @@ pub async fn lab_demote_model_staging(
     model_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("MODEL_OP", &format!("降级模型到Staging: id='{}'", model_id), None);
     let cmd = ModelCommand::DemoteToStaging {
         model_id: ModelId::from_str(&model_id),
     };
     state.command_bus.dispatch_model(cmd).await
-        .map_err(|e| format!("将模型 '{}' 降级为 Staging 失败: {}。请确认模型处于 Production 状态", model_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("MODEL_OP", "ERROR", Some(&format!("降级失败: {}", e)));
+            format!("将模型 '{}' 降级为 Staging 失败: {}。请确认模型处于 Production 状态", model_id, e)
+        })
 }
 
 #[cfg(feature = "tauri")]
@@ -631,9 +746,33 @@ pub async fn lab_experiment_set_description(
 pub async fn lab_start_training(
     name: String,
     task_type: String,
-    mut config: crate::core::config::TrainingConfig,
+    config_value: serde_json::Value,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
+    crate::infrastructure::log("TRAINING_START", "========== 开始启动训练 ==========", None);
+    crate::infrastructure::log("TRAINING_START", &format!("参数: name='{}', task_type='{}'", name, task_type), None);
+    crate::infrastructure::log("TRAINING_START", &format!("原始配置JSON: {}", serde_json::to_string_pretty(&config_value).unwrap_or_default()), None);
+
+    crate::infrastructure::log("TRAINING_START", "步骤1: 反序列化训练配置...", None);
+    let mut config: crate::core::config::TrainingConfig = match serde_json::from_value::<crate::core::config::TrainingConfig>(config_value) {
+        Ok(c) => {
+            crate::infrastructure::log("TRAINING_START", "配置反序列化成功", None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - engine_id='{}', model_id='{}'", c.engine_id, c.model_id), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - data_path='{}', data_format={:?}", c.data_path, c.data_format), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - dataset_id={:?}, split_name={:?}", c.dataset_id, c.split_name), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - epochs={}, batch_size={}, learning_rate={}", c.epochs, c.batch_size, c.learning_rate), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - compute_backend={:?}, validation_split={}, test_split={}", c.compute_backend, c.validation_split, c.test_split), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - target_columns={:?}, feature_columns={:?}", c.target_columns, c.feature_columns), None);
+            crate::infrastructure::log("TRAINING_START", &format!("  - data_source_id='{}', checkpoint_interval={:?}", c.data_source_id, c.checkpoint_interval), None);
+            c
+        }
+        Err(e) => {
+            crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("配置反序列化失败: {}", e)));
+            return Err(format!("训练配置反序列化失败: {}。请检查配置字段是否完整和类型是否正确", e));
+        }
+    };
+
+    crate::infrastructure::log("TRAINING_START", "步骤2: 解析任务类型...", None);
     let tt = match task_type.as_str() {
         "classification" => TaskType::Classification,
         "regression" => TaskType::Regression,
@@ -644,37 +783,51 @@ pub async fn lab_start_training(
         "nlp" => TaskType::Nlp,
         _ => TaskType::Custom,
     };
+    crate::infrastructure::log("TRAINING_START", &format!("任务类型: {:?}", tt), None);
 
+    crate::infrastructure::log("TRAINING_START", "步骤3: 验证数据路径安全性...", None);
     if !config.data_path.is_empty() && (config.data_path.contains("..") || config.data_path.contains('~')) {
+        crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("数据路径包含非法字符: '{}'", config.data_path)));
         return Err("数据路径包含无效的遍历序列，请使用绝对路径".to_string());
     }
+    crate::infrastructure::log("TRAINING_START", "数据路径安全验证通过", None);
 
+    crate::infrastructure::log("TRAINING_START", "步骤4: 验证训练配置...", None);
     if let Err(e) = config.validate() {
+        crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("训练配置验证失败: {}", e)));
         return Err(format!("训练配置无效: {}。请检查所有必填字段是否完整", e));
     }
+    crate::infrastructure::log("TRAINING_START", "训练配置验证通过", None);
 
+    crate::infrastructure::log("TRAINING_START", "步骤5: 应用用户设置...", None);
     if let Ok(settings) = state.settings_repo.load_all() {
         if config.engine_id.is_empty() || config.engine_id == "burn" {
             let default_engine = settings.training.default_engine.clone();
             if !default_engine.is_empty() {
+                crate::infrastructure::log("TRAINING_START", &format!("应用默认引擎: '{}' -> '{}'", config.engine_id, default_engine), None);
                 config.engine_id = default_engine;
             }
         }
         if config.compute_backend == crate::types::ComputeBackend::Cpu {
             let default_backend = settings.training.default_compute_backend.clone();
-            match default_backend.as_str() {
-                "cuda" => config.compute_backend = crate::types::ComputeBackend::Cuda,
-                "wgpu" => config.compute_backend = crate::types::ComputeBackend::Wgpu,
-                "metal" => config.compute_backend = crate::types::ComputeBackend::Metal,
-                "rocm" => config.compute_backend = crate::types::ComputeBackend::Rocm,
-                _ => {}
-            }
+            crate::infrastructure::log("TRAINING_START", &format!("用户选择CPU后端, 设置默认='{}' (不覆盖用户选择)", default_backend), None);
         }
         if settings.training.auto_checkpoint && config.checkpoint_interval.is_none() {
+            crate::infrastructure::log("TRAINING_START", &format!("启用自动检查点: interval={}", settings.training.checkpoint_interval), None);
             config.checkpoint_interval = Some(settings.training.checkpoint_interval);
+        }
+
+        let custom_data_dir = settings.storage.data_directory.clone();
+        if !custom_data_dir.is_empty() && custom_data_dir != "./data" {
+            let custom_artifact_dir = std::path::PathBuf::from(&custom_data_dir).join("artifacts");
+            if custom_artifact_dir.exists() {
+                std::env::set_var("BIOSPHERE_ARTIFACT_DIR", &custom_artifact_dir);
+                crate::infrastructure::log("TRAINING_START", &format!("应用自定义产物目录: {:?}", custom_artifact_dir), None);
+            }
         }
     }
 
+    crate::infrastructure::log("TRAINING_START", "步骤6: 检查预处理数据...", None);
     if !config.data_path.is_empty() {
         let original = std::path::Path::new(&config.data_path);
         let stem = original.file_stem().and_then(|s| s.to_str()).unwrap_or("data");
@@ -682,10 +835,17 @@ pub async fn lab_start_training(
         let parent = original.parent().unwrap_or(std::path::Path::new("."));
         let preprocessed = parent.join(format!("{}_preprocessed.{}", stem, ext));
         if preprocessed.exists() {
+            crate::infrastructure::log("TRAINING_START", &format!("发现预处理数据，使用: '{}'", preprocessed.display()), None);
             config.data_path = preprocessed.to_string_lossy().to_string();
+        } else {
+            crate::infrastructure::log("TRAINING_START", &format!("未发现预处理数据，使用原始数据: '{}'", config.data_path), None);
         }
     }
 
+    crate::infrastructure::log("TRAINING_START", "步骤7: 创建实验记录...", None);
+    crate::infrastructure::log("TRAINING_START", &format!("最终配置: engine='{}', model='{}', data='{}', epochs={}, batch_size={}, lr={}", 
+        config.engine_id, config.model_id, config.data_path, config.epochs, config.batch_size, config.learning_rate), None);
+    
     let create_cmd = ExperimentCommand::CreateExperiment {
         name: name.clone(),
         task_type: tt,
@@ -693,16 +853,31 @@ pub async fn lab_start_training(
     };
 
     let result = state.command_bus.dispatch_experiment(create_cmd).await
-        .map_err(|e| format!("创建训练实验 '{}' 失败: {}。实验名称可能已存在", name, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("创建实验 '{}' 失败: {}", name, e)));
+            format!("创建训练实验 '{}' 失败: {}。实验名称可能已存在", name, e)
+        })?;
 
     let experiment_id = match result {
-        Some(id) => id,
-        None => return Err(format!("训练实验 '{}' 创建后无法获取ID，请刷新列表查看", name)),
+        Some(id) => {
+            crate::infrastructure::log("TRAINING_START", &format!("实验创建成功: id={}", id), None);
+            id
+        },
+        None => {
+            crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("实验 '{}' 创建后无法获取ID", name)));
+            return Err(format!("训练实验 '{}' 创建后无法获取ID，请刷新列表查看", name));
+        },
     };
 
+    crate::infrastructure::log("TRAINING_START", "步骤8: 启动训练服务...", None);
     state.training_service.start_training(experiment_id.clone(), config).await
-        .map_err(|e| format!("启动训练 '{}' 失败: {}。请检查数据路径和配置是否正确", experiment_id, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_START", "ERROR", Some(&format!("启动训练 '{}' 失败: {}", experiment_id, e)));
+            format!("启动训练 '{}' 失败: {}。请检查数据路径和配置是否正确", experiment_id, e)
+        })?;
 
+    crate::infrastructure::log("TRAINING_START", "========== 训练启动成功 ==========", None);
+    crate::infrastructure::log("TRAINING_START", &format!("实验ID: {}", experiment_id), None);
     Ok(experiment_id.to_string())
 }
 
@@ -712,9 +887,18 @@ pub async fn lab_stop_training(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 停止训练 ==========", None);
+    crate::infrastructure::log("TRAINING_CONTROL", &format!("experiment_id='{}'", experiment_id), None);
+
     let id = ExperimentId::from_str(&experiment_id);
     state.training_service.stop_training(&id).await
-        .map_err(|e| format!("停止训练 '{}' 失败: {}。训练可能已经结束", experiment_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_CONTROL", "ERROR", Some(&format!("停止训练失败: {}", e)));
+            format!("停止训练 '{}' 失败: {}。训练可能已经结束", experiment_id, e)
+        })?;
+
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 停止训练完成 ==========", None);
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -723,9 +907,18 @@ pub async fn lab_pause_training(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 暂停训练 ==========", None);
+    crate::infrastructure::log("TRAINING_CONTROL", &format!("experiment_id='{}'", experiment_id), None);
+
     let id = ExperimentId::from_str(&experiment_id);
     state.training_service.pause_training(&id).await
-        .map_err(|e| format!("暂停训练 '{}' 失败: {}。训练可能不在运行中", experiment_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_CONTROL", "ERROR", Some(&format!("暂停训练失败: {}", e)));
+            format!("暂停训练 '{}' 失败: {}。训练可能不在运行中", experiment_id, e)
+        })?;
+
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 暂停训练完成 ==========", None);
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -734,9 +927,18 @@ pub async fn lab_resume_training(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 恢复训练 ==========", None);
+    crate::infrastructure::log("TRAINING_CONTROL", &format!("experiment_id='{}'", experiment_id), None);
+
     let id = ExperimentId::from_str(&experiment_id);
     state.training_service.resume_training(&id).await
-        .map_err(|e| format!("恢复训练 '{}' 失败: {}。训练可能不在暂停状态", experiment_id, e))
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_CONTROL", "ERROR", Some(&format!("恢复训练失败: {}", e)));
+            format!("恢复训练 '{}' 失败: {}。训练可能不在暂停状态", experiment_id, e)
+        })?;
+
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 恢复训练完成 ==========", None);
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -746,9 +948,18 @@ pub async fn lab_resume_from_checkpoint(
     checkpoint_epoch: usize,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 从检查点恢复训练 ==========", None);
+    crate::infrastructure::log("TRAINING_CONTROL", &format!("experiment_id='{}', checkpoint_epoch={}", experiment_id, checkpoint_epoch), None);
+
     let id = ExperimentId::from_str(&experiment_id);
     state.training_service.resume_from_checkpoint(&id, checkpoint_epoch).await
-        .map_err(|e| format!("从检查点恢复训练 '{}' (epoch {}) 失败: {}。检查点可能不存在", experiment_id, checkpoint_epoch, e))
+        .map_err(|e| {
+            crate::infrastructure::log("TRAINING_CONTROL", "ERROR", Some(&format!("从检查点恢复失败: {}", e)));
+            format!("从检查点恢复训练 '{}' (epoch {}) 失败: {}。检查点可能不存在", experiment_id, checkpoint_epoch, e)
+        })?;
+
+    crate::infrastructure::log("TRAINING_CONTROL", "========== 从检查点恢复完成 ==========", None);
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -767,7 +978,20 @@ pub async fn lab_save_settings(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     state.settings_repo.save_all(&settings)
-        .map_err(|e| format!("保存设置失败: {}。请检查磁盘空间和写入权限", e))
+        .map_err(|e| format!("保存设置失败: {}。请检查磁盘空间和写入权限", e))?;
+
+    let data_dir = settings.storage.data_directory.clone();
+    if !data_dir.is_empty() && data_dir != "./data" {
+        let artifact_path = std::path::PathBuf::from(&data_dir).join("artifacts");
+        if let Err(e) = std::fs::create_dir_all(&artifact_path) {
+            crate::infrastructure::log("SETTINGS", "WARN", Some(&format!("创建产物目录失败: {:?}, {}", artifact_path, e)));
+        } else {
+            std::env::set_var("BIOSPHERE_ARTIFACT_DIR", &artifact_path);
+            crate::infrastructure::log("SETTINGS", &format!("产物目录已更新: {:?}", artifact_path), None);
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -802,6 +1026,87 @@ pub async fn lab_run_inference(
     let artifact_dir = crate::core::config::get_artifact_dir(&experiment_id);
 
     run_inference_dispatch(&experiment.config, &artifact_dir, &input_data)
+}
+
+#[cfg(feature = "tauri")]
+#[tauri::command]
+pub async fn lab_write_log(
+    level: String,
+    category: String,
+    message: String,
+    data: Option<String>,
+) -> Result<(), String> {
+    let log_level = crate::infrastructure::logging::LogLevel::from_str(&level);
+    crate::infrastructure::log_with_level(log_level, &category, &message, data.as_deref());
+    Ok(())
+}
+
+#[cfg(feature = "tauri")]
+#[tauri::command]
+pub async fn lab_read_log_file(
+    level: String,
+    date: Option<String>,
+    lines: Option<usize>,
+) -> Result<String, String> {
+    let app_dir = dirs::data_dir()
+        .ok_or_else(|| "Cannot get app data directory".to_string())?
+        .join("biosphere-ai-lab");
+
+    let log_dir = app_dir.join("logs");
+    if !log_dir.exists() {
+        return Ok(String::new());
+    }
+
+    let date_str = date.unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
+    let level_suffix = level.to_lowercase();
+    let file_name = format!("lab-{}-{}.log", date_str, level_suffix);
+    let log_path = log_dir.join(&file_name);
+
+    if !log_path.exists() {
+        return Ok(String::new());
+    }
+
+    let content = std::fs::read_to_string(&log_path)
+        .map_err(|e| format!("Failed to read log file: {}", e))?;
+
+    let max_lines = lines.unwrap_or(500);
+    let all_lines: Vec<&str> = content.lines().collect();
+    let start = if all_lines.len() > max_lines {
+        all_lines.len() - max_lines
+    } else {
+        0
+    };
+    Ok(all_lines[start..].join("\n"))
+}
+
+#[cfg(feature = "tauri")]
+#[tauri::command]
+pub async fn lab_list_log_files() -> Result<Vec<String>, String> {
+    let app_dir = dirs::data_dir()
+        .ok_or_else(|| "Cannot get app data directory".to_string())?
+        .join("biosphere-ai-lab");
+
+    let log_dir = app_dir.join("logs");
+    if !log_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut files = Vec::new();
+    let entries = std::fs::read_dir(&log_dir)
+        .map_err(|e| format!("Failed to read log directory: {}", e))?;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().map_or(false, |e| e == "log") {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                files.push(name.to_string());
+            }
+        }
+    }
+
+    files.sort();
+    files.reverse();
+    Ok(files)
 }
 
 #[cfg(feature = "tauri")]
@@ -2207,10 +2512,17 @@ pub async fn lab_register_dataset(
     path: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<crate::domain::dataset::aggregate::Dataset, String> {
+    crate::infrastructure::log("DATASET_REGISTRATION", "========== 开始数据集注册 ==========", None);
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("参数: name='{}', format='{}', path='{}'", name, format, path), None);
+
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤1: 验证路径安全性...", None);
     if path.contains("..") || path.contains('~') {
+        crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("路径安全验证失败: path='{}' 包含非法字符", path)));
         return Err("Path contains invalid traversal sequence".to_string());
     }
+    crate::infrastructure::log("DATASET_REGISTRATION", "路径安全验证通过", None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤2: 解析数据格式...", None);
     let data_format = match format.as_str() {
         "csv" => crate::types::DataFormat::Csv,
         "json" => crate::types::DataFormat::Json,
@@ -2224,16 +2536,28 @@ pub async fn lab_register_dataset(
         "database" => crate::types::DataFormat::Database,
         _ => crate::types::DataFormat::Csv,
     };
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("数据格式解析完成: {:?}", data_format), None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤3: 读取文件内容并计算摘要...", None);
     let file_content = std::fs::read(&path)
-        .map_err(|e| format!("无法读取文件 '{}': {}。请检查文件路径是否正确、文件是否存在、是否有读取权限", path, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("无法读取文件 '{}': {}", path, e)));
+            format!("无法读取文件 '{}': {}。请检查文件路径是否正确、文件是否存在、是否有读取权限", path, e)
+        })?;
     let digest = Dataset::compute_digest(&file_content);
     let memory_size_mb = file_content.len() as f64 / (1024.0 * 1024.0);
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("文件读取成功: size={} bytes, size_mb={:.2}MB, digest={}", file_content.len(), memory_size_mb, &digest[..16.min(digest.len())]), None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤4: 查找数据源加载器...", None);
     let source = state.data_source_registry.find_by_id_str(&format)
         .await
-        .ok_or_else(|| format!("不支持的数据格式 '{}'。支持的格式: csv, json, parquet, excel, text, image, binary, tfrecord, huggingface, database", format))?;
+        .ok_or_else(|| {
+            crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("不支持的数据格式 '{}'", format)));
+            format!("不支持的数据格式 '{}'。支持的格式: csv, json, parquet, excel, text, image, binary, tfrecord, huggingface, database", format)
+        })?;
+    crate::infrastructure::log("DATASET_REGISTRATION", "数据源加载器找到", None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤5: 加载数据集元信息...", None);
     let config = crate::core::config::DataLoadConfig {
         path: path.clone(),
         format: data_format,
@@ -2245,24 +2569,38 @@ pub async fn lab_register_dataset(
     };
 
     let info = source.load(&config).await
-        .map_err(|e| format!("加载数据集文件 '{}' 失败: {}。请检查文件格式是否正确、文件是否损坏", path, e))?;
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("加载数据集文件 '{}' 失败: {}", path, e)));
+            format!("加载数据集文件 '{}' 失败: {}。请检查文件格式是否正确、文件是否损坏", path, e)
+        })?;
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("数据集元信息加载成功: rows={}, columns={}", info.rows, info.columns), None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤6: 计算列配置信息...", None);
     let column_profiles = if format == "csv" {
+        crate::infrastructure::log("DATASET_REGISTRATION", "使用CSV专用解析器计算列配置...", None);
         let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("无法读取CSV文件 '{}': {}。请确认文件编码为UTF-8", path, e))?;
+            .map_err(|e| {
+                crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("无法读取CSV文件 '{}': {}", path, e)));
+                format!("无法读取CSV文件 '{}': {}。请确认文件编码为UTF-8", path, e)
+            })?;
         let mut reader = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_reader(content.as_bytes());
         let headers = reader.headers()
-            .map_err(|e| format!("CSV表头解析错误 (文件: {}): {}。请检查第一行是否为有效的列名", path, e))?
+            .map_err(|e| {
+                crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("CSV表头解析错误: {}", e)));
+                format!("CSV表头解析错误 (文件: {}): {}。请检查第一行是否为有效的列名", path, e)
+            })?
             .clone();
         let header_vec: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
         let records: Vec<csv::StringRecord> = reader.records()
             .filter_map(|r| r.ok())
             .take(10000)
             .collect();
+        crate::infrastructure::log("DATASET_REGISTRATION", &format!("CSV解析完成: headers={:?}, sample_records={}", header_vec, records.len()), None);
         compute_column_profiles(&header_vec, &records)
     } else {
+        crate::infrastructure::log("DATASET_REGISTRATION", "使用通用列配置生成...", None);
         info.column_names.iter().zip(info.column_types.iter()).map(|(name, ct)| {
             ColumnProfile {
                 name: name.clone(),
@@ -2279,22 +2617,39 @@ pub async fn lab_register_dataset(
             }
         }).collect()
     };
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("列配置计算完成: {} 列", column_profiles.len()), None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤7: 执行数据集注册命令...", None);
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("命令参数: name='{}', format={:?}, rows={}, columns={}, memory_size_mb={:.2}", name, data_format, info.rows, info.columns, memory_size_mb), None);
+    
     state.dataset_handler.handle(DatasetCommand::RegisterDataset {
-        name,
+        name: name.clone(),
         format: data_format,
-        path,
+        path: path.clone(),
         digest: digest.clone(),
         rows: info.rows,
         columns: info.columns,
-        column_profiles,
+        column_profiles: column_profiles.clone(),
         memory_size_mb,
-    }).await.map_err(|e| format!("注册数据集失败: {}。数据集可能已存在（重复注册）或数据库异常", e))?;
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("注册数据集失败: {}", e)));
+        format!("注册数据集失败: {}。数据集可能已存在（重复注册）或数据库异常", e)
+    })?;
+    crate::infrastructure::log("DATASET_REGISTRATION", "数据集注册命令执行成功", None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤8: 查询已注册的数据集...", None);
     let saved_dataset = state.dataset_repo.find_by_digest(&digest).await
-        .map_err(|e| format!("查询已注册数据集失败: {}。数据集已注册但无法检索，请刷新列表", e))?
-        .ok_or_else(|| "数据集已注册但无法检索到记录，请刷新数据集列表".to_string())?;
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some(&format!("查询已注册数据集失败: {}", e)));
+            format!("查询已注册数据集失败: {}。数据集已注册但无法检索，请刷新列表", e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("DATASET_REGISTRATION", "ERROR", Some("数据集已注册但无法检索到记录"));
+            "数据集已注册但无法检索到记录，请刷新数据集列表".to_string()
+        })?;
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("数据集查询成功: id={}, name='{}'", saved_dataset.id, saved_dataset.name), None);
 
+    crate::infrastructure::log("DATASET_REGISTRATION", "步骤9: 发送数据集注册事件...", None);
     let ds = &saved_dataset;
     state.event_bus.emit(LabEvent::DatasetRegistered {
         dataset_id: ds.id.to_string(),
@@ -2303,6 +2658,11 @@ pub async fn lab_register_dataset(
         rows: ds.rows,
         columns: ds.columns,
     });
+    crate::infrastructure::log("DATASET_REGISTRATION", "数据集注册事件已发送", None);
+
+    crate::infrastructure::log("DATASET_REGISTRATION", "========== 数据集注册完成 ==========", None);
+    crate::infrastructure::log("DATASET_REGISTRATION", &format!("最终结果: id={}, name='{}', format={}, rows={}, columns={}, size_mb={:.2}", 
+        saved_dataset.id, saved_dataset.name, format, saved_dataset.rows, saved_dataset.columns, memory_size_mb), None);
 
     Ok(saved_dataset)
 }
@@ -2315,6 +2675,10 @@ pub async fn lab_list_datasets(
     name_contains: Option<String>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<Vec<crate::domain::dataset::aggregate::DatasetSummary>, String> {
+    crate::infrastructure::log("DATASET_QUERY", "查询数据集列表", None);
+    crate::infrastructure::log("DATASET_QUERY", &format!("filters: status={:?}, format={:?}, name_contains={:?}", 
+        status_filter, format_filter, name_contains), None);
+
     let filter = DatasetFilter {
         status: status_filter.and_then(|s| s.parse().ok()),
         format: format_filter.and_then(|f| match f.as_str() {
@@ -2334,8 +2698,14 @@ pub async fn lab_list_datasets(
         ..DatasetFilter::default()
     };
 
-    state.dataset_repo.list(&filter).await
-        .map_err(|e| format!("查询数据集列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e))
+    let result = state.dataset_repo.list(&filter).await
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_QUERY", "ERROR", Some(&format!("查询失败: {}", e)));
+            format!("查询数据集列表失败: {}。请稍后重试，如持续失败请检查数据库状态", e)
+        })?;
+
+    crate::infrastructure::log("DATASET_QUERY", &format!("查询完成: {} 条记录", result.len()), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -2344,10 +2714,21 @@ pub async fn lab_get_dataset(
     dataset_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<crate::domain::dataset::aggregate::Dataset, String> {
+    crate::infrastructure::log("DATASET_QUERY", &format!("加载数据集详情: id='{}'", dataset_id), None);
+
     let id = DatasetId::from_str(&dataset_id);
-    state.dataset_repo.load(&id).await
-        .map_err(|e| format!("加载数据集 '{}' 失败: {}。数据集可能已被删除或数据库异常", dataset_id, e))?
-        .ok_or_else(|| format!("数据集 '{}' 不存在。可能已被删除或ID不正确", dataset_id))
+    let result = state.dataset_repo.load(&id).await
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_QUERY", "ERROR", Some(&format!("加载失败: {}", e)));
+            format!("加载数据集 '{}' 失败: {}。数据集可能已被删除或数据库异常", dataset_id, e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("DATASET_QUERY", "ERROR", Some(&format!("数据集不存在: '{}'", dataset_id)));
+            format!("数据集 '{}' 不存在。可能已被删除或ID不正确", dataset_id)
+        })?;
+
+    crate::infrastructure::log("DATASET_QUERY", &format!("加载成功: name='{}', rows={}, cols={}", result.name, result.rows, result.columns), None);
+    Ok(result)
 }
 
 #[cfg(feature = "tauri")]
@@ -2356,14 +2737,21 @@ pub async fn lab_delete_dataset(
     dataset_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", "========== 删除数据集 ==========", None);
+    crate::infrastructure::log("DATASET_OP", &format!("dataset_id='{}'", dataset_id), None);
+
     state.dataset_handler.handle(DatasetCommand::DeleteDataset {
         dataset_id: DatasetId::from_str(&dataset_id),
-    }).await.map_err(|e| format!("删除数据集 '{}' 失败: {}。请确认数据集未被实验引用", dataset_id, e))?;
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("删除失败: {}", e)));
+        format!("删除数据集 '{}' 失败: {}。请确认数据集未被实验引用", dataset_id, e)
+    })?;
 
     state.event_bus.emit(LabEvent::DatasetDeleted {
         dataset_id: dataset_id.clone(),
     });
 
+    crate::infrastructure::log("DATASET_OP", "========== 删除数据集完成 ==========", None);
     Ok(())
 }
 
@@ -2373,14 +2761,21 @@ pub async fn lab_archive_dataset(
     dataset_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", "========== 归档数据集 ==========", None);
+    crate::infrastructure::log("DATASET_OP", &format!("dataset_id='{}'", dataset_id), None);
+
     state.dataset_handler.handle(DatasetCommand::ArchiveDataset {
         dataset_id: DatasetId::from_str(&dataset_id),
-    }).await.map_err(|e| format!("归档数据集 '{}' 失败: {}。请确认数据集状态为活跃", dataset_id, e))?;
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("归档失败: {}", e)));
+        format!("归档数据集 '{}' 失败: {}。请确认数据集状态为活跃", dataset_id, e)
+    })?;
 
     state.event_bus.emit(LabEvent::DatasetArchived {
         dataset_id: dataset_id.clone(),
     });
 
+    crate::infrastructure::log("DATASET_OP", "========== 归档数据集完成 ==========", None);
     Ok(())
 }
 
@@ -2390,14 +2785,21 @@ pub async fn lab_restore_dataset(
     dataset_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", "========== 恢复数据集 ==========", None);
+    crate::infrastructure::log("DATASET_OP", &format!("dataset_id='{}'", dataset_id), None);
+
     state.dataset_handler.handle(DatasetCommand::RestoreDataset {
         dataset_id: DatasetId::from_str(&dataset_id),
-    }).await.map_err(|e| format!("恢复数据集 '{}' 失败: {}。请确认数据集状态为已归档", dataset_id, e))?;
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("恢复失败: {}", e)));
+        format!("恢复数据集 '{}' 失败: {}。请确认数据集状态为已归档", dataset_id, e)
+    })?;
 
     state.event_bus.emit(LabEvent::DatasetRestored {
         dataset_id: dataset_id.clone(),
     });
 
+    crate::infrastructure::log("DATASET_OP", "========== 恢复数据集完成 ==========", None);
     Ok(())
 }
 
@@ -2408,10 +2810,14 @@ pub async fn lab_dataset_add_tag(
     tag: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", &format!("添加标签: dataset='{}', tag='{}'", dataset_id, tag), None);
     state.dataset_handler.handle(DatasetCommand::AddTag {
         dataset_id: DatasetId::from_str(&dataset_id),
         tag,
-    }).await.map_err(|e| format!("为数据集 '{}' 添加标签失败: {}。请确认数据集存在", dataset_id, e))
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("添加标签失败: {}", e)));
+        format!("为数据集 '{}' 添加标签失败: {}。请确认数据集存在", dataset_id, e)
+    })
 }
 
 #[cfg(feature = "tauri")]
@@ -2421,10 +2827,14 @@ pub async fn lab_dataset_remove_tag(
     tag: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", &format!("移除标签: dataset='{}', tag='{}'", dataset_id, tag), None);
     state.dataset_handler.handle(DatasetCommand::RemoveTag {
         dataset_id: DatasetId::from_str(&dataset_id),
         tag,
-    }).await.map_err(|e| format!("为数据集 '{}' 移除标签失败: {}。请确认标签存在", dataset_id, e))
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("移除标签失败: {}", e)));
+        format!("为数据集 '{}' 移除标签失败: {}。请确认标签存在", dataset_id, e)
+    })
 }
 
 #[cfg(feature = "tauri")]
@@ -2434,10 +2844,14 @@ pub async fn lab_dataset_set_description(
     description: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", &format!("设置描述: dataset='{}', len={}", dataset_id, description.len()), None);
     state.dataset_handler.handle(DatasetCommand::SetDescription {
         dataset_id: DatasetId::from_str(&dataset_id),
         description,
-    }).await.map_err(|e| format!("为数据集 '{}' 设置描述失败: {}。请确认数据集存在", dataset_id, e))
+    }).await.map_err(|e| {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("设置描述失败: {}", e)));
+        format!("为数据集 '{}' 设置描述失败: {}。请确认数据集存在", dataset_id, e)
+    })
 }
 
 #[cfg(feature = "tauri")]
@@ -2447,25 +2861,45 @@ pub async fn lab_dataset_link_experiment(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    crate::infrastructure::log("DATASET_OP", "========== 关联数据集到实验 ==========", None);
+    crate::infrastructure::log("DATASET_OP", &format!("dataset_id='{}', experiment_id='{}'", dataset_id, experiment_id), None);
+
     let ds_id = DatasetId::from_str(&dataset_id);
     let dataset = state.dataset_repo.load(&ds_id).await
-        .map_err(|e| format!("加载数据集 '{}' 失败: {}。数据集可能已被删除", dataset_id, e))?
-        .ok_or_else(|| format!("数据集 '{}' 不存在，无法关联实验", dataset_id))?;
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("加载数据集失败: {}", e)));
+            format!("加载数据集 '{}' 失败: {}。数据集可能已被删除", dataset_id, e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("数据集不存在: '{}'", dataset_id)));
+            format!("数据集 '{}' 不存在，无法关联实验", dataset_id)
+        })?;
+    crate::infrastructure::log("DATASET_OP", &format!("数据集加载成功: name='{}', version={}", dataset.name, dataset.version), None);
 
     let exp_id = ExperimentId::from_str(&experiment_id);
     let mut experiment = state.experiment_repo.load(&exp_id).await
-        .map_err(|e| format!("加载实验 '{}' 失败: {}。实验可能已被删除", experiment_id, e))?
-        .ok_or_else(|| format!("实验 '{}' 不存在，无法关联数据集", experiment_id))?;
+        .map_err(|e| {
+            crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("加载实验失败: {}", e)));
+            format!("加载实验 '{}' 失败: {}。实验可能已被删除", experiment_id, e)
+        })?
+        .ok_or_else(|| {
+            crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("实验不存在: '{}'", experiment_id)));
+            format!("实验 '{}' 不存在，无法关联数据集", experiment_id)
+        })?;
+    crate::infrastructure::log("DATASET_OP", &format!("实验加载成功: name='{}', status={:?}", experiment.name, experiment.status), None);
 
     experiment.link_dataset(dataset_id.clone(), dataset.version.to_string());
     if let Err(e) = state.experiment_repo.save(&experiment).await {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("保存实验关联失败: {}", e)));
         return Err(format!("保存实验关联失败: {}。请稍后重试", e));
     }
+    crate::infrastructure::log("DATASET_OP", "实验关联保存成功", None);
 
     if let Err(e) = state.dataset_handler.handle(DatasetCommand::LinkExperiment {
         dataset_id: ds_id,
         experiment_id,
     }).await {
+        crate::infrastructure::log("DATASET_OP", "ERROR", Some(&format!("关联失败，回滚: {}", e)));
         if let Ok(Some(mut exp)) = state.experiment_repo.load(&exp_id).await.map(|o| o) {
             exp.dataset_id = None;
             exp.dataset_version = None;
@@ -2474,6 +2908,7 @@ pub async fn lab_dataset_link_experiment(
         return Err(format!("关联数据集到实验失败: {}。请确认数据集和实验都存在", e));
     }
 
+    crate::infrastructure::log("DATASET_OP", "========== 关联数据集到实验完成 ==========", None);
     Ok(())
 }
 
@@ -4739,17 +5174,11 @@ pub async fn lab_delete_experiment(
     experiment_id: String,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
-    let id = ExperimentId::from_str(&experiment_id);
-    let experiment = state.experiment_repo.load(&id)
-        .await
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Experiment not found".to_string())?;
-
-    if experiment.status == crate::domain::experiment::aggregate::ExperimentStatus::Running {
-        return Err("Cannot delete a running experiment, please stop it first".to_string());
-    }
-
-    state.experiment_repo.delete(&id).await.map_err(|e| e.to_string())
+    let cmd = ExperimentCommand::DeleteExperiment {
+        experiment_id: ExperimentId::from_str(&experiment_id),
+    };
+    state.command_bus.dispatch_experiment(cmd).await.map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[cfg(feature = "tauri")]
@@ -4814,19 +5243,11 @@ pub async fn lab_batch_delete_experiments(
     let mut deleted = 0usize;
     let mut errors = Vec::new();
     for eid in &experiment_ids {
-        let id = ExperimentId::from_str(eid);
-        if let Ok(Some(exp)) = state.experiment_repo.load(&id).await {
-            if exp.status == crate::domain::experiment::aggregate::ExperimentStatus::Running {
-                errors.push(format!("{}: running, skipped", eid));
-                continue;
-            }
-            if exp.status == crate::domain::experiment::aggregate::ExperimentStatus::Paused {
-                errors.push(format!("{}: paused, skipped", eid));
-                continue;
-            }
-        }
-        match state.experiment_repo.delete(&id).await {
-            Ok(()) => deleted += 1,
+        let cmd = ExperimentCommand::DeleteExperiment {
+            experiment_id: ExperimentId::from_str(eid),
+        };
+        match state.command_bus.dispatch_experiment(cmd).await {
+            Ok(_) => deleted += 1,
             Err(e) => errors.push(format!("{}: {}", eid, e)),
         }
     }

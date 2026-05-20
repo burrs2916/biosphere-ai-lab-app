@@ -85,6 +85,7 @@ impl ExperimentRepository for InMemoryExperimentRepository {
                 status: e.status,
                 task_type: e.task_type,
                 tags: e.tags.clone(),
+                model_id: e.model_id.as_ref().map(|m| m.to_string()),
                 dataset_id: e.dataset_id.clone(),
                 dataset_version: e.dataset_version.clone(),
                 group: e.group.clone(),
